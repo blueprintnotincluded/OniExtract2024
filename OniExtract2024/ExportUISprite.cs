@@ -64,7 +64,7 @@ public class ExportUISprite : BaseExport
                 {
                     tupleUISprite = Def.GetUISprite(prefab.PrefabTag);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     //Debug.LogError("OniExtract: read " + prefab.PrefabTag.Name + " Failed.");
                 }

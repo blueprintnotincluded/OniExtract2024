@@ -268,19 +268,11 @@ namespace OniExtract2024
             {
                 string[] requiredDlcIds = null;
                 string[] forbiddenDlcIds = null;
-                if (config.GetDlcIds() != null)
+                IHasDlcRestrictions hasDlcRestrictions = config as IHasDlcRestrictions;
+                if (hasDlcRestrictions != null)
                 {
-                    DlcManager.ConvertAvailableToRequireAndForbidden(config.GetDlcIds(), out requiredDlcIds, out forbiddenDlcIds);
-                    DebugUtil.DevLogError($"{config.GetType()} implements GetDlcIds, which is obsolete.");
-                }
-                else
-                {
-                    IHasDlcRestrictions hasDlcRestrictions = config as IHasDlcRestrictions;
-                    if (hasDlcRestrictions != null)
-                    {
-                        requiredDlcIds = hasDlcRestrictions.GetRequiredDlcIds();
-                        forbiddenDlcIds = hasDlcRestrictions.GetForbiddenDlcIds();
-                    }
+                    requiredDlcIds = hasDlcRestrictions.GetRequiredDlcIds();
+                    forbiddenDlcIds = hasDlcRestrictions.GetForbiddenDlcIds();
                 }
 
                 if (!DlcManager.IsCorrectDlcSubscribed(requiredDlcIds, forbiddenDlcIds))

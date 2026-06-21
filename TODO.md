@@ -34,15 +34,3 @@ Audit website code for any usage of this field.
 Case-insensitive parsers (PowerShell `ConvertFrom-Json`, some .NET configs) throw.
 Verify website uses `JSON.parse` (browser/Node), `jq`, or Newtonsoft.Json defaults.
 
-### Re-export needed
-
-The building.json on disk was generated before `widthInCells`, `materialCategory`, etc.
-were added. Run the game once more to regenerate with the full field set.
-
----
-
-## 2. Obsolete API Warnings (Low Priority)
-
-Build produces two deprecation warnings — no functional impact, but worth cleaning up:
-- `IEquipmentConfig.GetDlcIds()` → use `IHasDlcRestrictions` interface
-- `DlcManager.IsDlcListValidForCurrentContent` → use `IsCorrectDlcSubscribed`
