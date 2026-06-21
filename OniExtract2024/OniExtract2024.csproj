@@ -169,6 +169,10 @@
     <Compile Include="Patches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="utils\AnimTool.cs" />
+    <Compile Include="connection\ExportConnectionSprites.cs" />
+    <Compile Include="connection\TileConnectionExtractor.cs" />
+    <Compile Include="connection\ConnectionSpriteSnapshotter.cs" />
+    <Compile Include="connection\ConnectionExportPatches.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="mod.yaml">
