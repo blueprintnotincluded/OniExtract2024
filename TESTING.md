@@ -10,16 +10,18 @@ Add an `OniExtract2024.Tests` project to the solution using **xUnit**. The test 
 
 ---
 
-## Project Setup
+## Project Setup ✓ Done
 
-1. Add `OniExtract2024.Tests\OniExtract2024.Tests.csproj` to `OniExtract2024.sln`
-2. Target `net48` to match the main project
-3. NuGet packages in the test project:
-   - `xunit`
-   - `xunit.runner.visualstudio`
-   - `Microsoft.NET.Test.Sdk`
-4. Reference `$(GameLibsFolder)` DLLs (same HintPaths as main project)
-5. Reference `OniExtract2024.dll` output (or add a `<ProjectReference>` if the solution is set up to build it first)
+`OniExtract2024.Tests\OniExtract2024.Tests.csproj` is wired into `OniExtract2024.sln`.
+
+Implementation notes:
+- SDK-style csproj (not old-style), `net48` — cleaner NuGet/`dotnet test` integration
+- NuGet packages: `xunit` 2.9.3, `xunit.runner.visualstudio` 2.8.2, `Microsoft.NET.Test.Sdk` 17.11.1
+- `$(GameLibsFolder)` HintPaths defined directly in the test csproj (same path as main project)
+- `<ProjectReference>` to main project — MSBuild handles build ordering
+- `SmokeTest.cs` holds one empty `[Fact]` so `dotnet test` reports `Passed: 1` instead of "No test is available". Delete it once any real test exists.
+
+**Agent loop command:** `dotnet test OniExtract2024.Tests\OniExtract2024.Tests.csproj` — exit 0 = green.
 
 ---
 
