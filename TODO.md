@@ -78,16 +78,29 @@ Tiles use the game's 8-direction `Bits` scheme; we set only the 4 orthogonal bit
       overlays items per cell). This removes the old multi-item alpha-composite *and* the
       size-mismatch skip entirely: there is no second item to conflict, so no detail is
       dropped. The skip was a band-aid for overlaying items the game doesn't overlay.
-- [x] **Tile decor "tops" layer** — implemented. `TileConnectionExtractor.RasterizeDecor`
-      reproduces `BlockTileRenderer.DecorRenderInfo` for a single cell: matches each
-      `DecorBlockTileInfo.decor` against the connection bits, picks a variant via the game's
-      `PerlinSimplexNoise` gate (faithful — a decor may be absent for a given mask exactly as
-      in-game), and rasterises the variant's `atlasItem` triangle mesh (vertices/uvs/indices)
-      in world space, mapped onto the base crop via the matched item's own uv→world
-      correspondence. Validated live — decor tops render correctly. Design choices that could
-      still be revisited: (a) variant noise is sampled at cell (0,0) — deterministic but
-      arbitrary; (b) decor that extends above the base item's uvBox rect is clipped to the
-      crop (no canvas expansion yet).
+- [x] **Seamless framing (utilities + tiles)** — restored edge-to-edge sprites that tile like
+      the pre-2024 site. *Utilities:* the snapshot framed a 1×1 building in a 300px canvas with a
+      full extra cell of padding (~2–12% fill); now `ConnectionSpriteSnapshotter.CropAndWrite`
+      crops all 16 states to one cell-centred square sized to the largest state (one shared
+      window, so the cell anchor and inter-state alignment are preserved). *Tiles:* stopped
+      cropping the raw `uvBox` (which placed the cell at a different spot/scale per state and
+      left seams); `ComposeState` now resamples the matched item into a cell-anchored 1.5-cell
+      frame applying the game's `AddVertexInfo` geometry — connected edges trimmed flush to the
+      cell boundary, disconnected edges overhanging 0.25 cell — so adjacent tiles join exactly
+      as in game.
+- [~] **Tile decor "tops"/corner layer** — **dropped for now** (future enhancement). A faithful
+      rasteriser exists in git history (the decor-rasteriser commit) and is documented in
+      `TileConnectionExtractor`'s header. It's left off because decor placement depends on the
+      full 8-neighbour (incl. diagonal) state, which the website's 4-bit/16-state model can't
+      encode — so top-surface highlights and corner embellishments would mismatch at junctions.
+      Reinstating it would need either an 8-bit/256-state export or website-side decor logic.
+- [ ] **Edge-to-edge icons (remove transparent margin)** — live QA shows every sprite carries a
+      transparent border that keeps icons from butting up flush on the website. Two intentional
+      margins to drop: utilities have ~6px from `ConnectionSpriteSnapshotter.CropMargin = 6`
+      (set to 0); tiles have ~32px = a 0.25-cell overhang because `TileConnectionExtractor`
+      renders a 1.5-cell frame (`FrameCells`). Fix: render tiles into a 1.0-cell frame mapping
+      the matched item's `uvBox` to fill the cell (keep the connected-edge 1/32 trim so adjacent
+      tiles stay flush; disconnected-edge border is shown within the cell instead of overhanging).
 - [ ] **`WireRubber`** (new in U59) has no prior export data; confirmed it renders (QA'd the
       15-state cross; looks correct).
 - [ ] **In-game results/progress panel** — grow the pause-screen button into a small

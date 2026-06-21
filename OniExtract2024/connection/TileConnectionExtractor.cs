@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using OniExtract2024.utils;
 using UnityEngine;
@@ -15,30 +14,37 @@ namespace OniExtract2024.connection
     /// animations. They are drawn by <c>Rendering.BlockTileRenderer</c>, which for
     /// each cell selects the <b>first</b> <c>BuildingDef.BlockTileAtlas</c> item whose
     /// required/forbidden connection-bit pattern matches the neighbour bitmask and
-    /// draws a single quad from its <c>uvBox</c> (see
+    /// draws a single cell-sized quad from its <c>uvBox</c> (see
     /// <c>BlockTileRenderer.RenderInfo.Rebuild</c> - it <c>break</c>s on the first
     /// match, it does not overlay). Each tile type has its own atlas (tiles_glass,
     /// tiles_metal, ...), so the extracted sprites are per-building distinct.
     ///
-    /// On top of that base layer the game draws a <b>decor</b> mesh
-    /// (<c>BlockTileRenderer.DecorRenderInfo</c>) sampled from
-    /// <c>BuildingDef.DecorBlockTileInfo</c> - the "tops" highlights (grass/snow/metal
-    /// edge trim). Each decor variant carries its own triangle mesh
-    /// (<c>TextureAtlas.Item.vertices/uvs/indices</c>) rather than an axis-aligned
-    /// crop, so we reproduce it by rasterising those triangles in cell-local world
-    /// space, mapped onto the base sprite via the matched item's own uv-&gt;world
-    /// correspondence.
+    /// Crucially we reproduce the game's per-cell geometry rather than cropping the
+    /// raw atlas rect, because that geometry is what makes tiles tile seamlessly
+    /// (see <c>BlockTileRenderer.AddVertexInfo</c>):
+    ///   - a CONNECTED side trims the UV inward by 1/32 and keeps the quad edge flush
+    ///     at the cell boundary (so neighbours meet with no seam);
+    ///   - a DISCONNECTED side overhangs the cell by 0.25 and shows the rounded border.
+    /// Every state is resampled into the same cell-anchored frame (a 1.5x1.5-cell
+    /// canvas with the cell centred), so the website can place each sprite on its grid
+    /// cell and adjacent tiles join edge-to-edge exactly as in game.
     ///
-    /// All of this is reproduced offscreen with no camera and no placed building -
-    /// only the (loaded) texture atlases.
+    /// NOTE: the decor "tops" layer (DecorBlockTileInfo - top-surface highlights and
+    /// corner embellishments drawn by BlockTileRenderer.DecorRenderInfo) is
+    /// deliberately NOT reproduced. Its placement depends on the full 8-neighbour
+    /// (incl. diagonal) state, which the website's 4-bit/16-state model can't encode,
+    /// so it would mismatch at junctions. Left as a future enhancement; a worked
+    /// implementation exists in git history (the decor-rasteriser commit) if revisited.
     /// </summary>
     public static class TileConnectionExtractor
     {
-        // BlockTileRenderer.RenderInfo: trimUVSize = 1/32 on both axes.
+        // BlockTileRenderer.RenderInfo: trimUVSize = 1/32 (atlas UV) on both axes.
         private const float UvTrim = 1f / 32f;
         // BlockTileRenderer.AddVertexInfo: a disconnected side overhangs the cell by
         // world_trim_size (0.25 cell).
         private const float Overhang = 0.25f;
+        // Output frame spans the cell plus the overhang margin on every side.
+        private const float FrameCells = 1f + 2f * Overhang; // 1.5
 
         // Website bitmask -> game Bits (orthogonal only; diagonals stay 0).
         // Website encoding: left=1, right=2, up=4, down=8.
@@ -91,17 +97,16 @@ namespace OniExtract2024.connection
             Texture2D readable = AnimTool.GetReadableCopy(atlas.texture);
             if (readable == null)
                 return 0;
+            readable.wrapMode = TextureWrapMode.Clamp; // avoid bilinear bleed at item edges
 
-            // Optional decor "tops" layer. PostProcess() resolves each variant's
-            // atlasItem mesh (BuildingDef already calls it at load, but it is
-            // idempotent so we call it defensively).
-            BlockTileDecorInfo decorInfo = def.DecorBlockTileInfo;
-            Texture2D decorReadable = null;
-            if (decorInfo != null && decorInfo.atlas != null && decorInfo.atlas.texture != null && decorInfo.decor != null)
-            {
-                decorInfo.PostProcess();
-                decorReadable = AnimTool.GetReadableCopy(decorInfo.atlas.texture);
-            }
+            // Pixels-per-cell derived from native atlas resolution: an item's full
+            // (untrimmed) uvBox maps to the fully-disconnected 1.5-cell quad, so the
+            // cell is two-thirds of the item's pixel width. Keeps output near native
+            // res (no upscaling) and consistent across all 16 states.
+            Vector4 box0 = atlas.items[0].uvBox;
+            float fullPxW = Mathf.Abs(box0.z - box0.x) * readable.width;
+            int cellPx = Mathf.Max(1, Mathf.RoundToInt(fullPxW / FrameCells));
+            int frame = Mathf.RoundToInt(FrameCells * cellPx);
 
             string dir = ExportConnectionSprites.OutputDir(def.PrefabID);
             Directory.CreateDirectory(dir);
@@ -110,7 +115,7 @@ namespace OniExtract2024.connection
             for (int mask = 0; mask <= 15; mask++)
             {
                 Bits bits = ToConnectionBits(mask);
-                Texture2D composite = ComposeState(readable, atlas, required, forbidden, bits, decorInfo, decorReadable);
+                Texture2D composite = ComposeState(readable, atlas, required, forbidden, bits, cellPx, frame);
                 if (composite == null)
                     continue;
                 File.WriteAllBytes(Path.Combine(dir, mask + ".png"), composite.EncodeToPNG());
@@ -118,8 +123,6 @@ namespace OniExtract2024.connection
                 written++;
             }
 
-            if (decorReadable != null)
-                UnityEngine.Object.Destroy(decorReadable);
             UnityEngine.Object.Destroy(readable);
 
             if (written == 0)
@@ -127,17 +130,18 @@ namespace OniExtract2024.connection
                     (atlas.texture != null ? atlas.texture.name : "?") + ", items=" + count +
                     ", firstName=" + atlas.items[0].name + ").");
             else
-                Debug.Log("OniExtract: tile " + def.PrefabID + " -> " + written + " sprites" +
-                    (decorReadable != null ? " (with decor)" : "") + ".");
+                Debug.Log("OniExtract: tile " + def.PrefabID + " -> " + written + " sprites (" + frame + "px).");
             return written;
         }
 
-        private static Texture2D ComposeState(Texture2D atlasTex, TextureAtlas atlas, Bits[] required, Bits[] forbidden, Bits bits,
-            BlockTileDecorInfo decorInfo, Texture2D decorTex)
+        // Resamples the matched atlas item into a cell-anchored frame, applying the
+        // game's connected-edge trim and disconnected-edge overhang so states share a
+        // consistent cell position and tile seamlessly.
+        private static Texture2D ComposeState(Texture2D atlasTex, TextureAtlas atlas, Bits[] required, Bits[] forbidden,
+            Bits bits, int cellPx, int frame)
         {
             // Base layer: the game draws exactly ONE item per cell - the first whose
-            // pattern matches (BlockTileRenderer.RenderInfo.Rebuild breaks on first
-            // match), so we do the same rather than overlaying every match.
+            // pattern matches (RenderInfo.Rebuild breaks on first match).
             int match = -1;
             for (int k = 0; k < atlas.items.Length; k++)
             {
@@ -152,169 +156,47 @@ namespace OniExtract2024.connection
             if (match < 0)
                 return null;
 
-            TextureAtlas.Item item = atlas.items[match];
-
-            // uvBox corners are paired (x,w) <-> (z,y) by BlockTileRenderer, so the
-            // V extents may be stored in either order. Normalise with min/max.
-            Vector4 uv = item.uvBox;
-            float uMin = Mathf.Min(uv.x, uv.z);
-            float uMax = Mathf.Max(uv.x, uv.z);
-            float vMin = Mathf.Min(uv.y, uv.w);
-            float vMax = Mathf.Max(uv.y, uv.w);
-            int px = Mathf.RoundToInt(uMin * atlasTex.width);
-            int py = Mathf.RoundToInt(vMin * atlasTex.height);
-            int pw = Mathf.RoundToInt((uMax - uMin) * atlasTex.width);
-            int ph = Mathf.RoundToInt((vMax - vMin) * atlasTex.height);
-            if (pw <= 0 || ph <= 0)
-                return null;
-            px = Mathf.Clamp(px, 0, atlasTex.width - 1);
-            py = Mathf.Clamp(py, 0, atlasTex.height - 1);
-            pw = Mathf.Clamp(pw, 1, atlasTex.width - px);
-            ph = Mathf.Clamp(ph, 1, atlasTex.height - py);
-
-            Color[] canvas = atlasTex.GetPixels(px, py, pw, ph);
-            int cw = pw, ch = ph;
-
-            if (decorInfo != null && decorTex != null)
-                RasterizeDecor(canvas, cw, ch, item, uMin, uMax, vMin, vMax, bits, decorInfo, decorTex);
-
-            Texture2D outTex = new Texture2D(cw, ch);
-            outTex.SetPixels(canvas);
-            outTex.Apply();
-            return outTex;
-        }
-
-        // Overlays the decor "tops" mesh onto the already-cropped base canvas.
-        // Reproduces BlockTileRenderer.DecorRenderInfo for a single cell at origin.
-        private static void RasterizeDecor(Color[] canvas, int cw, int ch, TextureAtlas.Item baseItem,
-            float uMin, float uMax, float vMin, float vMax, Bits bits, BlockTileDecorInfo decorInfo, Texture2D decorTex)
-        {
-            // Recover the base quad's uv<->world correspondence exactly as
-            // BlockTileRenderer.AddVertexInfo builds it, so decor world coordinates
-            // (which DecorRenderInfo emits in the same cell space) map onto the crop.
+            // Reproduce BlockTileRenderer.AddVertexInfo: world quad <-> (trimmed) uv quad.
             //   world corner A (wx0,wy0) <-> uv corner A (iAx,iAy)
             //   world corner B (wx1,wy1) <-> uv corner B (iBx,iBy)
+            // Cell occupies world [0,1]; the frame covers world [-0.25, 1.25].
+            Vector4 uvBox = atlas.items[match].uvBox;
             float wx0 = 0f, wy0 = 0f, wx1 = 1f, wy1 = 1f;
-            float iAx = baseItem.uvBox.x, iAy = baseItem.uvBox.w;
-            float iBx = baseItem.uvBox.z, iBy = baseItem.uvBox.y;
+            float iAx = uvBox.x, iAy = uvBox.w;
+            float iBx = uvBox.z, iBy = uvBox.y;
             if ((bits & Bits.Left) == 0) wx0 -= Overhang; else iAx += UvTrim;
             if ((bits & Bits.Right) == 0) wx1 += Overhang; else iBx -= UvTrim;
             if ((bits & Bits.Up) == 0) wy1 += Overhang; else iBy -= UvTrim;
             if ((bits & Bits.Down) == 0) wy0 -= Overhang; else iAy += UvTrim;
 
-            // Guard degenerate denominators (would only happen on a malformed atlas).
-            float duvx = iBx - iAx, duvy = iBy - iAy;
-            if (Mathf.Abs(duvx) < 1e-9f || Mathf.Abs(duvy) < 1e-9f) return;
-            float spanU = uMax - uMin, spanV = vMax - vMin;
-            if (spanU < 1e-9f || spanV < 1e-9f) return;
+            float dwx = wx1 - wx0, dwy = wy1 - wy0;
+            if (dwx <= 0f || dwy <= 0f)
+                return null;
 
-            // world (wx,wy) -> canvas pixel (col, row; row 0 = bottom, matching GetPixels).
-            // wx -> u: u = iAx + (wx-wx0)*(iBx-iAx)/(wx1-wx0); then col = (u-uMin)/spanU * cw.
-            float wxScale = (iBx - iAx) / (wx1 - wx0);
-            float wyScale = (iBy - iAy) / (wy1 - wy0);
-
-            // Collect matching decors, drawn in ascending sortOrder (later = on top),
-            // mirroring DecorRenderInfo.Rebuild's triangle sort.
-            var matches = new List<int>();
-            for (int i = 0; i < decorInfo.decor.Length; i++)
+            Color[] outPx = new Color[frame * frame];
+            float invCell = 1f / cellPx;
+            for (int oy = 0; oy < frame; oy++)
             {
-                BlockTileDecorInfo.Decor decor = decorInfo.decor[i];
-                if (decor.variants == null || decor.variants.Length == 0) continue;
-                bool requiredMet = (bits & decor.requiredConnections) == decor.requiredConnections;
-                bool forbiddenHit = (bits & decor.forbiddenConnections) != 0;
-                if (requiredMet && !forbiddenHit) matches.Add(i);
-            }
-            matches.Sort((a, b) => decorInfo.decor[a].sortOrder.CompareTo(decorInfo.decor[b].sortOrder));
-
-            foreach (int i in matches)
-            {
-                BlockTileDecorInfo.Decor decor = decorInfo.decor[i];
-
-                // Variant selection mirrors DecorRenderInfo.AddDecor at cell (0,0):
-                // a per-cell simplex sample gates appearance and picks the variant.
-                float n = PerlinSimplexNoise.noise((float)(i + 0 + (int)bits) * 92.41f,
-                                                   (float)(i + 0 + (int)bits) * 87.16f);
-                if (n < decor.probabilityCutoff) continue;
-                int vi = (int)((float)(decor.variants.Length - 1) * n);
-                vi = Mathf.Clamp(vi, 0, decor.variants.Length - 1);
-
-                BlockTileDecorInfo.ImageInfo variant = decor.variants[vi];
-                TextureAtlas.Item mesh = variant.atlasItem;
-                if (mesh.vertices == null || mesh.uvs == null || mesh.indices == null) continue;
-
-                Vector3 offset = variant.offset; // cell origin is (0,0)
-                for (int t = 0; t + 2 < mesh.indices.Length; t += 3)
+                // Frame origin is world -0.25; rows are bottom-up to match SetPixels.
+                float wy = -Overhang + (oy + 0.5f) * invCell;
+                bool yIn = wy >= wy0 && wy <= wy1;
+                float vfrac = yIn ? (wy - wy0) / dwy : 0f;
+                for (int ox = 0; ox < frame; ox++)
                 {
-                    int a = mesh.indices[t], b = mesh.indices[t + 1], c = mesh.indices[t + 2];
-                    Vector2 p0 = WorldToCanvas(mesh.vertices[a] + offset, wx0, wy0, iAx, iAy, wxScale, wyScale, uMin, vMin, spanU, spanV, cw, ch);
-                    Vector2 p1 = WorldToCanvas(mesh.vertices[b] + offset, wx0, wy0, iAx, iAy, wxScale, wyScale, uMin, vMin, spanU, spanV, cw, ch);
-                    Vector2 p2 = WorldToCanvas(mesh.vertices[c] + offset, wx0, wy0, iAx, iAy, wxScale, wyScale, uMin, vMin, spanU, spanV, cw, ch);
-                    RasterTriangle(canvas, cw, ch, decorTex, p0, p1, p2, mesh.uvs[a], mesh.uvs[b], mesh.uvs[c]);
+                    float wx = -Overhang + (ox + 0.5f) * invCell;
+                    if (!yIn || wx < wx0 || wx > wx1)
+                        continue; // outside the cell quad -> transparent
+                    float ufrac = (wx - wx0) / dwx;
+                    float u = iAx + ufrac * (iBx - iAx);
+                    float v = iAy + vfrac * (iBy - iAy);
+                    outPx[oy * frame + ox] = atlasTex.GetPixelBilinear(u, v);
                 }
             }
-        }
 
-        private static Vector2 WorldToCanvas(Vector3 world, float wx0, float wy0, float iAx, float iAy,
-            float wxScale, float wyScale, float uMin, float vMin, float spanU, float spanV, int cw, int ch)
-        {
-            float u = iAx + (world.x - wx0) * wxScale;
-            float v = iAy + (world.y - wy0) * wyScale;
-            return new Vector2((u - uMin) / spanU * cw, (v - vMin) / spanV * ch);
-        }
-
-        // Barycentric triangle fill with bilinear decor-atlas sampling and source-over
-        // alpha compositing onto the base canvas.
-        private static void RasterTriangle(Color[] canvas, int cw, int ch, Texture2D decorTex,
-            Vector2 p0, Vector2 p1, Vector2 p2, Vector2 t0, Vector2 t1, Vector2 t2)
-        {
-            float area = Edge(p0, p1, p2);
-            if (Mathf.Abs(area) < 1e-6f) return;
-            float invArea = 1f / area;
-
-            int minX = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(p0.x, Mathf.Min(p1.x, p2.x))), 0, cw - 1);
-            int maxX = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(p0.x, Mathf.Max(p1.x, p2.x))), 0, cw - 1);
-            int minY = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(p0.y, Mathf.Min(p1.y, p2.y))), 0, ch - 1);
-            int maxY = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(p0.y, Mathf.Max(p1.y, p2.y))), 0, ch - 1);
-
-            for (int y = minY; y <= maxY; y++)
-            {
-                for (int x = minX; x <= maxX; x++)
-                {
-                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                    float l0 = Edge(p1, p2, p) * invArea;
-                    float l1 = Edge(p2, p0, p) * invArea;
-                    float l2 = Edge(p0, p1, p) * invArea;
-                    if (l0 < -1e-4f || l1 < -1e-4f || l2 < -1e-4f)
-                        continue;
-
-                    Vector2 uv = l0 * t0 + l1 * t1 + l2 * t2;
-                    Color s = decorTex.GetPixelBilinear(uv.x, uv.y);
-                    if (s.a <= 0f)
-                        continue;
-
-                    int idx = y * cw + x;
-                    Color d = canvas[idx];
-                    float sa = s.a;
-                    float outA = sa + d.a * (1f - sa);
-                    Color outC = new Color(
-                        s.r * sa + d.r * d.a * (1f - sa),
-                        s.g * sa + d.g * d.a * (1f - sa),
-                        s.b * sa + d.b * d.a * (1f - sa),
-                        outA);
-                    if (outA > 0f)
-                    {
-                        outC.r /= outA;
-                        outC.g /= outA;
-                        outC.b /= outA;
-                    }
-                    canvas[idx] = outC;
-                }
-            }
-        }
-
-        private static float Edge(Vector2 a, Vector2 b, Vector2 c)
-        {
-            return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+            Texture2D outTex = new Texture2D(frame, frame);
+            outTex.SetPixels(outPx);
+            outTex.Apply();
+            return outTex;
         }
     }
 }

@@ -50,6 +50,9 @@ namespace OniExtract2024.connection
             Util.KDestroyGameObject(gameObject);
         }
 
+        // Small constant margin (px) kept around the tightest content crop.
+        private static readonly int CropMargin = 6;
+
         private IEnumerator ExportStates(string prefabId, IUtilityNetworkMgr mgr, KBatchedAnimController kbac)
         {
             string dir = ExportConnectionSprites.OutputDir(prefabId);
@@ -57,6 +60,7 @@ namespace OniExtract2024.connection
 
             // UtilityConnections is Left=1, Right=2, Up=4, Down=8 - identical to the
             // website's required bitmask encoding, so i maps straight to the filename.
+            var shots = new Texture2D[16];
             for (int i = 0; i <= 15; i++)
             {
                 string animation = mgr.GetVisualizerString((UtilityConnections)i);
@@ -65,11 +69,90 @@ namespace OniExtract2024.connection
                     kbac.Play(animation);
                 }
                 yield return null;
-                SnapShot(Path.Combine(dir, i + ".png"));
+                shots[i] = SnapShot();
+            }
+
+            CropAndWrite(dir, shots);
+
+            foreach (var t in shots)
+            {
+                if (t != null)
+                    Destroy(t);
             }
         }
 
-        private void SnapShot(string path)
+        // The snapshot frame carries a full extra cell of padding on every side, so a
+        // 1x1 wire is stranded in whitespace. Crop all 16 states to one square window,
+        // centred on the frame centre (where the cell sits) and just large enough to
+        // hold the largest state's content. Cropping the whole set identically - rather
+        // than per-state bounding boxes - preserves the cell anchor so the sprites still
+        // tile against each other.
+        private static void CropAndWrite(string dir, Texture2D[] shots)
+        {
+            int w = 0, h = 0;
+            foreach (var t in shots)
+            {
+                if (t != null) { w = t.width; h = t.height; break; }
+            }
+            if (w == 0)
+                return;
+
+            int cx = w / 2, cy = h / 2;
+            var pixels = new Color[shots.Length][];
+            int half = 0;
+            for (int k = 0; k < shots.Length; k++)
+            {
+                if (shots[k] == null)
+                    continue;
+                Color[] px = shots[k].GetPixels();
+                pixels[k] = px;
+                for (int y = 0; y < h; y++)
+                {
+                    int row = y * w;
+                    for (int x = 0; x < w; x++)
+                    {
+                        if (px[row + x].a > 0.03f)
+                        {
+                            int dx = Mathf.Abs(x - cx);
+                            int dy = Mathf.Abs(y - cy);
+                            if (dx > half) half = dx;
+                            if (dy > half) half = dy;
+                        }
+                    }
+                }
+            }
+
+            half += CropMargin;
+            half = Mathf.Min(half, Mathf.Min(cx, cy)); // stay within the frame
+            if (half < 1)
+                return;
+
+            int side = 2 * half;
+            int sx0 = cx - half, sy0 = cy - half;
+            for (int k = 0; k < shots.Length; k++)
+            {
+                if (pixels[k] == null)
+                    continue;
+                Color[] outPx = new Color[side * side];
+                for (int oy = 0; oy < side; oy++)
+                {
+                    int syp = sy0 + oy;
+                    for (int ox = 0; ox < side; ox++)
+                    {
+                        int sxp = sx0 + ox;
+                        if (sxp >= 0 && sxp < w && syp >= 0 && syp < h)
+                            outPx[oy * side + ox] = pixels[k][syp * w + sxp];
+                    }
+                }
+                Texture2D outTex = new Texture2D(side, side);
+                outTex.SetPixels(outPx);
+                outTex.Apply();
+                File.WriteAllBytes(Path.Combine(dir, k + ".png"), outTex.EncodeToPNG());
+                Destroy(outTex);
+            }
+        }
+
+        private Texture2D SnapShot()
         {
             if (snapshotCamera != null)
             {
@@ -97,14 +180,13 @@ namespace OniExtract2024.connection
             Texture2D tex = new Texture2D(targetTexture.width, targetTexture.height);
             tex.ReadPixels(new Rect(0, 0, targetTexture.width, targetTexture.height), 0, 0);
             tex.Apply();
-            File.WriteAllBytes(path, tex.EncodeToPNG());
-            Destroy(tex);
 
             RenderTexture.active = previous;
             snapshotCamera.enabled = false;
             Destroy(snapshotCamera.gameObject);
             snapshotCamera = null;
             CameraController.Instance.baseCamera.enabled = true;
+            return tex;
         }
 
         private void InitCamera()

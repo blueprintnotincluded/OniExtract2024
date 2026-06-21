@@ -16,11 +16,16 @@ namespace OniExtract2024.connection
     ///     {RootFolder}/export/connection_sprites/{prefabId}/{bitmask}.png
     ///
     /// Two rendering paths, by building type:
-    ///   - isUtility  : ConnectionSpriteSnapshotter (kanim camera snapshot).
-    ///   - isKAnimTile: TileConnectionExtractor (texture-atlas crop + composite).
+    ///   - isUtility  : ConnectionSpriteSnapshotter (kanim camera snapshot, then a
+    ///                  cell-centred crop to remove the snapshot's whitespace).
+    ///   - isKAnimTile: TileConnectionExtractor (resamples the BlockTileAtlas into a
+    ///                  cell-anchored frame with the game's trim/overhang geometry so
+    ///                  tiles join seamlessly).
     ///
     /// TODO (future): expose progress/results in an in-game panel (the user wants this
-    /// to grow into a debugging UI), and composite the decor "tops" layer for tiles.
+    /// to grow into a debugging UI), and reinstate the decor "tops"/corner layer for
+    /// tiles (dropped for now - its placement is diagonal-dependent and can't be
+    /// represented in the website's 4-bit/16-state model; see TileConnectionExtractor).
     /// </summary>
     public static class ExportConnectionSprites
     {
