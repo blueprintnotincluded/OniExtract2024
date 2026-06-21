@@ -94,13 +94,19 @@ Tiles use the game's 8-direction `Bits` scheme; we set only the 4 orthogonal bit
       full 8-neighbour (incl. diagonal) state, which the website's 4-bit/16-state model can't
       encode — so top-surface highlights and corner embellishments would mismatch at junctions.
       Reinstating it would need either an 8-bit/256-state export or website-side decor logic.
-- [ ] **Edge-to-edge icons (remove transparent margin)** — live QA shows every sprite carries a
-      transparent border that keeps icons from butting up flush on the website. Two intentional
-      margins to drop: utilities have ~6px from `ConnectionSpriteSnapshotter.CropMargin = 6`
-      (set to 0); tiles have ~32px = a 0.25-cell overhang because `TileConnectionExtractor`
-      renders a 1.5-cell frame (`FrameCells`). Fix: render tiles into a 1.0-cell frame mapping
-      the matched item's `uvBox` to fill the cell (keep the connected-edge 1/32 trim so adjacent
-      tiles stay flush; disconnected-edge border is shown within the cell instead of overhanging).
+- [x] **Edge-to-edge icons (remove transparent margin)** — both intentional margins dropped so
+      sprites butt up flush on the website. *Utilities:* `ConnectionSpriteSnapshotter.CropMargin`
+      set 6 → 0, so the shared cell-centred crop is tight to content (1px AA fringe acceptable;
+      the single-shared-window logic is unchanged, so states stay aligned). *Tiles:*
+      `TileConnectionExtractor` now renders a 1.0-cell frame (`FrameCells = 1`) — the matched
+      item's full `uvBox` maps to world [0,1]² (overhang extension dropped), `cellPx`/`frame`
+      derive from the full uvBox pixel width, and the resample origin is world 0. The
+      connected-edge 1/32 UV trim is kept (adjacent connected tiles stay flush); a disconnected
+      edge uses the full uvBox edge, so its rounded border renders inside the cell instead of
+      overhanging. Introduces an imperceptible ~3% scale delta between fully-connected and
+      fully-disconnected states (matches the old tileset convention). **Pending:** re-run the
+      in-game "Export Connection Sprites" and confirm via alpha-bbox scan that content reaches the
+      frame edges (border 0–1px) on e.g. MetalTile/15, MeshTile/15, Wire/15.
 - [ ] **`WireRubber`** (new in U59) has no prior export data; confirmed it renders (QA'd the
       15-state cross; looks correct).
 - [ ] **In-game results/progress panel** — grow the pause-screen button into a small

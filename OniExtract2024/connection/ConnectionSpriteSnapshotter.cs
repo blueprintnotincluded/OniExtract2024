@@ -50,8 +50,9 @@ namespace OniExtract2024.connection
             Util.KDestroyGameObject(gameObject);
         }
 
-        // Small constant margin (px) kept around the tightest content crop.
-        private static readonly int CropMargin = 6;
+        // No margin: crop tight to the cell-centred content so sprites tile flush
+        // edge-to-edge on the website (a 1px anti-aliased fringe is acceptable).
+        private static readonly int CropMargin = 0;
 
         private IEnumerator ExportStates(string prefabId, IUtilityNetworkMgr mgr, KBatchedAnimController kbac)
         {
