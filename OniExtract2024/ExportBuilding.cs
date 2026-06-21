@@ -6,7 +6,6 @@ using System.Linq;
 public class ExportBuilding : BaseExport
 {
     public override string ExportFileName { get; set; } = "building";
-    public List<BuildingDef> buildingDefs = new List<BuildingDef>();
     public List<BBuildingEntity> bBuildingDefList = new List<BBuildingEntity>();
     public List<BuildMenuCategory> buildMenuCategories = new List<BuildMenuCategory>();
     public Dictionary<string, List<KeyValuePair<string, string>>> buildingAndSubcategoryDataPairs = new Dictionary<string, List<KeyValuePair<string, string>>>();
@@ -20,7 +19,6 @@ public class ExportBuilding : BaseExport
     public void AddNewBuildingDef(BuildingDef buildingDef)
     {
         buildingDef.BlockTileMaterial = null;
-        this.buildingDefs.Add(buildingDef);
         this.roomConstraintTags = RoomConstraints.ConstraintTags.AllTags;
     }
 

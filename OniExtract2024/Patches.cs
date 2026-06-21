@@ -214,6 +214,15 @@ namespace OniExtract2024
                 Debug.Log("OniExtract: " + "Export Items");
                 if (SingletonOptions<ModOptions>.Instance.Item)
                 {
+                    foreach (KPrefabID kpid in Assets.Prefabs)
+                    {
+                        if (kpid == null) continue;
+                        GameObject prefab = kpid.gameObject;
+                        IncubationMonitor.Def incDef = prefab.GetDef<IncubationMonitor.Def>();
+                        if (incDef == null) continue;
+                        BEgg bEgg = new BEgg(kpid.PrefabID().Name, kpid);
+                        exportItem.AddEgg(prefab, bEgg);
+                    }
                     exportItem.ExportJsonFile();
                 }
                 Debug.Log("OniExtract: " + "Export Attribute");
@@ -237,19 +246,6 @@ namespace OniExtract2024
                 ExportGeyser exportGeyser = new ExportGeyser();
                 exportGeyser.AddGeyserPrefabParams(__result);
                 exportGeyser.ExportJsonFile();
-            }
-        }
-
-        [HarmonyPatch(typeof(EggConfig), "CreateEgg")]
-        [HarmonyPatch(new Type[] { typeof(string), typeof(string), typeof(string), typeof(Tag), typeof(string), typeof(float), typeof(int), typeof(float), typeof(string[]), typeof(string[]), typeof(bool) })]
-        internal class OniExtract_Game_Egg
-        {
-            private static void Postfix(ref GameObject __result)
-            {
-                if (!SingletonOptions<ModOptions>.Instance.Item) return;
-                KPrefabID prefabID = __result.GetComponent<KPrefabID>();
-                BEgg bEgg = new BEgg(prefabID.PrefabID().Name, __result.GetComponent<KPrefabID>());
-                exportItem.AddEgg(__result, bEgg);
             }
         }
 
@@ -298,16 +294,6 @@ namespace OniExtract2024
                 KPrefabID prefabID = gameObject.AddOrGet<KPrefabID>();
                 BEquipment bEquip = new BEquipment(prefabID.PrefabID().Name, gameObject.GetComponent<KPrefabID>());
                 exportItem.AddEquipment(gameObject, bEquip);
-            }
-        }
-
-        [HarmonyPatch(typeof(EquipmentConfigManager), "RegisterEquipment")]
-        internal class OniExtract_Game_Equipment
-        {
-            private static void Postfix(IEquipmentConfig config)
-            {
-                if (!SingletonOptions<ModOptions>.Instance.Item) return;
-                exportItem.AddEquipmentDef(config);
             }
         }
 

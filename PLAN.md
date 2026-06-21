@@ -14,7 +14,7 @@ The old mod lives at `…\mods\local\OniExtract\` and also uses `OniExtract2024.
 
 ## Fix 1 — Remove null Unity objects from `building.json` and `items.json`
 
-**Status:** Not started
+**Status:** Done — build passes
 
 ### Root cause
 
@@ -83,7 +83,7 @@ After build + re-export:
 
 ## Fix 2 — Restore egg export
 
-**Status:** Not started
+**Status:** Done — build passes
 
 ### Root cause
 
@@ -145,7 +145,7 @@ After build + re-export:
 
 ## Fix 3 — Populate `recipes` from the correct source
 
-**Status:** Not started
+**Status:** Done — build passes
 
 ### Root cause
 
