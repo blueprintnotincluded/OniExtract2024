@@ -79,13 +79,14 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 
 ```jsonc
 {
-  "name": "AdvancedApothecary",          // prefab ID
-  "nameString": "<link=\"ADVANCEDAPOTHECARY\">Nuclear Apothecary</link>",
+  // Identity
+  "name": "ManualGenerator",             // prefab/code ID (was "prefabId" in 2023)
+  "nameString": "<link=\"MANUALGENERATOR\">Manual Generator</link>",
   "kPrefabID": {
-    "name": "AdvancedApothecary",
+    "name": "ManualGenerator",
     "nameString": "<link=\"...\">...</link>",
-    "SaveLoadTag": { "Name": "AdvancedApothecary", "IsValid": true },
-    "PrefabTag":   { "Name": "AdvancedApothecary", "IsValid": true },
+    "SaveLoadTag": { "Name": "ManualGenerator", "IsValid": true },
+    "PrefabTag":   { "Name": "ManualGenerator", "IsValid": true },
     "defaultLayer": 0,
     "tags": " ",                          // space-separated tag names (or array in some entries)
     "requiredDlcIds": "EXPANSION1_ID",    // string | null
@@ -94,7 +95,25 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
     "AdditionalEffects": null
   },
   "tags": [ { "Name": "RoomProberBuilding", "IsValid": true }, ... ],
-  // All component fields are null when that component is absent:
+
+  // BuildingDef display fields
+  "widthInCells": 2,
+  "heightInCells": 2,
+  "materialCategory": ["Metal"],         // string[] — material type per build slot
+  "materialMass": [200.0],              // float[] — kg per build slot (parallel to materialCategory)
+  "isFoundation": false,                 // true for tile/floor buildings
+  "isKAnimTile": false,                  // true for animated tile buildings
+  "isUtility": false,                    // true for pipe/wire utilities
+  "dragBuild": false,
+  "buildLocationRule": 1,               // BuildLocationRule enum as int
+  "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
+  "sceneLayer": 19,                     // Grid.SceneLayer enum as int
+  "objectLayer": 1,                     // ObjectLayer enum as int
+  "viewMode": "Default",                // HashedString toString — overlay mode name
+  "defaultAnimState": "off",
+  "uiSpriteName": "generatormanual_0",  // sprite name; cross-ref uiSpriteInfos[name].spriteName
+
+  // Component fields — null when that component is absent on this building
   "energyGenerator": null,
   "conduitConsumer": null,
   "conduitDispenser": null,
@@ -755,6 +774,14 @@ The `diseases` array (and possibly others) in `db.json` contains objects with bo
 
 The 2023 `database.json` had a `spriteModifiers` list. It does not appear in any 2024 export file under any name. Either it was removed from the game or the website's use of it should be audited.
 
-### Image files not regenerated
+### Image files — use `ui_image/`, not `images/`
 
-Sprite names in `uiSpriteInfo.json` may reference textures not present in the `export/images/` folder (which was last generated in Oct 2025). New U59 content will have metadata but no PNG. Compare `textureName` values against available PNGs to find gaps.
+The 2024 mod exports 1,241 PNGs to `export/ui_image/` (named by proper display name).
+The old `export/images/` folder (536 files, Oct 2025, OniExtract2020) is obsolete.
+
+To resolve a PNG for any prefab:
+```
+ui_image/{uiSpriteInfos[prefabTagName].name}.png
+```
+
+Facade sprites are under `export/ui_image_facade/{facadeSetId}/`.

@@ -1,73 +1,43 @@
 # OniExtract2024 — Open Items
 
-## 1. Export Validation — Before Updating the Website
+## 1. Website Update — Breaking Changes from 2023 → 2024
 
-The 2024 mod produces 13 separate JSON files. The 2023 export (last known-good,
-used to populate the website) was a **single `database.json`**. Full 2024 schema is in
-[EXPORT_SCHEMA.md](EXPORT_SCHEMA.md).
+The 2023 website consumed a single `database.json`. The 2024 mod produces 13 separate files.
+Full schema in [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md). `export-2023/` contains the last known-good
+2023 data for reference.
 
-### 1a. Structural Overview: 2023 → 2024
+### Field renames the website must handle
 
-| 2023 `database.json` key | 2024 file | 2024 top-level key | Notes |
-|---|---|---|---|
-| `buildings` | `building.json` | `bBuildingDefList` | Key renamed |
-| `elements` | `elements.json` | `elementTable` | List → Dict keyed by SimHash int |
-| `uiSprites` | `uiSpriteInfo.json` | `uiSpriteInfos` | List → Dict keyed by prefab ID |
-| `spriteModifiers` | — | — | Not present in 2024; audit website usage |
-| `buildMenuCategories` | `building.json` | `buildMenuCategories` | Same shape |
-| `buildMenuItems` | `building.json` | `buildingAndSubcategoryDataPairs` | Now `{Key, Value}[]` per category |
-| *(new)* | `food.json` | `foodInfoList` | |
-| *(new)* | `recipe.json` | `recipes` | |
-| *(new)* | `geyser.json` | `geysers` | |
-| *(new)* | `tags.json` | `SimHashes`, `RoomConstraintTags`, `mGameTags`, `prefabIDs` | |
-| *(new)* | `po_string.json` | 27 namespaces (flat key→string dicts) | |
-| *(new)* | `db.json` | 40+ arrays | Duplicate-key bug — see §1d |
-| *(new)* | `entities.json` | `entities` | |
-| *(new)* | `multiEntities.json` | `multiEntities` | |
-| *(new)* | `items.json` | `eggs`, `seeds`, `equipments` | |
-| *(new)* | `attribute.json` | enums + sickness defs | |
+| 2023 field | 2024 equivalent | Notes |
+|---|---|---|
+| `buildings[].name` | `bBuildingDefList[].nameString` | Display name (has link tags) |
+| `buildings[].prefabId` | `bBuildingDefList[].name` | Code/prefab ID |
+| `buildings[].isTile` | `bBuildingDefList[].isFoundation \|\| isKAnimTile` | Two flags in 2024 |
+| `elements` (array) | `elementTable` (dict) | Now keyed by SimHash int |
+| `uiSprites` (array) | `uiSpriteInfos` (dict) | Now keyed by prefab tag name |
+| `buildMenuItems[].buildingId` | `buildingAndSubcategoryDataPairs[category][].Key` | Grouped by category name |
 
-### 1b. Field-level Comparison Against 2023 Data
+### Image path change
 
-Need the 2023 `database.json` for these checks — extract `export-2023.zip` first.
+Old: `export/images/{textureName}.png` (536 files, Oct 2025, OniExtract2020 — **obsolete**)  
+New: `export/ui_image/{uiSpriteInfos[prefabTagName].name}.png` (1241 files, freshly exported)  
+Also new: `export/ui_image_facade/` — facade/clothing/permit sprites
 
-- **Buildings:** Compare field names on a sample building. The 2024 shape has fewer
-  top-level fields (no `BuildingComplete`/`UnderConstruction` component blobs that existed
-  in older exports). Confirm the website only uses fields that are still present.
-- **Elements:** Compare `color`, `conduitColor`, `uiColor`, `tag` values for 5 known
-  elements (Water, Oxygen, Iron, Sand, Gold). New fields (`molarMass`, thermal props) are
-  additive. Dict-vs-list is the main structural break.
-- **Sprites:** Compare a sprite entry from the 2023 list against the 2024 dict on the same
-  item. The 2024 `color` is `{r,g,b,a}` floats; the 2023 format may differ.
+### `spriteModifiers` removed
 
-### 1c. Rich-text Link Tags in Names
+The 2023 `spriteModifiers` list (6707 atlas transform entries) has no 2024 equivalent.
+Audit website code for any usage of this field.
 
-All `nameString` and description fields include Unity tags:
-`<link="CRUSHEDICE">Crushed Ice</link>`
+### `db.json` case-sensitive parser required (action needed)
 
-Needs a decision: strip in the exporter, or strip in the website consumer?  
-Strip regex: `/<link="[^"]*">([^<]*)<\/link>/g` → capture group 1.
+`db.json` objects contain sibling keys `id` (object) and `Id` (string).
+Case-insensitive parsers (PowerShell `ConvertFrom-Json`, some .NET configs) throw.
+Verify website uses `JSON.parse` (browser/Node), `jq`, or Newtonsoft.Json defaults.
 
-Check whether the 2023 data already had these stripped — if it did, the website parser
-won't handle them and must be updated before consuming 2024 data.
+### Re-export needed
 
-### 1d. `db.json` Duplicate-Key Issue
-
-`db.json` objects contain both `id` (object) and `Id` (string) as sibling keys.
-Case-insensitive parsers (PowerShell, some .NET configs) throw on this.
-Use a case-sensitive parser: `JSON.parse` (browser/Node), `jq`, or Newtonsoft.Json defaults.
-The website consumer needs to be verified against this file.
-
-### 1e. Images — Missing PNGs for New Content
-
-`uiSpriteInfo.json` references 1241 sprite textures, but `export/images/` was last
-generated in Oct 2025 (OniExtract2020). New U59 content will have metadata but no PNG.
-
-**To check:** diff `textureName` values in `uiSpriteInfo.json` against filenames in
-`export/images/`. Any missing PNG = gap.
-
-Whether the 2024 mod can regenerate PNGs depends on the `ExportUISprite` implementation —
-check if it writes files to disk or only outputs metadata.
+The building.json on disk was generated before `widthInCells`, `materialCategory`, etc.
+were added. Run the game once more to regenerate with the full field set.
 
 ---
 

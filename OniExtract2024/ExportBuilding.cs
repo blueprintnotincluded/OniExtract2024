@@ -26,6 +26,21 @@ public class ExportBuilding : BaseExport
         GameObject go = buildingDef.BuildingComplete;
         KPrefabID prefabID = go.GetComponent<KPrefabID>();
         BBuildingEntity bBuild = new BBuildingEntity(buildingDef.Tag.Name, prefabID);
+        bBuild.widthInCells = buildingDef.WidthInCells;
+        bBuild.heightInCells = buildingDef.HeightInCells;
+        bBuild.materialCategory = buildingDef.MaterialCategory;
+        bBuild.materialMass = buildingDef.Mass;
+        bBuild.isFoundation = buildingDef.IsFoundation;
+        bBuild.isKAnimTile = buildingDef.isKAnimTile;
+        bBuild.isUtility = buildingDef.isUtility;
+        bBuild.dragBuild = buildingDef.DragBuild;
+        bBuild.buildLocationRule = (int)buildingDef.BuildLocationRule;
+        bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
+        bBuild.sceneLayer = (int)buildingDef.SceneLayer;
+        bBuild.objectLayer = (int)buildingDef.ObjectLayer;
+        bBuild.viewMode = buildingDef.ViewMode.ToString();
+        bBuild.defaultAnimState = buildingDef.DefaultAnimState;
+        bBuild.uiSpriteName = buildingDef.UISprite != null ? buildingDef.UISprite.name : null;
         EnergyGenerator energyGenerator = go.GetComponent<EnergyGenerator>();
         if (energyGenerator != null)
         {
