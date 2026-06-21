@@ -20,6 +20,9 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(GameLibsFolder)\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(GameLibsFolder)\netstandard.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(GameLibsFolder)\UnityEngine.dll</HintPath>
     </Reference>

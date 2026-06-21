@@ -53,15 +53,14 @@ namespace OniExtract2024
             }
         }
 
-        public string GetDatabaseLocation()
+        public static string BuildExportPath(string rootFolder, string dirName, bool isExpansion1Active)
         {
-            string exportDir = DatabaseDirName;
-            if (!DlcManager.IsExpansion1Active())
-            {
-                exportDir += "_base";
-            }
-            return Path.Combine(Util.RootFolder(), "export", exportDir);
+            string suffix = isExpansion1Active ? "" : "_base";
+            return Path.Combine(rootFolder, "export", dirName + suffix);
         }
+
+        public string GetDatabaseLocation() =>
+            BuildExportPath(Util.RootFolder(), DatabaseDirName, DlcManager.IsExpansion1Active());
 
         public void ExportJsonFile()
         {

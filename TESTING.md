@@ -19,7 +19,9 @@ Implementation notes:
 - NuGet packages: `xunit` 2.9.3, `xunit.runner.visualstudio` 2.8.2, `Microsoft.NET.Test.Sdk` 17.11.1
 - `$(GameLibsFolder)` HintPaths defined directly in the test csproj (same path as main project)
 - `<ProjectReference>` to main project — MSBuild handles build ordering
-- `SmokeTest.cs` holds one empty `[Fact]` so `dotnet test` reports `Passed: 1` instead of "No test is available". Delete it once any real test exists.
+- `[assembly: InternalsVisibleTo("OniExtract2024.Tests")]` added to `Properties\AssemblyInfo.cs` — lets tests reach `internal` classes (`SkipUnityObjectConverter`, `SkipUnityObjectContractResolver`)
+- `netstandard` reference added to test csproj pointing at `$(GameLibsFolder)\netstandard.dll` — Unity 6 DLLs reference `netstandard 2.1.0.0` which the .NET Framework 4.8 SDK facade does not provide; the game ships its own `netstandard.dll` that does
+- `SmokeTest.cs` deleted; replaced by real tests
 
 **Agent loop command:** `dotnet test OniExtract2024.Tests\OniExtract2024.Tests.csproj` — exit 0 = green.
 
@@ -29,19 +31,9 @@ Implementation notes:
 
 These are incidental cleanups to existing code, not restructuring — each takes < 5 minutes.
 
-### 1. Extract `BuildExportPath` in `BaseExport`
+### 1. Extract `BuildExportPath` in `BaseExport` ✓ Done
 
-Currently `GetDatabaseLocation()` calls `Util.RootFolder()` and `DlcManager.IsExpansion1Active()` inline. Extract the pure logic:
-
-```csharp
-public static string BuildExportPath(string rootFolder, string dirName, bool isExpansion1Active)
-{
-    string suffix = isExpansion1Active ? "" : "_base";
-    return Path.Combine(rootFolder, "export", dirName + suffix);
-}
-```
-
-`GetDatabaseLocation()` becomes a one-liner calling `BuildExportPath` with the live game values. The static method is now testable with no game state.
+`BuildExportPath(string rootFolder, string dirName, bool isExpansion1Active)` extracted as a public static method. `GetDatabaseLocation()` is now a one-liner delegating to it.
 
 ### 2. Leave `SkipUnityObjectConverter` and `SkipUnityObjectContractResolver` as-is
 
@@ -70,14 +62,9 @@ These are the deterministic, game-state-free specs described as the starting poi
 | `CanConvert_PlainClass_ReturnsFalse` | `CanConvert(typeof(string))` → `false` |
 | `WriteJson_WritesNull` | Serializing a holder class whose property is `null` Unity object writes JSON `null` |
 
-### `ExportFileNameTests`
+### `ExportFileNameTests` — blocked, moved to Out of Scope
 
-| Test | What it checks |
-|---|---|
-| `RecipeExporter_FileName` | `new ExportRecipe().ExportFileName == "recipe"` |
-| `FoodExporter_FileName` | `new ExportFood().ExportFileName == "food"` |
-| `GeyserExporter_FileName` | `new ExportGeyser().ExportFileName == "geyser"` |
-| _(one per exporter)_ | All `ExportFileName` values are lowercase, no spaces, no `.json` suffix |
+`new ExportRecipe()` implicitly calls the `BaseExport()` base constructor, which calls `DlcManager.GetActiveDLCIds()` and `BuildWatermark.GetBuildText()` — game-state calls that crash without a live runtime. These tests require either game context or a targeted refactor (e.g. a protected `BaseExport(bool forTesting)` constructor that skips DLC init).
 
 ### `ModelFieldTests` (pure POCOs only)
 
@@ -92,6 +79,7 @@ Target model classes whose constructors take no game types: `BVector2`, `BColor`
 
 ## Out of Scope (for now)
 
+- `ExportFileNameTests` — `BaseExport()` constructor calls game state; tests can't run outside the game runtime without a targeted constructor refactor
 - Testing `Patches.cs` — Harmony transpilers require a live game runtime
 - Testing anything that instantiates `ComplexRecipe`, `FoodInfo`, or other game POCOs whose constructors have side effects
 - Integration tests that check actual export file output
