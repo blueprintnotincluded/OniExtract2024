@@ -1,28 +1,29 @@
 # OniExtract2024 — Open Items
 
-## 1. Vanilla Game Crash (BlockTileMaterial null) — Low Priority
+## 1. Vanilla Game Crash (BlockTileMaterial null) — FIXED 2026-06-20
 
-**Symptom:** Loading a save that contains tile-type buildings under construction
-(`TilePOI`, `SnowTile`, `WoodTile`) crashes with:
+**Symptom:** Loading a save that contains tile-type buildings (`SnowTile`, `WoodTile`, etc.)
+crashed with:
 ```
 ArgumentNullException: Value cannot be null (Parameter: source)
 → UnityEngine.Material..ctor(Material source)
 → BlockTileRenderer+RenderInfo..ctor
-→ BuildingUnderConstruction.OnSpawn
+→ BuildingUnderConstruction.OnSpawn / BuildingComplete.OnSpawn
 ```
 
-**Root cause:** Game bug introduced in U59/Unity 6. `BuildingDef.BlockTileMaterial` is
-null for certain tile building types when loaded from an old save. Our mod is not involved —
-the full export completes 30 minutes before this crash occurs.
+**Root cause (corrected):** `ExportBuilding.AddNewBuildingDef` was calling
+`buildingDef.BlockTileMaterial = null` on every tile building def during game init. That
+mutation persisted on the in-memory `BuildingDef` ScriptableObject for the entire session.
+When a save was loaded, `BlockTileRenderer` called `new Material(def.BlockTileMaterial)`,
+which threw because we had nulled it. Our mod was the cause, not a vanilla bug.
 
-**Options (in order of preference):**
-1. **Start a fresh game** — the bug only surfaces when loading an old save that has those
-   specific buildings mid-construction. A new colony avoids it entirely.
-2. **Wait for a Klei patch** — this is a vanilla regression; Klei will likely fix it.
-3. **Harmony workaround (last resort)** — patch `BlockTileRenderer.AddBlock` to null-check
-   `def.BlockTileMaterial` before calling `new Material(source)`. This would silence the
-   error and let the game continue, but the affected tiles would render incorrectly
-   (missing material). Not worth it unless the save is critical.
+The null was originally needed to prevent the JSON serializer from crashing when it tried to
+serialize `List<BuildingDef> buildingDefs` (a field since deleted by Fix 1). After Fix 1,
+`BBuildingEntity` is a pure POCO with no `Material` fields, so nulling `BlockTileMaterial`
+was no longer needed.
+
+**Fix:** Removed `buildingDef.BlockTileMaterial = null;` from `AddNewBuildingDef`
+(see Fix 4 in PLAN.md).
 
 ---
 

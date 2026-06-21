@@ -14,7 +14,7 @@ The old mod lives at `…\mods\local\OniExtract\` and also uses `OniExtract2024.
 
 ## Fix 1 — Remove null Unity objects from `building.json` and `items.json`
 
-**Status:** Done — build passes
+**Status:** Done — validated 2026-06-20
 
 ### Root cause
 
@@ -83,7 +83,7 @@ After build + re-export:
 
 ## Fix 2 — Restore egg export
 
-**Status:** Done — build passes
+**Status:** Done — validated 2026-06-20 (47 eggs, slightly above 30–40 estimate; DLC eggs account for the difference)
 
 ### Root cause
 
@@ -145,7 +145,7 @@ After build + re-export:
 
 ## Fix 3 — Populate `recipes` from the correct source
 
-**Status:** Done — build passes
+**Status:** Done — validated 2026-06-20 (173 recipes, correct ingredient/result data)
 
 ### Root cause
 
@@ -205,6 +205,37 @@ After build + re-export:
    - `ingredients` must have Water (93 kg) and Salt (7 kg)
    - `results` must have SaltWater (100 kg)
 5. Note whether `fabricators` is populated or null — record but do not block on it.
+
+---
+
+## Fix 4 — Stop nulling `BlockTileMaterial` on live BuildingDef objects
+
+**Status:** Done — validated 2026-06-20
+
+### Root cause
+
+`ExportBuilding.AddNewBuildingDef` (originally also in `OniExtract_Game_Building_RegisterBuilding` patch) called `buildingDef.BlockTileMaterial = null` on every tile building def during game init. That write mutated the live `BuildingDef` ScriptableObject in memory and persisted for the entire session. When the player loaded a save, `BuildingComplete.OnSpawn` and `BuildingUnderConstruction.OnSpawn` called `BlockTileRenderer.AddBlock` → `new Material(def.BlockTileMaterial)` → `ArgumentNullException`.
+
+The null-out existed to prevent the JSON serializer from crashing when serializing the old `List<BuildingDef> buildingDefs` field (removed by Fix 1). Since Fix 1 eliminated that field, `BBuildingEntity` is now a pure POCO — no `Material` field, no Unity object to serialize. The null-out became unnecessary and harmful.
+
+### File: `OniExtract2024/ExportBuilding.cs`
+
+**Remove** `buildingDef.BlockTileMaterial = null;` from `AddNewBuildingDef`:
+
+```csharp
+public void AddNewBuildingDef(BuildingDef buildingDef)
+{
+    this.roomConstraintTags = RoomConstraints.ConstraintTags.AllTags;
+}
+```
+
+### Validation
+
+1. Build and deploy the DLL.
+2. Launch ONI and reach the main menu (export runs here).
+3. Load an existing save that contains tile buildings (`SnowTile`, `WoodTile`, or any `Tile` type).
+4. Confirm the save loads without `ArgumentNullException` in Player.log.
+5. Confirm `building.json` still exports correctly (449 entries, no `buildingDefs` key).
 
 ---
 

@@ -18,7 +18,6 @@ public class ExportBuilding : BaseExport
 
     public void AddNewBuildingDef(BuildingDef buildingDef)
     {
-        buildingDef.BlockTileMaterial = null;
         this.roomConstraintTags = RoomConstraints.ConstraintTags.AllTags;
     }
 
