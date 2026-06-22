@@ -29,11 +29,62 @@ inspector's chooser list.
 
 ---
 
+## Session log (2026-06-22) — what changed and what's still broken
+
+Worked through a chain of bugs in the inspector. Committed on branch `picker`:
+
+1. **Biome tint crash** — the `SubworldZoneRenderData.GenerateTexture` prefix read
+   `zoneColours` as `Color[]`; it's actually `Color32[]`. The bad cast threw inside
+   `OnSpawn` and broke `WorldRenderer`. Fixed to `Color32[]` (direct field access).
+2. **Chooser overflowed the screen** — PLib's `PScrollPane` couldn't be bounded reliably
+   (grew the dialog off the top and bottom). Removed the list entirely; navigation is now
+   the **search box + prev/next buttons** only.
+3. **Anim/frame controls did nothing** — `GetAnimNames` went via
+   `KAnimGroupFile.GetGroup(kbac.GetBuildHash())`, but `GetGroup` is keyed by GROUP hash,
+   not BUILD hash, so it returned null and `s_animNames` was always empty →
+   `ApplyPoseAndRender` early-returned every call (confirmed: zero `ApplyPose` log lines).
+   Now reads the controller's own `KAnimControllerBase.anims` dictionary via `Traverse`.
+   Anims and frames now cycle.
+
+### Still broken — START HERE next session
+
+- **(A) Anim names show as a hex code, not a readable name.** The `anims` dict keys are
+  `HashedString`s whose source string isn't in `HashCache`, so `.ToString()` returns the
+  numeric hash. This is **blocking**: the paste line / `BuildingPoseOverrides` entry must
+  store the real anim name string, because the exporter does `Play(pose.Anim)` and a hex
+  string would re-hash to the wrong thing. Need a readable name source — probe
+  `KAnim.Anim.name` (via `KAnimControllerBase.GetAnim(int)`), or `AnimLookupData`, or
+  `KAnimFile.GetData().GetAnim(i).name`. Use the dotnet metadata probe (see
+  `[[oni-assembly-field-probe]]` memory) to confirm the struct members first.
+- **(B) The RT preview does not visibly update on pose change.** `ApplyPoseAndRender` now
+  runs to completion (labels update), so `RenderPreview` IS being called, but the on-screen
+  preview image doesn't change. Open questions to answer in order:
+  1. Does the preview panel show the building **at all** now (vs. the temp building visible
+     in the world behind the dialog)? Confirm the RT→sprite path actually displays.
+  2. Does a building **switch** update the preview? If switch works but pose-change doesn't,
+     it's the reused-off-screen-controller flush problem.
+  3. The current flush (`SetDirty()` + `UpdateAnim(0f)`) was insufficient. `UpdateAnim(0f)`
+     with dt=0 may skip the frame write. Try forcing `forceRebuild = true` before, or call
+     the protected `UpdateFrame(float)` via `Traverse`, or re-evaluate whether the
+     off-screen controller can be rendered at all without the engine driving it.
+- **(C) Frame counts looked "suspiciously consistent."** Verify `GetCurrentNumFrames()`
+  actually changes when cycling anims (across buildings it did: 4 vs 6). Re-add targeted
+  logging if needed.
+
+### Note on the export path
+
+The same `GetAnimNames` bug means `ChooseActiveAnim` was silently falling back to its probe
+list (never scoring). Now fixed — but **re-verify an exported PNG**, and the off-screen
+flush concern (B) may also affect `BuildingImageSnapshotter.PoseActive` → exports could be
+showing the spawn-default pose instead of the chosen one. Spot-check before trusting output.
+
+---
+
 ## Current state (works)
 
-- The inspector opens, the search box + prev/next + list build, and clicking a building
-  spawns it at a single in-world cell and renders a live preview. The paste line updates as
-  you cycle anim/frame.
+- The inspector opens, the search box + prev/next navigate, and clicking prev/next spawns a
+  building at a single in-world cell. Anim/frame cycling now drives `ApplyPoseAndRender`
+  (labels + paste line update). See the session log above for what is NOT yet working.
 - **`PlaceAllBuildings` was removed.** It spawned a grid that climbed off the top of the
   asteroid into off-world cells (`Grid.WorldIdx == 255`), causing `GetMyWorld()`-null NPEs
   (RailGun, interasteroid receiver). Those were placement artifacts, not bad buildings — the
@@ -47,7 +98,10 @@ inspector's chooser list.
 
 ## Planned UI improvements (NOT yet done — this is the plan)
 
-### 1. The building list overflows the whole screen — make it a bounded list / search
+### 1. The building list overflows the whole screen — make it a bounded list / search — DONE (list removed)
+
+Resolved by deleting the list/scroll pane entirely; navigation is the search box + prev/next
+buttons (see session log above). The analysis below is kept for reference.
 
 **Symptom:** the chooser renders all ~300 renderable rows as one giant scrollable column
 that overflows the top and bottom of the screen. Only a few buildings in the middle
