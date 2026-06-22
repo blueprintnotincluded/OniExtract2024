@@ -125,7 +125,7 @@ export/connection_sprites/{prefabId}/{bitmask}.png   (bitmask 0–15)
 | Type | Flag | Mechanism | Code |
 |---|---|---|---|
 | Utilities (wires/pipes/rails) | `isUtility` | Spawn a temp instance, snapshot each kanim state with the camera, then crop to one cell-centred square | [ConnectionSpriteSnapshotter.cs](OniExtract2024/connection/ConnectionSpriteSnapshotter.cs) |
-| Tiles | `isKAnimTile` | Resample the building's `BlockTileAtlas` into a cell-anchored frame with the game's trim/overhang geometry so tiles join seamlessly (no placement needed) | [TileConnectionExtractor.cs](OniExtract2024/connection/TileConnectionExtractor.cs) |
+| Tiles | `isKAnimTile` | Resample the building's `BlockTileAtlas` into a fixed 1.5-cell canvas (cell centred) reproducing the game's geometry: connected edges trim flush to the cell boundary, disconnected edges overhang it by ¼ cell so caps bleed into the neighbour and tiles join seamlessly (no placement needed). `15.png` fills exactly the centre cell — the website's scale reference | [TileConnectionExtractor.cs](OniExtract2024/connection/TileConnectionExtractor.cs) |
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause screen
 (Esc), and click **Export Connection Sprites**. Progress and the output path are logged to
