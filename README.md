@@ -46,13 +46,16 @@ Enable the mod in game. Restart game. Output will be in `Documents\Klei\OxygenNo
 
 ## What it exports
 
-The mod has two independent export paths:
+The mod has three independent export paths:
 
 1. **JSON data + UI icons** — runs automatically when the game reaches the main menu (no
    save required). Writes 13 JSON files plus one PNG icon per building/item.
-2. **Connection sprites** — a separate in-game tool, triggered from a button on the pause
-   screen (Esc), that renders the 16 connection states of each connectable building. It must
-   run inside a loaded game/sandbox because connectables can only be rendered there. See
+2. **Building images** — a separate in-game tool (pause screen → **Export Building Images**)
+   that re-renders every buildable building at 200 px/cell via live kanim camera snapshot,
+   overwriting the low-res atlas icons from path 1. Run this *after* path 1. See
+   [Building images](#building-images) below.
+3. **Connection sprites** — a separate in-game tool (pause screen → **Export Connection
+   Sprites**) that renders the 16 connection states of each connectable building. See
    [Connection sprites](#connection-sprites) below.
 
 ## Output Result
@@ -90,6 +93,22 @@ export
 ```
 
 Field-level schema for every JSON file: see [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md).
+
+## Building images
+
+The main-menu export writes `ui_image/` icons from the game's pre-baked UI atlas sprites —
+small menu thumbnails whose resolution cannot be improved by cropping. The building-images
+tool replaces them with live kanim renders at 200 px/cell.
+
+**Run order:** run the main-menu export first (all icons at low res), then run **Export
+Building Images** in-game to overwrite the building PNGs with hi-res versions. Non-building
+icons (elements, items, critters, facades) are only written by the main-menu pass and are
+not affected.
+
+To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause
+screen (Esc), and click **Export Building Images**. Progress is logged to `Player.log`
+(lines prefixed `OniExtract:`). The tool filters to `ShowInBuildMenu && !Deprecated`
+buildings, so deprecated and dev-only entries are skipped automatically.
 
 ## Connection sprites
 
