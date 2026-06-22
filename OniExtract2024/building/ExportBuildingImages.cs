@@ -21,15 +21,6 @@ namespace OniExtract2024.building
     {
         public static bool IsRunning { get; private set; }
 
-        // Deprecated buildings as a class crash the sweep: spawning one without full
-        // game context corrupts state and the run dies mid-sweep (the exact culprit was
-        // never isolated). So we skip Deprecated by default and opt back in only buildings
-        // vetted to spawn cleanly that the website still displays and needs a hi-res icon for.
-        private static readonly HashSet<string> DeprecatedAllowlist = new HashSet<string>
-        {
-            "SteamTurbine", // old 5x4 steam turbine; site still shows it, low-res today
-        };
-
         public static string OutputDir =>
             Path.Combine(Util.RootFolder(), "export", "ui_image");
 
@@ -79,29 +70,7 @@ namespace OniExtract2024.building
             int exported = 0, skipped = 0;
             foreach (var def in Assets.BuildingDefs)
             {
-                if (def == null || def.BuildingComplete == null || !def.ShowInBuildMenu)
-                {
-                    skipped++;
-                    continue;
-                }
-                // Deprecated buildings crash the sweep unless vetted (see DeprecatedAllowlist).
-                if (def.Deprecated)
-                {
-                    var dkpid = def.BuildingComplete.GetComponent<KPrefabID>();
-                    if (dkpid == null || !DeprecatedAllowlist.Contains(dkpid.PrefabTag.Name))
-                    {
-                        skipped++;
-                        continue;
-                    }
-                }
-                if (!def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
-                {
-                    skipped++;
-                    continue;
-                }
-                // RocketModuleCluster buildings crash on spawn without a full rocket context;
-                // WireUtilitySemiVirtualNetworkLink crashes are subsumed by this filter.
-                if (def.BuildingComplete.TryGetComponent<RocketModuleCluster>(out _))
+                if (!BuildingSpawnFilter.IsRenderable(def))
                 {
                     skipped++;
                     continue;

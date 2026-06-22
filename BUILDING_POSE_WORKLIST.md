@@ -1,0 +1,462 @@
+﻿# Building Pose Worklist
+
+Generated from export/database/building.json on 2026-06-22. 449 buildings total.
+
+Workflow: open **Inspect Building Poses** in-game, pick a building, choose anim+frame,
+paste the generated line into `BuildingPoseOverrides.Overrides` in
+`OniExtract2024/building/BuildingPoseOverrides.cs`, then tick it here.
+
+Sorted to match the tool's list order (case-insensitive by prefab id). Buildings the
+tool doesn't show (rockets, launch pads, etc.) are filtered out by BuildingSpawnFilter
+and can be skipped here.
+
+- [ ] `AdvancedApothecary` — Nuclear Apothecary
+- [ ] `AdvancedDoctorStation` — Disease Clinic
+- [ ] `AdvancedResearchCenter` — Super Computer
+- [ ] `AirborneCreatureLure` — Airborne Critter Lure
+- [ ] `AirBorneCritterCondo` — Airborne Critter Condo
+- [ ] `AirConditioner` — Thermo Regulator
+- [ ] `AirFilter` — Deodorizer
+- [ ] `AlgaeDistillery` — Algae Distiller
+- [ ] `AlgaeHabitat` — Algae Terrarium
+- [ ] `Apothecary` — Apothecary
+- [ ] `ArcadeMachine` — Arcade Cabinet
+- [ ] `ArtifactAnalysisStation` — Artifact Analysis Station
+- [ ] `ArtifactCargoBay` — Artifact Transport Module
+- [ ] `AstronautTrainingCenter` — Space Cadet Centrifuge
+- [ ] `AtomicGarden` — MISSING.STRINGS.BUILDINGS.PREFABS.ATOMICGARDEN.NAME
+- [ ] `AutoMiner` — Robo-Miner
+- [ ] `Battery` — Battery
+- [ ] `BatteryMedium` — Jumbo Battery
+- [ ] `BatteryModule` — Battery Module
+- [ ] `BatterySmart` — Smart Battery
+- [ ] `BeachChair` — Beach Chair
+- [ ] `Bed` — Cot
+- [ ] `BiodieselEngineCluster` — Biodiesel Engine
+- [ ] `BottleEmptier` — Bottle Emptier
+- [ ] `BottleEmptierConduitGas` — Canister Drainer
+- [ ] `BottleEmptierConduitLiquid` — Bottle Drainer
+- [ ] `BottleEmptierGas` — Canister Emptier
+- [ ] `BunkerDoor` — Bunker Door
+- [ ] `BunkerTile` — Bunker Tile
+- [ ] `Campfire` — Wood Heater
+- [ ] `Canvas` — Blank Canvas
+- [ ] `CanvasTall` — Portrait Canvas
+- [ ] `CanvasWide` — Landscape Canvas
+- [ ] `CargoBayCluster` — Large Cargo Bay
+- [ ] `CarpetTile` — Carpeted Tile
+- [ ] `CeilingLight` — Ceiling Light
+- [ ] `Checkpoint` — Duplicant Checkpoint
+- [ ] `ChemicalRefinery` — Emulsifier
+- [ ] `Chlorinator` — Bleach Stone Hopper
+- [ ] `ClothingAlterationStation` — Clothing Refashionator
+- [ ] `ClothingFabricator` — Textile Loom
+- [ ] `ClusterTelescope` — Telescope
+- [ ] `ClusterTelescopeEnclosed` — Enclosed Telescope
+- [ ] `CO2Engine` — Carbon Dioxide Engine
+- [ ] `CO2Scrubber` — Carbon Skimmer
+- [ ] `CometDetector` — Space Scanner
+- [ ] `Compost` — Compost
+- [ ] `ContactConductivePipeBridge` — Conduction Panel
+- [ ] `CookingStation` — Electric Grill
+- [ ] `CornerMoulding` — Corner Trim
+- [ ] `CraftingTable` — Crafting Station
+- [ ] `CreatureAirTrap` — Airborne Critter Trap
+- [ ] `CreatureDeliveryPoint` — Critter Drop-Off
+- [ ] `CreatureFeeder` — Critter Feeder
+- [ ] `CreatureGroundTrap` — Critter Trap
+- [ ] `CreatureTrap` — Critter Trap
+- [ ] `CrewCapsule` — MISSING.STRINGS.BUILDINGS.PREFABS.CREWCAPSULE.NAME
+- [ ] `CritterCondo` — Critter Condo
+- [ ] `CritterDropOff` — Critter Drop-Off
+- [ ] `CritterPickUp` — Critter Pick-Up
+- [ ] `CrownMoulding` — Ceiling Trim
+- [ ] `DecontaminationShower` — Decontamination Shower
+- [ ] `Deepfryer` — Deep Fryer
+- [ ] `Desalinator` — Desalinator
+- [ ] `DevGenerator` — Dev Generator
+- [ ] `DevHeater` — Dev Heater
+- [ ] `DevHEPSpawner` — Dev Radbolt Generator
+- [ ] `DevLifeSupport` — Dev Life Support
+- [ ] `DevLightGenerator` — Dev Light Source
+- [ ] `DevPumpGas` — Dev Pump Gas
+- [ ] `DevPumpLiquid` — Dev Pump Liquid
+- [ ] `DevPumpSolid` — Dev Pump Solid
+- [ ] `DevRadiationGenerator` — Dev Radiation Emitter
+- [ ] `DiamondPress` — Diamond Press
+- [ ] `DiningTable` — Mess Table
+- [ ] `DLC1CosmicResearchCenter` — Virtual Planetarium
+- [ ] `DoctorStation` — Sick Bay
+- [ ] `Door` — Pneumatic Door
+- [ ] `EggCracker` — Egg Cracker
+- [ ] `EggIncubator` — Incubator
+- [ ] `Electrolyzer` — Electrolyzer
+- [ ] `EspressoMachine` — Espresso Machine
+- [ ] `EthanolDistillery` — Ethanol Distiller
+- [ ] `ExobaseHeadquarters` — Mini-Pod
+- [ ] `ExteriorWall` — Drywall
+- [ ] `FabricatedWoodMaker` — Plywood Press
+- [ ] `FacilityBackWallWindow` — Window
+- [ ] `FarmStation` — Farm Station
+- [ ] `FarmTile` — Farm Tile
+- [ ] `FertilizerMaker` — Fertilizer Synthesizer
+- [ ] `FirePole` — Fire Pole
+- [ ] `FishDeliveryPoint` — Fish Release
+- [ ] `FishFeeder` — Fish Feeder
+- [ ] `FishPickUp` — Fish Pick-Up
+- [ ] `FishTrap` — Fish Trap
+- [ ] `FloorLamp` — Lamp
+- [ ] `FloorSwitch` — Weight Plate
+- [ ] `FlowerVase` — Flower Pot
+- [ ] `FlowerVaseHanging` — Hanging Pot
+- [ ] `FlowerVaseHangingFancy` — Aero Pot
+- [ ] `FlowerVaseWall` — Wall Pot
+- [ ] `FlushToilet` — Lavatory
+- [ ] `FlyingCreatureBait` — Airborne Critter Bait
+- [ ] `FoodDehydrator` — Dehydrator
+- [ ] `FoodRehydrator` — Rehydrator
+- [ ] `FossilDig` — Ancient Specimen
+- [ ] `Gantry` — Gantry
+- [ ] `GasBottler` — Canister Filler
+- [ ] `GasCargoBayCluster` — Large Gas Cargo Canister
+- [ ] `GasCargoBaySmall` — Gas Cargo Canister
+- [ ] `GasConduit` — Gas Pipe
+- [ ] `GasConduitBridge` — Gas Bridge
+- [ ] `GasConduitDiseaseSensor` — Gas Pipe Germ Sensor
+- [ ] `GasConduitElementSensor` — Gas Pipe Element Sensor
+- [ ] `GasConduitOverflow` — Gas Overflow Valve
+- [ ] `GasConduitPreferentialFlow` — Priority Gas Flow
+- [ ] `GasConduitRadiant` — Radiant Gas Pipe
+- [ ] `GasConduitTemperatureSensor` — Gas Pipe Thermo Sensor
+- [ ] `GasFilter` — Gas Filter
+- [ ] `GasLimitValve` — Gas Meter Valve
+- [ ] `GasLogicValve` — Gas Shutoff
+- [ ] `GasMiniPump` — Mini Gas Pump
+- [ ] `GasPermeableMembrane` — Airflow Tile
+- [ ] `GasPump` — Gas Pump
+- [ ] `GasReservoir` — Gas Reservoir
+- [ ] `GasValve` — Gas Valve
+- [ ] `GasVent` — Gas Vent
+- [ ] `GasVentHighPressure` — High Pressure Gas Vent
+- [ ] `Generator` — Coal Generator
+- [ ] `GenericFabricator` — Omniprinter
+- [ ] `GeneticAnalysisStation` — Botanical Analyzer
+- [ ] `GeoTuner` — Geotuner
+- [ ] `GlassCeilingLight` — Glass Jelly Ceiling Light
+- [ ] `GlassExteriorWall` — Glass Backwall
+- [ ] `GlassForge` — Glass Forge
+- [ ] `GlassTile` — Window Tile
+- [ ] `GourmetCookingStation` — Gas Range
+- [ ] `Grave` — Tasteful Memorial
+- [ ] `GravitasBathroomStall` — Toilet
+- [ ] `GravitasContainer` — Pajama Cubby
+- [ ] `GravitasCreatureManipulator` — Critter Flux-O-Matic
+- [ ] `GravitasDoor` — Gravitas Door
+- [ ] `GravitasLabLight` — LED Light
+- [ ] `GravitasPedestal` — Gravitas Pedestal
+- [ ] `HabitatModuleMedium` — Spacefarer Module
+- [ ] `HabitatModuleSmall` — Solo Spacefarer Nosecone
+- [ ] `HandSanitizer` — Hand Sanitizer
+- [ ] `Headquarters` — Printing Pod
+- [ ] `HeatCompressor` — Liquid Heatquilizer
+- [ ] `HEPBattery` — Radbolt Chamber
+- [ ] `HEPBridgeTile` — Radbolt Joint Plate
+- [ ] `HEPEngine` — Radbolt Engine
+- [ ] `HighEnergyParticleRedirector` — Radbolt Reflector
+- [ ] `HighEnergyParticleSpawner` — Radbolt Generator
+- [ ] `HighWattageWire` — Heavi-Watt Wire
+- [ ] `HijackedHeadquarters` — Printerceptor
+- [ ] `HotTub` — Hot Tub
+- [ ] `HydrogenEngineCluster` — Hydrogen Engine
+- [ ] `HydrogenGenerator` — Hydrogen Generator
+- [ ] `HydroponicFarm` — Hydroponic Farm
+- [ ] `IceCooledFan` — Ice-E Fan
+- [ ] `IceKettle` — Ice Liquefier
+- [ ] `IceMachine` — Ice Maker
+- [ ] `IceSculpture` — Ice Block
+- [ ] `InsulatedDoor` — Insulated Door
+- [ ] `InsulatedGasConduit` — Insulated Gas Pipe
+- [ ] `InsulatedLiquidConduit` — Insulated Liquid Pipe
+- [ ] `InsulationTile` — Insulated Tile
+- [ ] `ItemPedestal` — Pedestal
+- [ ] `JetSuitLocker` — Jet Suit Dock
+- [ ] `JetSuitMarker` — Jet Suit Checkpoint
+- [ ] `Juicer` — Juicer
+- [ ] `KeroseneEngineCluster` — Petroleum Engine
+- [ ] `KeroseneEngineClusterSmall` — Small Petroleum Engine
+- [ ] `Kiln` — Kiln
+- [ ] `Ladder` — Ladder
+- [ ] `LadderBed` — Ladder Bed
+- [ ] `LadderFast` — Plastic Ladder
+- [ ] `LandingBeacon` — Targeting Beacon
+- [ ] `LargeBackwallFarm` — Wall Planter
+- [ ] `LaunchPad` — Rocket Platform
+- [ ] `LeadSuitLocker` — Lead Suit Dock
+- [ ] `LeadSuitMarker` — Lead Suit Checkpoint
+- [ ] `LiquidBottler` — Bottle Filler
+- [ ] `LiquidCargoBayCluster` — Large Liquid Cargo Tank
+- [ ] `LiquidCargoBaySmall` — Liquid Cargo Tank
+- [ ] `LiquidConditioner` — Thermo Aquatuner
+- [ ] `LiquidConduit` — Liquid Pipe
+- [ ] `LiquidConduitBridge` — Liquid Bridge
+- [ ] `LiquidConduitDiseaseSensor` — Liquid Pipe Germ Sensor
+- [ ] `LiquidConduitElementSensor` — Liquid Pipe Element Sensor
+- [ ] `LiquidConduitOverflow` — Liquid Overflow Valve
+- [ ] `LiquidConduitPreferentialFlow` — Priority Liquid Flow
+- [ ] `LiquidConduitRadiant` — Radiant Liquid Pipe
+- [ ] `LiquidConduitTemperatureSensor` — Liquid Pipe Thermo Sensor
+- [ ] `LiquidCooledFan` — Hydrofan
+- [ ] `LiquidFilter` — Liquid Filter
+- [ ] `LiquidFuelTankCluster` — Large Liquid Fuel Tank
+- [ ] `LiquidHeater` — Liquid Tepidizer
+- [ ] `LiquidLimitValve` — Liquid Meter Valve
+- [ ] `LiquidLogicValve` — Liquid Shutoff
+- [ ] `LiquidMiniPump` — Mini Liquid Pump
+- [ ] `LiquidPump` — Liquid Pump
+- [ ] `LiquidPumpingStation` — Pitcher Pump
+- [ ] `LiquidReservoir` — Liquid Reservoir
+- [ ] `LiquidValve` — Liquid Valve
+- [ ] `LiquidVent` — Liquid Vent
+- [ ] `LogicAlarm` — Automated Notifier
+- [ ] `LogicClusterLocationSensor` — Starmap Location Sensor
+- [ ] `LogicCounter` — Signal Counter
+- [ ] `LogicCritterCountSensor` — Critter Sensor
+- [ ] `LogicDiseaseSensor` — Germ Sensor
+- [ ] `LogicDuplicantSensor` — Duplicant Motion Sensor
+- [ ] `LogicElementSensorGas` — Gas Element Sensor
+- [ ] `LogicElementSensorLiquid` — Liquid Element Sensor
+- [ ] `LogicGateAND` — AND Gate
+- [ ] `LogicGateBUFFER` — BUFFER Gate
+- [ ] `LogicGateDemultiplexer` — Signal Distributor
+- [ ] `LogicGateFILTER` — FILTER Gate
+- [ ] `LogicGateMultiplexer` — Signal Selector
+- [ ] `LogicGateNOT` — NOT Gate
+- [ ] `LogicGateOR` — OR Gate
+- [ ] `LogicGateXOR` — XOR Gate
+- [ ] `LogicHammer` — Hammer
+- [ ] `LogicHEPSensor` — Radbolt Sensor
+- [ ] `LogicInterasteroidReceiver` — Automation Receiver
+- [ ] `LogicInterasteroidSender` — Automation Broadcaster
+- [ ] `LogicLightSensor` — Light Sensor
+- [ ] `LogicMemory` — Memory Toggle
+- [ ] `LogicPowerRelay` — Power Shutoff
+- [ ] `LogicPressureSensorGas` — Atmo Sensor
+- [ ] `LogicPressureSensorLiquid` — Hydro Sensor
+- [ ] `LogicRadiationSensor` — Radiation Sensor
+- [ ] `LogicRibbon` — Automation Ribbon
+- [ ] `LogicRibbonBridge` — Automation Ribbon Bridge
+- [ ] `LogicRibbonReader` — Ribbon Reader
+- [ ] `LogicRibbonWriter` — Ribbon Writer
+- [ ] `LogicSwitch` — Signal Switch
+- [ ] `LogicTemperatureSensor` — Thermo Sensor
+- [ ] `LogicTimeOfDaySensor` — Cycle Sensor
+- [ ] `LogicTimerSensor` — Timer Sensor
+- [ ] `LogicWattageSensor` — Wattage Sensor
+- [ ] `LogicWire` — Automation Wire
+- [ ] `LogicWireBridge` — Automation Wire Bridge
+- [ ] `LonelyMailBox` — Mailbox
+- [ ] `LonelyMinionHouse` — Gravitas Shipping Container
+- [ ] `LuxuryBed` — Comfy Bed
+- [ ] `MachineShop` — Mechanics Station
+- [ ] `ManualGenerator` — Manual Generator
+- [ ] `ManualHighEnergyParticleSpawner` — Manual Radbolt Generator
+- [ ] `ManualPressureDoor` — Manual Airlock
+- [ ] `MarbleSculpture` — Marble Block
+- [ ] `MassageTable` — Massage Table
+- [ ] `MassiveHeatSink` — Anti Entropy Thermo-Nullifier
+- [ ] `MechanicalSurfboard` — Mechanical Surfboard
+- [ ] `MedicalCot` — Triage Cot
+- [ ] `MegaBrainTank` — Somnium Synthesizer
+- [ ] `MercuryCeilingLight` — Mercury Ceiling Light
+- [ ] `MeshTile` — Mesh Tile
+- [ ] `MetalRefinery` — Metal Refinery
+- [ ] `MetalSculpture` — Metal Block
+- [ ] `MetalTile` — Metal Tile
+- [ ] `MethaneGenerator` — Natural Gas Generator
+- [ ] `MicrobeMusher` — Microbe Musher
+- [ ] `MilkFatSeparator` — Gleaner
+- [ ] `MilkFeeder` — Critter Fountain
+- [ ] `MilkingStation` — Milking Station
+- [ ] `MilkPress` — Plant Pulverizer
+- [ ] `MineralDeoxidizer` — Oxygen Diffuser
+- [ ] `MiniFridge` — Mini Fridge
+- [ ] `MissileFabricator` — Blastshot Maker
+- [ ] `MissileLauncher` — Meteor Blaster
+- [ ] `MissionControlCluster` — Mission Control Station
+- [ ] `ModularLaunchpadPortBridge` — Rocket Port Extension
+- [ ] `ModularLaunchpadPortGas` — Gas Rocket Port Loader
+- [ ] `ModularLaunchpadPortGasUnloader` — Gas Rocket Port Unloader
+- [ ] `ModularLaunchpadPortLiquid` — Liquid Rocket Port Loader
+- [ ] `ModularLaunchpadPortLiquidUnloader` — Liquid Rocket Port Unloader
+- [ ] `ModularLaunchpadPortSolid` — Solid Rocket Port Loader
+- [ ] `ModularLaunchpadPortSolidUnloader` — Solid Rocket Port Unloader
+- [ ] `MonumentBottom` — Monument Base
+- [ ] `MonumentMiddle` — Monument Midsection
+- [ ] `MonumentTop` — Monument Top
+- [ ] `MorbRoverMaker` — Biobot Builder
+- [ ] `MouldingTile` — Trimming Tile
+- [ ] `MultiMinionDiningTable` — Communal Table
+- [ ] `NoseconeBasic` — Basic Nosecone
+- [ ] `NoseconeHarvest` — Drillcone
+- [ ] `NuclearReactor` — Research Reactor
+- [ ] `NuclearResearchCenter` — Materials Study Terminal
+- [ ] `ObjectDispenser` — Automatic Dispenser
+- [ ] `OilRefinery` — Oil Refinery
+- [ ] `OilWellCap` — Oil Well
+- [ ] `OrbitalCargoModule` — Orbital Cargo Module
+- [ ] `OrbitalResearchCenter` — Orbital Data Collection Lab
+- [ ] `OreScrubber` — Ore Scrubber
+- [ ] `Outhouse` — Outhouse
+- [ ] `OxidizerTankCluster` — Large Solid Oxidizer Tank
+- [ ] `OxidizerTankLiquidCluster` — Liquid Oxidizer Tank
+- [ ] `OxygenMaskLocker` — Oxygen Mask Dock
+- [ ] `OxygenMaskMarker` — Oxygen Mask Checkpoint
+- [ ] `OxygenMaskStation` — Oxygen Mask Station
+- [ ] `OxyliteRefinery` — Oxylite Refinery
+- [ ] `Oxysconce` — Oxylite Sconce
+- [ ] `ParkSign` — Park Sign
+- [ ] `PetroleumGenerator` — Petroleum Generator
+- [ ] `Phonobox` — Jukebot
+- [ ] `PioneerModule` — Trailblazer Module
+- [ ] `PixelPack` — Pixel Pack
+- [ ] `PlanterBox` — Planter Box
+- [ ] `PlasticTile` — Plastic Tile
+- [ ] `POIBunkerExteriorDoor` — Security Door
+- [ ] `POIDlc2ShowroomDoor` — Showroom Doors
+- [ ] `POIDoorInternal` — Security Door
+- [ ] `POIFacilityDoor` — Lobby Doors
+- [ ] `Polymerizer` — Polymer Press
+- [ ] `PowerControlStation` — Power Control Station
+- [ ] `PowerTransformer` — Large Power Transformer
+- [ ] `PowerTransformerSmall` — Power Transformer
+- [ ] `PressureDoor` — Mechanized Airlock
+- [ ] `PressureSwitchGas` — Atmo Switch
+- [ ] `PressureSwitchLiquid` — Hydro Switch
+- [ ] `PropBeachChair` — Tattered Beach Chair
+- [ ] `PropGravitasLabWall` — Lab Wall
+- [ ] `PropGravitasLabWindow` — Lab Window
+- [ ] `PropGravitasLabWindowHorizontal` — Lab Window
+- [ ] `PropGravitasWall` — Wall
+- [ ] `PropGravitasWallPurple` — Wall
+- [ ] `PropGravitasWallPurpleWhiteDiagonal` — Wall
+- [ ] `RadiationLight` — Radiation Lamp
+- [ ] `RailGun` — Interplanetary Launcher
+- [ ] `RailGunPayloadOpener` — Payload Opener
+- [ ] `RanchStation` — Grooming Station
+- [ ] `RationBox` — Ration Box
+- [ ] `ReefGenerator` — Tidal Turbine
+- [ ] `Refrigerator` — Refrigerator
+- [ ] `ResearchCenter` — Research Station
+- [ ] `ResearchClusterModule` — Research Module
+- [ ] `ResetSkillsStation` — Skill Scrubber
+- [ ] `RockCrusher` — Rock Crusher
+- [ ] `RocketControlStation` — Rocket Control Station
+- [ ] `RocketEnvelopeWindowTile` — Rocket Window
+- [ ] `RocketInteriorGasInput` — Gas Intake Fitting
+- [ ] `RocketInteriorGasInputPort` — Gas Spacefarer Input Port
+- [ ] `RocketInteriorGasOutput` — Gas Output Fitting
+- [ ] `RocketInteriorGasOutputPort` — Gas Spacefarer Output Port
+- [ ] `RocketInteriorLiquidInput` — Liquid Intake Fitting
+- [ ] `RocketInteriorLiquidInputPort` — Liquid Spacefarer Input Port
+- [ ] `RocketInteriorLiquidOutput` — Liquid Output Fitting
+- [ ] `RocketInteriorLiquidOutputPort` — Liquid Spacefarer Output Port
+- [ ] `RocketInteriorPowerPlug` — Power Outlet Fitting
+- [ ] `RocketInteriorSolidInput` — Conveyor Receptacle Fitting
+- [ ] `RocketInteriorSolidOutput` — Conveyor Loader Fitting
+- [ ] `RocketWallTile` — Rocket Wall
+- [ ] `RoleStation` — Skills Board
+- [ ] `RubberMaker` — Vulcanizer
+- [ ] `RubberTile` — Rubber Tile
+- [ ] `RustDeoxidizer` — Rust Deoxidizer
+- [ ] `Sauna` — Sauna
+- [ ] `ScannerModule` — Cartographic Module
+- [ ] `ScoutModule` — Rover's Module
+- [ ] `Sculpture` — Large Sculpting Block
+- [ ] `ShearingStation` — Shearing Station
+- [ ] `Shelf` — Display Shelf
+- [ ] `Shower` — Shower
+- [ ] `SludgePress` — Sludge Press
+- [ ] `SmallOxidizerTank` — Small Solid Oxidizer Tank
+- [ ] `SmallSculpture` — Sculpting Block
+- [ ] `SnowTile` — Snow Tile
+- [ ] `SodaFountain` — Soda Fountain
+- [ ] `SolarPanel` — Solar Panel
+- [ ] `SolarPanelModule` — Solar Panel Module
+- [ ] `SolidCargoBaySmall` — Cargo Bay
+- [ ] `SolidConduit` — Conveyor Rail
+- [ ] `SolidConduitBridge` — Conveyor Bridge
+- [ ] `SolidConduitDiseaseSensor` — Conveyor Rail Germ Sensor
+- [ ] `SolidConduitElementSensor` — Conveyor Rail Element Sensor
+- [ ] `SolidConduitInbox` — Conveyor Loader
+- [ ] `SolidConduitOutbox` — Conveyor Receptacle
+- [ ] `SolidConduitTemperatureSensor` — Conveyor Rail Thermo Sensor
+- [ ] `SolidFilter` — Solid Filter
+- [ ] `SolidLimitValve` — Conveyor Meter
+- [ ] `SolidLogicValve` — Conveyor Shutoff
+- [ ] `SolidTransferArm` — Auto-Sweeper
+- [ ] `SolidVent` — Conveyor Chute
+- [ ] `SpaceHeater` — Space Heater
+- [ ] `SpecialCargoBayCluster` — Critter Cargo Bay
+- [ ] `SpiceGrinder` — Spice Grinder
+- [ ] `StaterpillarGasConnector` — MISSING.STRINGS.BUILDINGS.PREFABS.STATERPILLARGASCONNECTOR.NAME
+- [ ] `StaterpillarGenerator` — Plug Slug
+- [ ] `StaterpillarLiquidConnector` — MISSING.STRINGS.BUILDINGS.PREFABS.STATERPILLARLIQUIDCONNECTOR.NAME
+- [ ] `SteamEngineCluster` — Steam Engine
+- [ ] `SteamTurbine` — [DEPRECATED] Steam Turbine
+- [ ] `SteamTurbine2` — Steam Turbine
+- [ ] `StorageLocker` — Storage Bin
+- [ ] `StorageLockerSmart` — Smart Storage Bin
+- [ ] `StorageTile` — Storage Tile
+- [ ] `SublimationStation` — Sublimation Station
+- [ ] `SugarEngine` — Sugar Engine
+- [ ] `SuitFabricator` — Exosuit Forge
+- [ ] `SuitLocker` — Atmo Suit Dock
+- [ ] `SuitMarker` — Atmo Suit Checkpoint
+- [ ] `SunLamp` — Sun Lamp
+- [ ] `SupermaterialRefinery` — Molecular Forge
+- [ ] `SushiBar` — Sushi Bar
+- [ ] `SweepBotStation` — Sweepy's Dock
+- [ ] `Switch` — Switch
+- [ ] `Telephone` — Party Line Phone
+- [ ] `TeleportalPad` — Teleporter Pad
+- [ ] `TemperatureControlledSwitch` — Thermo Switch
+- [ ] `TemporalTearOpener` — Temporal Tear Opener
+- [ ] `ThermalBlock` — Tempshift Plate
+- [ ] `Tile` — Tile
+- [ ] `TilePOI` — Tile
+- [ ] `TravelTube` — Transit Tube
+- [ ] `TravelTubeEntrance` — Transit Tube Access
+- [ ] `TravelTubeWallBridge` — Transit Tube Crossing
+- [ ] `UnderwaterBreathingStation` — Breathing Station
+- [ ] `UnderwaterCritterCondo` — Aquatic Critter Condo
+- [ ] `UnderwaterMilkFeeder` — Aquatic Critter Fountain
+- [ ] `UnderwaterMilkingStation` — Aquatic Milking Station
+- [ ] `UnderwaterRanchStation` — Aquatic Grooming Station
+- [ ] `UnderwaterShearingStation` — Aquatic Shearing Station
+- [ ] `UnderwaterVentDrill` — Marine Drill
+- [ ] `UraniumCentrifuge` — Uranium Centrifuge
+- [ ] `VerticalWindTunnel` — Vertical Wind Tunnel
+- [ ] `WallToilet` — Wall Toilet
+- [ ] `WarpConduitReceiver` — Supply Teleporter Output
+- [ ] `WarpConduitSender` — Supply Teleporter Input
+- [ ] `WashBasin` — Wash Basin
+- [ ] `WashSink` — Sink
+- [ ] `WaterCooler` — Water Cooler
+- [ ] `WaterPurifier` — Water Sieve
+- [ ] `WaterTrap` — Fish Trap
+- [ ] `WideFarmTile` — Wide Hydroponic Farm
+- [ ] `Wire` — Wire
+- [ ] `WireBridge` — Wire Bridge
+- [ ] `WireBridgeHighWattage` — Heavi-Watt Joint Plate
+- [ ] `WireRefined` — Conductive Wire
+- [ ] `WireRefinedBridge` — Conductive Wire Bridge
+- [ ] `WireRefinedBridgeHighWattage` — Heavi-Watt Conductive Joint Plate
+- [ ] `WireRefinedHighWattage` — Heavi-Watt Conductive Wire
+- [ ] `WireRubber` — Insulated Conductive Wire
+- [ ] `WireRubberBridge` — Insulated Conductive Wire Bridge
+- [ ] `WoodenDoor` — Wicker Door
+- [ ] `WoodGasGenerator` — Wood Burner
+- [ ] `WoodSculpture` — Wood Block
+- [ ] `WoodStorage` — Wood Pile
+- [ ] `WoodTile` — Wood Tile
+
