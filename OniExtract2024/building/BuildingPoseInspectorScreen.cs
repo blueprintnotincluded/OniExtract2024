@@ -34,15 +34,8 @@ namespace OniExtract2024.building
 
         // Chooser state.
         private static List<BuildingDef> s_defList;     // all renderable defs, sorted
-        private static List<GameObject> s_rowGOs;        // row button GO per s_defList entry
         private static List<BuildingDef> s_filtered;     // current search result, in order
         private static int s_filteredPos = -1;           // index of s_def within s_filtered
-
-        // Only ever activate this many row GOs at once. Materialising all ~300 rows makes
-        // PLib's scroll pane report a giant preferred height, which grows the dialog off the
-        // top and bottom of the screen (so only the middle ~"L" rows are reachable). Showing
-        // a small window keeps the dialog sized sanely; search + prev/next reach the rest.
-        private const int MaxVisibleRows = 10;
 
         // UI element refs captured via OnRealize
         private static GameObject s_buildingNameLabelGO;
@@ -212,46 +205,9 @@ namespace OniExtract2024.building
             navRow.AddChild(nextB);
             body.AddChild(navRow);
 
-            // Scrollable list of building rows.
-            var listPanel = new PPanel("BuildingListPanel")
-            {
-                Direction = PanelDirection.Vertical,
-                Spacing = 1,
-                FlexSize = new Vector2(1f, 0f),
-            };
-
-            s_rowGOs = new List<GameObject>(new GameObject[s_defList.Count]);
-            for (int i = 0; i < s_defList.Count; i++)
-            {
-                var def = s_defList[i];
-                int captured = i;
-                var rowBtn = new PButton("Row_" + def.PrefabID)
-                {
-                    Text = def.PrefabID,
-                    TextAlignment = TextAnchor.MiddleLeft,
-                    FlexSize = new Vector2(1f, 0f),
-                };
-                rowBtn.OnClick = (_) => SwitchTo(def);
-                rowBtn.OnRealize += (go) => s_rowGOs[captured] = go;
-                listPanel.AddChild(rowBtn);
-            }
-
-            var scroll = new PScrollPane("BuildingScroll")
-            {
-                Child = listPanel,
-                ScrollVertical = true,
-                ScrollHorizontal = false,
-                AlwaysShowVertical = true,
-                FlexSize = new Vector2(1f, 0f),
-            };
-            scroll.OnRealize += (go) =>
-            {
-                var le = go.AddOrGet<LayoutElement>();
-                le.minHeight = 150f;
-                le.preferredHeight = 150f;
-                le.flexibleHeight = 0f;
-            };
-            body.AddChild(scroll);
+            // No building list: PLib's scroll pane couldn't be bounded reliably and grew the
+            // dialog off-screen. Navigation is the search box (narrows the set) plus the
+            // prev/next buttons above (step through the current match set).
         }
 
         private static void BuildAnimAndFrameRows(PPanel body)
@@ -329,7 +285,7 @@ namespace OniExtract2024.building
 
         private static void ApplyFilter(string query)
         {
-            if (s_rowGOs == null || s_defList == null) return;
+            if (s_defList == null) return;
             query = (query ?? "").Trim();
 
             s_filtered = new List<BuildingDef>();
@@ -342,34 +298,7 @@ namespace OniExtract2024.building
             }
 
             s_filteredPos = s_def != null ? s_filtered.IndexOf(s_def) : -1;
-            UpdateVisibleRows();
             UpdateCounter();
-        }
-
-        // Activates only the (up to) MaxVisibleRows rows in a window centred on the current
-        // selection; deactivates the rest so the dialog can't grow off-screen. Inactive rows
-        // take no layout space, so the scroll pane only ever sees a small content height.
-        private static void UpdateVisibleRows()
-        {
-            if (s_rowGOs == null || s_filtered == null) return;
-
-            int count = s_filtered.Count;
-            int start = 0;
-            if (count > MaxVisibleRows)
-            {
-                int anchor = s_filteredPos >= 0 ? s_filteredPos : 0;
-                start = Mathf.Clamp(anchor - MaxVisibleRows / 2, 0, count - MaxVisibleRows);
-            }
-            int end = Mathf.Min(start + MaxVisibleRows, count);
-
-            var visible = new HashSet<BuildingDef>();
-            for (int i = start; i < end; i++) visible.Add(s_filtered[i]);
-
-            for (int i = 0; i < s_defList.Count; i++)
-            {
-                var go = s_rowGOs[i];
-                if (go != null) go.SetActive(visible.Contains(s_defList[i]));
-            }
         }
 
         private static void Step(int dir)
@@ -390,7 +319,6 @@ namespace OniExtract2024.building
             s_def = def;
             s_filteredPos = s_filtered != null ? s_filtered.IndexOf(def) : -1;
             SetLabelText(s_buildingNameLabelGO, PrefabId);
-            UpdateVisibleRows();
             UpdateCounter();
             InitBuilding();
         }
@@ -585,7 +513,6 @@ namespace OniExtract2024.building
             s_previewImage = null;
             s_def = null;
             s_defList = null;
-            s_rowGOs = null;
             s_filtered = null;
             s_filteredPos = -1;
 
