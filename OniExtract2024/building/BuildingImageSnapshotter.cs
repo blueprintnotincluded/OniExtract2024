@@ -12,6 +12,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 
 namespace OniExtract2024.building
@@ -159,12 +160,22 @@ namespace OniExtract2024.building
             return best ?? ProbeFallback(kbac);
         }
 
-        // Returns all animation names for the build via the group file. Exposed internal
-        // so the inspector can populate its animation picker.
+        // Returns all animation names this controller can actually play. Reads the
+        // controller's own `anims` map (KAnimControllerBase.anims), which is the authoritative
+        // per-controller set. (The old approach went via KAnimGroupFile.GetGroup(GetBuildHash())
+        // — but GetGroup is keyed by GROUP hash, not BUILD hash, so it returned null for most
+        // buildings and produced an empty list.) Exposed internal so the inspector can
+        // populate its animation picker.
         internal static List<HashedString> GetAnimNames(KBatchedAnimController kbac)
         {
-            var group = KAnimGroupFile.GetGroup(kbac.GetBuildHash());
-            return group?.animNames;
+            var dict = Traverse.Create(kbac).Field("anims").GetValue() as IDictionary;
+            if (dict == null || dict.Count == 0)
+                return null;
+
+            var names = new List<HashedString>(dict.Count);
+            foreach (var key in dict.Keys)
+                names.Add((HashedString)key);
+            return names;
         }
 
         private static string ProbeFallback(KBatchedAnimController kbac)

@@ -363,8 +363,9 @@ namespace OniExtract2024.building
             var rawNames = BuildingImageSnapshotter.GetAnimNames(s_kbac);
             s_animNames = rawNames != null
                 ? rawNames
+                    .Where(hs => s_kbac.HasAnimation(hs))
                     .Select(hs => hs.ToString())
-                    .Where(n => !string.IsNullOrEmpty(n) && s_kbac.HasAnimation(n))
+                    .Where(n => !string.IsNullOrEmpty(n))
                     .ToList()
                 : new List<string>();
 
@@ -395,6 +396,13 @@ namespace OniExtract2024.building
             if (numFrames <= 0) numFrames = 1;
             s_frameIndex = Mathf.Clamp(s_frameIndex, 0, numFrames - 1);
             s_kbac.SetPositionPercent(BuildingPoseOverrides.PercentForFrame(s_frameIndex, numFrames));
+
+            // The temp building sits off-screen (outside the camera's active area), so nothing
+            // drives the controller's per-frame update — re-posing it would keep rendering the
+            // previously-shown anim/frame. Force the controller to flush the new pose into its
+            // batch so the preview actually changes when cycling anims or scrubbing frames.
+            s_kbac.SetDirty();
+            s_kbac.UpdateAnim(0f);
 
             // Update slider range without triggering the value-changed callback.
             if (s_frameSlider != null)
