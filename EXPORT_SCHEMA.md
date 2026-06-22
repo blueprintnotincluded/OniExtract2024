@@ -1,7 +1,10 @@
 # OniExtract2024 — Export Schema Reference
 
-Game version: **U59-737790-SCA**  
-Active DLCs: 4 (includes `EXPANSION1_ID` — Spaced Out)  
+Field-level reference for the 13 JSON files written by the main-menu export. For the overall
+output layout and the connection-sprite tool, see [README.md](README.md).
+
+Documented against game version **U59-737790-SCA**, 4 active DLCs (includes `EXPANSION1_ID` —
+Spaced Out). Counts below reflect that version and shift as the game updates.
 Export path: `%USERPROFILE%\Documents\Klei\OxygenNotIncluded\export\database\`
 
 Every file shares these root-level metadata fields:
@@ -679,7 +682,7 @@ Tag and hash lookup tables.
 
 ### SimHashes
 
-Flat dict: element name string → signed integer hash.  
+Flat dict: element name string → signed integer hash.
 Example: `"CrushedIce": -2123557039`
 
 These values are the same as the keys in `elements.json`'s `elementTable`.
@@ -763,7 +766,7 @@ All `nameString` fields and some description fields include Unity rich-text link
 <link="CRUSHEDICE">Crushed Ice</link>
 ```
 
-Rendered as `&lt;link=...&gt;` in some contexts (JSON encodes `<` as `<`).  
+Rendered as `&lt;link=...&gt;` in some contexts (JSON encodes `<` as `<`).
 Strip with: `/<link="[^"]*">([^<]*)<\/link>/g` → capture group 1.
 
 ### db.json duplicate-key issue
