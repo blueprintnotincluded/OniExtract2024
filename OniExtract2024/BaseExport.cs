@@ -53,11 +53,10 @@ namespace OniExtract2024
             }
         }
 
-        public static string BuildExportPath(string rootFolder, string dirName, bool isExpansion1Active)
-        {
-            string suffix = isExpansion1Active ? "" : "_base";
-            return Path.Combine(rootFolder, "export", dirName + suffix);
-        }
+        // Delegates to the Unity-free OniExtract2024.Core so the path logic has one home that
+        // CI can unit-test without a game install. Kept here as the existing call site.
+        public static string BuildExportPath(string rootFolder, string dirName, bool isExpansion1Active) =>
+            ExportPaths.BuildExportPath(rootFolder, dirName, isExpansion1Active);
 
         public string GetDatabaseLocation() =>
             BuildExportPath(Util.RootFolder(), DatabaseDirName, DlcManager.IsExpansion1Active());

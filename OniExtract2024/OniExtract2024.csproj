@@ -170,13 +170,18 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="utils\AnimTool.cs" />
     <Compile Include="building\ImageCrop.cs" />
-    <Compile Include="building\UiImageRect.cs" />
     <Compile Include="building\ExportBuildingImages.cs" />
     <Compile Include="building\BuildingImageSnapshotter.cs" />
     <Compile Include="connection\ExportConnectionSprites.cs" />
     <Compile Include="connection\TileConnectionExtractor.cs" />
     <Compile Include="connection\ConnectionSpriteSnapshotter.cs" />
     <Compile Include="connection\ConnectionExportPatches.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OniExtract2024.Core\OniExtract2024.Core.csproj">
+      <Project>{1E1D2C3B-0A09-4F8E-9D6C-0000C0DE0001}</Project>
+      <Name>OniExtract2024.Core</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="mod.yaml">

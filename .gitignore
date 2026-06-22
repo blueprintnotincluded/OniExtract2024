@@ -8,5 +8,9 @@ OniExtract2024/obj/Release
 OniExtract2024/bin/Release
 OniExtract2024.Tests/bin/
 OniExtract2024.Tests/obj/
+OniExtract2024.Core/bin/
+OniExtract2024.Core/obj/
+OniExtract2024.Core.Tests/bin/
+OniExtract2024.Core.Tests/obj/
 export-2023.zip
 export/

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unity-free home for the export's pure logic (geometry, path building). Has no
+       reference to UnityEngine or ONI's Assembly-CSharp, so it builds and unit-tests on a
+       stock CI runner that has no game install. The mod project references it; anything that
+       needs game types stays in OniExtract2024 instead. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>OniExtract2024.Core</AssemblyName>
+    <RootNamespace>OniExtract2024</RootNamespace>
+  </PropertyGroup>
+
+</Project>
