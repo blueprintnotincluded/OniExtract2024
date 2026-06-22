@@ -23,9 +23,8 @@ namespace OniExtract2024.building
 
         // Deprecated buildings as a class crash the sweep: spawning one without full
         // game context corrupts state and the run dies mid-sweep (the exact culprit was
-        // never isolated — see BUILDING_IMAGES_FINDINGS.md "Deprecated buildings"). So we
-        // skip Deprecated by default and opt back in only buildings vetted to spawn
-        // cleanly that the website still displays and needs a hi-res icon for.
+        // never isolated). So we skip Deprecated by default and opt back in only buildings
+        // vetted to spawn cleanly that the website still displays and needs a hi-res icon for.
         private static readonly HashSet<string> DeprecatedAllowlist = new HashSet<string>
         {
             "SteamTurbine", // old 5x4 steam turbine; site still shows it, low-res today

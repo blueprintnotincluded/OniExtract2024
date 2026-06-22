@@ -110,6 +110,38 @@ screen (Esc), and click **Export Building Images**. Progress is logged to `Playe
 (lines prefixed `OniExtract:`). The tool filters to `ShowInBuildMenu && !Deprecated`
 buildings, so deprecated and dev-only entries are skipped automatically.
 
+### Implementation notes
+
+Non-obvious facts behind the render path
+([BuildingImageSnapshotter.cs](OniExtract2024/building/BuildingImageSnapshotter.cs),
+[ExportBuildingImages.cs](OniExtract2024/building/ExportBuildingImages.cs)) — the code comments
+carry the full detail:
+
+- **Never play the `"ui"` animation before a snapshot.** It renders at atlas/icon scale
+  (~100 px/cell), not live-kanim scale, and silently shrinks every output. The tool poses each
+  building in its most *active* state (e.g. `generating_loop`) seeked to a mid-loop frame instead.
+- **Deprecated buildings are skipped except a vetted allowlist.** Spawning deprecated content
+  without full game context corrupts state and crashes the sweep (exact culprit never isolated).
+  `SteamTurbine` is opted back in because the website still shows it; vet any addition by spawning
+  it in isolation first.
+- **Rocket modules need a `CraftModuleInterface` ancestor.** The sweep attaches the cluster
+  components to the world object so DLC rocket modules bind instead of null-ref'ing on spawn;
+  `RocketModuleCluster` buildings are filtered out entirely.
+- **Player names ≠ prefab IDs.** Icons are named by prefab ID (`building.json` `name`) — the
+  Auto-Sweeper is `SolidTransferArm`, there is no `AutoSweeper.png`.
+- **Material tint is captured by the render path.** Buildings that derive tint from their
+  construction element (tiles, Tempshift Plate) render in the neutral debug element's colour,
+  since the sweep builds every def from `Unobtanium`. Cosmetic, deferred.
+
+The render writes a per-building `uiImageRect` (cell-space, footprint-relative) into
+`building.json` so the website can place tight-cropped icons without squishing overhang — see
+[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md).
+
+**Open item:** spot-check `uiImageRect` placement on the website against the still-untested
+branches of the rect math — an even-width building (validates the +0.5 horizontal centring), a
+side-overhang building (non-zero `x`), an above-footprint overhang (tall art, `h > H`), and a
+plain footprint-filling box (should read `x≈0, y≈0, w≈W, h≈H`).
+
 ## Connection sprites
 
 A connectable building (wire, pipe, rail, tile) renders differently depending on which of its
@@ -133,6 +165,12 @@ To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the
 
 ## Downstream use
 
-[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md) describes how a website consumes this
-export. That document was authored in the consuming repo and is kept here only as a reference
-to be validated; it will eventually be replaced by a link to that repo.
+This export is consumed by the **blueprintnotincluded** website. The ingestion work — the scripts
+that eat this export — lives in the consuming repo
+([blueprintnotincluded/blueprintnotincluded](https://github.com/blueprintnotincluded/blueprintnotincluded),
+ingestion in [PR #90](https://github.com/blueprintnotincluded/blueprintnotincluded/pull/90)).
+
+[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md) records the export↔website contract — what
+the website reads, the framing rules, and what must not break. Its authoritative source is the
+consuming repo, so the two will drift over time; the copy here is a working snapshot kept beside
+the exporter so export-side changes can be checked against it without leaving this repo.

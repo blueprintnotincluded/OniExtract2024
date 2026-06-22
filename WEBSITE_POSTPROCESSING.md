@@ -1,4 +1,12 @@
-After the Export: What the Website Does With Your Files
+# After the Export: What the Website Does With Your Files
+
+> **Source of truth:** this contract is authored and maintained in the consuming repo,
+> [blueprintnotincluded/blueprintnotincluded](https://github.com/blueprintnotincluded/blueprintnotincluded)
+> (ingestion: [PR #90](https://github.com/blueprintnotincluded/blueprintnotincluded/pull/90)). The copy
+> here is a working snapshot kept beside the exporter so export-side changes can be checked against
+> it. The two will drift; when they disagree, the consuming repo wins. Treat the specifics below as
+> a guide, not a guarantee.
+
 Direction: website → export. Read this before changing the exported assets (especially
 image resolution) so a change on your side doesn't quietly break rendering on ours.
 
@@ -175,8 +183,8 @@ what it's for and we'll wire it.
 want, for i18n.)
 Higher-res ui_image: if any icon will exceed ~5 MB, tell us so we raise the test bound
 ahead of time.
-ui_image framing (ACTIVE — your next export task): decided to go with full per-building
-placement. Emit uiImageRect (cells, footprint-relative) for every building (≈150 deviate,
-the rest can omit it / set it to the footprint). Website consumption is already shipped and
-unit-tested; the converter logs buildings with uiImageRect placement: N / 449 so you can
-track rollout. This revives the pivot/realSize your renderer already computes.
+ui_image framing (DONE on the export side): the exporter now emits uiImageRect (cells,
+footprint-relative) for every rendered building — see the README "Building images" notes. The
+converter logs buildings with uiImageRect placement: N / 449 so you can track coverage. Remaining
+work is website-side spot-checking the untested branches of the rect math. This revives the
+pivot/realSize the renderer already computes.

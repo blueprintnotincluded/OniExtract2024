@@ -86,7 +86,7 @@ namespace OniExtract2024.building
                 // rather than the drab idle/off pose it auto-spawns into. Applied right
                 // before SnapShot with no intervening game tick, so a building's own state
                 // machine can't revert it before we read pixels. Never use "ui" — it
-                // renders at atlas/icon scale, not live-kanim scale (see findings doc).
+                // renders at atlas/icon scale, not live-kanim scale, shrinking every output.
                 PoseActive(kbac);
 
                 string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
