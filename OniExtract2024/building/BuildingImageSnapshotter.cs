@@ -25,20 +25,33 @@ namespace OniExtract2024.building
     public class BuildingImageSnapshotter : KMonoBehaviour
     {
         private const float PixelsPerCell = 200f;
-        private const float PaddingPx = 200f;
+        // 2 cells of headroom on each side at 200 px/cell. Buildings like SteamTurbine2
+        // have kanim parts that extend ~2 cells below the cell footprint; 1 cell was not
+        // enough. Bbox crop removes the empty margin so output size is unaffected.
+        private const float PaddingPx = 400f;
         private static readonly int DrawLayer = 30;
 
         private Camera snapshotCamera;
         private RenderTexture targetTexture;
 
+        // Render geometry captured in InitCamera, needed afterwards to express the crop
+        // as a footprint-relative rectangle (uiImageRect). The camera centres the footprint
+        // on the texture centre, so these plus the crop bbox fully locate the art.
+        private int texW;
+        private int texH;
+        private int cellW;
+        private int cellH;
+
         // Called by ExportBuildingImages after AddOrGet. The caller then waits on
-        // IsNullOrDestroyed — no coroutine handle needed from outside.
-        public void StartExport(string outputDir)
+        // IsNullOrDestroyed — no coroutine handle needed from outside. The optional
+        // rects map collects each building's uiImageRect, keyed by prefab tag name
+        // (== building.json `name`), so ExportBuildingImages can patch building.json.
+        public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null)
         {
-            StartCoroutine(DoExport(outputDir));
+            StartCoroutine(DoExport(outputDir, rects));
         }
 
-        private IEnumerator DoExport(string outputDir)
+        private IEnumerator DoExport(string outputDir, IDictionary<string, UiImageRect> rects)
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
@@ -47,11 +60,22 @@ namespace OniExtract2024.building
 
             if (kpid != null && kbac != null)
             {
+                // Buildings that spawn in "off" state show a retracted/idle pose (e.g.
+                // SolidTransferArm shows a flat bar instead of the extended T-shape).
+                // Switch to "on" for a representative icon. Never use "ui" — it renders
+                // at atlas/icon scale, not live-kanim scale (see BUILDING_IMAGES_FINDINGS.md).
+                var building = GetComponent<Building>();
+                if (building != null && building.Def.DefaultAnimState == "off" && kbac.HasAnimation("on"))
+                {
+                    kbac.Play("on", KAnim.PlayMode.Paused);
+                    yield return null;
+                }
+
                 string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
                 Texture2D raw = SnapShot();
                 if (raw != null)
                 {
-                    Texture2D cropped = TrimToOpaqueBBox(raw);
+                    Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
                     Destroy(raw);
                     if (cropped != null)
                     {
@@ -60,6 +84,9 @@ namespace OniExtract2024.building
                         File.WriteAllBytes(filePath, cropped.EncodeToPNG());
                         Destroy(cropped);
                         Debug.Log("OniExtract: building image -> " + filePath);
+
+                        if (rects != null)
+                            rects[kpid.PrefabTag.Name] = ComputeRect(minX, minY, cw, ch);
                     }
                 }
             }
@@ -117,6 +144,12 @@ namespace OniExtract2024.building
             int textureWidth = Mathf.CeilToInt(widthInt * PixelsPerCell + 2 * PaddingPx);
             int textureHeight = Mathf.CeilToInt(heightInt * PixelsPerCell + 2 * PaddingPx);
 
+            // Remember the render geometry so ComputeRect can map the crop back to cells.
+            texW = textureWidth;
+            texH = textureHeight;
+            cellW = widthInt;
+            cellH = heightInt;
+
             targetTexture = new RenderTexture(textureWidth, textureHeight, 24);
             targetTexture.Create();
 
@@ -138,22 +171,34 @@ namespace OniExtract2024.building
             snapshotCamera.aspect = (float)textureWidth / textureHeight;
         }
 
-        private static Texture2D TrimToOpaqueBBox(Texture2D tex)
+        // minX/minY are the crop's bottom-left corner in render-texture pixels (y=0 at the
+        // bottom, matching GetPixels' bottom-up order), so a building whose art hangs below
+        // the footprint yields a small minY → negative uiImageRect.y. cw/ch are the crop size.
+        private static Texture2D TrimToOpaqueBBox(Texture2D tex, out int minX, out int minY, out int cw, out int ch)
         {
             int w = tex.width, h = tex.height;
             Color[] px = tex.GetPixels();
 
-            if (!ImageCrop.FindOpaqueBBox(px, w, h, out int minX, out int minY, out int maxX, out int maxY))
+            cw = 0; ch = 0;
+            if (!ImageCrop.FindOpaqueBBox(px, w, h, out minX, out minY, out int maxX, out int maxY))
                 return null;
 
-            int cw = maxX - minX + 1;
-            int ch = maxY - minY + 1;
+            cw = maxX - minX + 1;
+            ch = maxY - minY + 1;
             Color[] outPx = ImageCrop.CropPixels(px, w, minX, minY, cw, ch);
 
             Texture2D result = new Texture2D(cw, ch);
             result.SetPixels(outPx);
             result.Apply();
             return result;
+        }
+
+        // Express the opaque crop as a footprint-relative rectangle in cells (uiImageRect).
+        // Math lives in UiImageRect.FromCrop so it can be unit-tested without loading this
+        // KMonoBehaviour (the .NET test host rejects Assembly-CSharp-firstpass types).
+        private UiImageRect ComputeRect(int minX, int minY, int cw, int ch)
+        {
+            return UiImageRect.FromCrop(minX, minY, cw, ch, texW, texH, cellW, cellH, PixelsPerCell);
         }
 
         // --- reflection shims for stock (non-publicized) Assembly-CSharp -------------

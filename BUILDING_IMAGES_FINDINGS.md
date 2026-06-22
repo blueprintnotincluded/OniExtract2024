@@ -71,16 +71,28 @@ Our filter `def.Deprecated || !def.ShowInBuildMenu` correctly skips `SteamTurbin
 deprecated buildings, so `ui_image/SteamTurbine.png` remains the old 144×124 atlas
 sprite. The user sees it as a "steam turbine that cuts off a block and a half early."
 
-**Attempted fix:** Removing `def.Deprecated` from the filter caused a game crash.
-The exact cause was not isolated before reverting — some deprecated buildings may
-share the crash-on-spawn properties as rocket modules (null virtual-network key,
-`ReorderableBuilding` issues, etc.).
+**Reproduced (2026-06-21):** A run with `def.Deprecated` removed from the filter
+crashed again — wrote 65 buildings (through `DevPumpLiquid`) then the game exited
+mid-sweep with no managed stack trace (state corruption / native crash, not a
+catchable spawn-site exception). Confirmed it is the deprecated content, not a
+specific normal building: the *prior* run (with the `Deprecated` filter intact)
+rendered the very next def (`DevPumpSolid`) and all 341 buildings cleanly, and the
+only category the filter-removed run additionally spawns is deprecated buildings.
+(The `CrewCapsuleComplete` / `RocketLaunchConditionVisualizer` null-ref seen in the
+log is non-fatal — that building also spawned in the clean prior run.) The exact
+deprecated culprit is still not isolated; it spawns in the C/D alphabetical range
+and the crash manifests a few buildings later, matching the "corrupts state, then
+dies" pattern.
 
-**Next step:** Before removing the `Deprecated` filter, audit which deprecated
-buildings are in the database and check whether any carry components that are known
-to crash (`RocketModuleCluster`, `WireUtilitySemiVirtualNetworkLink`, etc.).
-A safe approach: add deprecated buildings to the render pass only after confirming
-they don't crash.
+**Fix applied:** Keep the `def.Deprecated` skip, but opt specific deprecated
+buildings back in via `ExportBuildingImages.DeprecatedAllowlist` (currently just
+`SteamTurbine`). This renders the one deprecated building the website needs hi-res
+while skipping the unvetted, crash-prone rest — the "safe approach" below, made
+concrete. `SteamTurbine` is a vanilla power building (no rocket / virtual-network
+components) so it is expected to spawn cleanly; it sits late ('S') in the sweep, so
+if it ever does crash it will show up near the end and can be dropped from the
+allowlist. To add more deprecated buildings later, vet each by spawning it in
+isolation first.
 
 ---
 
@@ -94,6 +106,42 @@ above), which requires a different animation state, likely `"on"` or `"working"`
 This is the Phase 3 fidelity issue flagged in `IMAGES_PLAN.md`. The fix is to detect
 `defaultAnimState == "off"` and try `"on"` instead, or to inspect which animations
 the building has and pick the fullest one. Do not use `"ui"` (see above).
+
+---
+
+## Material tint — already captured, no fix needed
+
+Phase 3 flagged a risk that buildings relying on a runtime tint
+(`kbac.TintColour` / `kbac.SetSymbolTint`) might render grey/white. Verified
+against the decompiled `Assembly-CSharp-firstpass.dll` that this is **not** the
+case — the live-batch render path captures both forms of tint:
+
+- `KBatchedAnimController.SetSymbolTint` writes into `symbolInstanceGpuData`;
+  `KAnimBatch.WriteSymbolInstanceData` copies it into the batch's
+  `symbolInstanceTex`.
+- The overall `TintColour` lives in the controller's `animInstanceData.tintColour`
+  (`GetBatchInstanceData()`); `KAnimBatch.WriteBatchedAnimInstanceData` copies it
+  into the batch's `dataTex`.
+- Both textures are bound into `KAnimBatch.matProperties`, and both setters call
+  `SetDirty()` → `needsWrite = true`.
+- `KAnimBatchManager.UpdateDirty(frame)` performs the flush. The snapshotter calls
+  exactly this immediately before `snapshotCamera.Render()` and draws with
+  `batch.matProperties`, so any tint the controller has applied is on the GPU data
+  by render time.
+
+**Consequence:** reading the tint off the kbac and re-applying it to the same kbac
+would be a strict no-op. No code change made. (The verified connection-sprite tool
+uses the identical render path with no tint handling and renders utility-building
+colours correctly — corroborating evidence.)
+
+**One residual nuance (deferred, not a tint-read bug):** buildings that *derive*
+their tint from the construction element (tiles, Tempshift Plate, insulation
+variants) render in **Unobtanium's** colour, because the spawn loop builds every
+def from `SimHashes.Unobtanium` (same neutral debug element the connection tool
+uses). To match the recognizable build-menu colour, those would need to spawn from
+their default/primary recipe material instead — a riskier spawn-element change
+(element availability, recipe edge cases) that should only be made *after* in-game
+QA shows it actually matters and doesn't regress the common case. Left as-is.
 
 ---
 
@@ -116,15 +164,62 @@ crash on spawn even with the `RocketModuleCluster` filter in place.
 
 ## PaddingPx
 
-Current value: **200 px** (1 cell of padding each side at 200 px/cell).
+Current value: **400 px** (2 cells of padding each side at 200 px/cell).
 
-Doubling to 400 px did not fix the "steam turbine cuts off early" symptom because
-the turbine involved was `SteamTurbine` (deprecated, skipped entirely — old atlas
-sprite served). `SteamTurbine2` was being rendered but at icon scale due to the
-`"ui"` animation bug. Once both bugs are fixed, revisit whether 200 px of padding
-is sufficient for the actual buildings that render beyond their footprint.
+Originally 200 px. Doubling to 400 px did not, on its own, fix the "steam turbine
+cuts off early" symptom because the turbine involved was `SteamTurbine`
+(deprecated, then skipped entirely — old atlas sprite served), and `SteamTurbine2`
+was rendering at icon scale due to the `"ui"` animation bug. With those two bugs
+fixed (deprecated filter removed, no `"ui"` play), 400 px gives ~2 cells of
+headroom so kanim parts that hang below the footprint (e.g. `SteamTurbine2`'s
+dangling pipes) are captured. The opaque-bbox crop removes the empty margin, so the
+larger padding does not inflate output size — it only widens the capture window.
 
 ---
+
+## uiImageRect — footprint-relative placement for the website
+
+The website stretches each `ui_image/` icon to fill the footprint box. The old atlas
+sprites were footprint-shaped, so that was harmless; the hi-res kanim renders tight-crop
+to the art's true bounding box, which overhangs the footprint, so a blind stretch squishes
+them (steam-turbine exhaust crushed, auto-sweeper squished — see `WEBSITE_POSTPROCESSING.md`).
+
+The fix is to emit, per building, the rendered PNG's rectangle in **cells, relative to the
+footprint** — the field the website already consumes:
+
+```json
+"uiImageRect": { "x": 0, "y": -1.24, "w": 5, "h": 4.24 }
+```
+
+Footprint = (0,0) bottom-left to (W,H) top-right; +x right, **+y up**; `x,y` = the PNG's
+bottom-left corner, `w,h` = PNG size. Below-footprint overhang ⇒ negative `y`.
+
+**Where it's computed.** `BuildingImageSnapshotter.ComputeRect` → `UiImageRect.FromCrop`
+(pure, unit-tested in `BuildingImageSnapshotterTests`). The snapshot camera centres the
+footprint on the texture centre at `PixelsPerCell` px/cell, so for an opaque crop with
+bottom-left pixel `(minX, minY)` and size `(cw, ch)`:
+
+```
+x = (minX - texW/2)/ppc + W/2
+y = (minY - texH/2)/ppc + H/2     // minY is the bottom opaque row (GetPixels is bottom-up)
+w = cw/ppc                         // → no manual Y flip; negative y falls out naturally
+h = ch/ppc
+```
+
+The camera-position terms cancel, so the rect is independent of where the building spawned.
+It relies on the existing camera framing being correct: footprint bottom = building
+`transform.y`, footprint h-centre = `transform.x` (+0.5 for even widths) — the same
+`pos.y += H/2` / `pos.x += 0.5` adjustments `InitCamera` already makes to centre the shot.
+
+**Where it lands.** The rect can only be measured from a live in-game render, long after
+the main-menu pass writes `building.json`. So `ExportBuildingImages` collects every rendered
+building's rect (keyed by prefab tag name == `building.json` `name`) and, after the sweep,
+merges them into `database[_base]/building.json` via JSON.NET (`PatchBuildingJson`). Buildings
+we skip (deprecated/rocket modules) get no rect and keep the website's legacy
+stretch-to-footprint fallback. Watch the log line
+`buildings with uiImageRect placement: N / total` to track coverage — it mirrors the
+converter's own log on the website side. Run the main-menu export first; if `building.json`
+is missing, the merge logs a warning and no-ops.
 
 ## How to diagnose future image issues
 

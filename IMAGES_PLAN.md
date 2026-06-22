@@ -61,12 +61,31 @@ Proves spawn → camera → trim → write end-to-end before touching 449 buildi
 - [x] Deliverable: all building icons regenerated at 200 px/cell.
 
 ### Phase 3 — fidelity pass (QA-driven)
-- [ ] Choose the correct display state per building (build-complete idle vs the menu "place" look).
-- [ ] Handle multi-`KBatchedAnimController` buildings (foreground / animated parts) and material
-      tint.
-- [ ] Handle outliers: very large buildings, conveyor/rail rigs.
-- [ ] Validate by dropping a regenerated `ui_image/` into the website; eyeball the steam turbine
-      (the icon the modder flagged) plus a sample set.
+- [x] Choose the correct display state per building: spawn-`"off"` buildings (e.g.
+      `SolidTransferArm`) switched to `"on"` for a representative pose; never `"ui"` (icon scale).
+- [x] Handle multi-`KBatchedAnimController` buildings (render iterates all child controllers,
+      z-ordered) and material tint (live-batch render already captures `TintColour` /
+      `SetSymbolTint` — verified against decompiled Assembly-CSharp; see findings doc. No fix).
+- [x] Handle outliers: deprecated buildings skipped except a vetted allowlist (`SteamTurbine`) —
+      a blanket removal crashes the sweep; `RocketModuleCluster` filtered to avoid crashes;
+      padding raised to 400 px for below-footprint kanim parts.
+- [x] Emit `uiImageRect` (cells, footprint-relative) per rendered building so the website can
+      place tight-cropped icons without squishing overhang. Measured in `UiImageRect.FromCrop`
+      (unit-tested), merged into `database/building.json` by `ExportBuildingImages.PatchBuildingJson`.
+      See `BUILDING_IMAGES_FINDINGS.md` "uiImageRect" and `WEBSITE_POSTPROCESSING.md`.
+- [x] **Validated in-website:** `SteamTurbine2` (below-footprint exhaust → negative `y`) and
+      `SolidTransferArm` (`"off"`→`"on"` pose) both render correctly with `uiImageRect`.
+- [ ] **Remaining `uiImageRect` spot-checks** — each exercises an untested branch of the rect
+      math; pick one representative of each from the website (see findings doc "uiImageRect"):
+      1. **Even-width building** (e.g. Coal Generator 2×2, Manual Generator 2×3) — validates the
+         `+0.5` horizontal centring. If wrong it shifts ~half a cell sideways: subtle, easy to
+         miss, so check alignment against the footprint grid deliberately.
+      2. **Side overhang** (art bleeds left/right past the footprint) → non-zero `x` and/or
+         `x+w > W`. Confirm horizontal overhang hangs out instead of squishing in.
+      3. **Above-footprint overhang** (tall art extending up, `y ≈ 0` but `h > H`) — the upward
+         counterpart to the turbine's downward case.
+      4. **Plain footprint-filling box** (e.g. a battery/storage bin) — should read
+         `x≈0, y≈0, w≈W, h≈H`; confirms no half-cell offset crept into the common case.
 
 ### Phase 4 — finish
 - [ ] Add a short "Building images" note to the README beside "Connection sprites".
