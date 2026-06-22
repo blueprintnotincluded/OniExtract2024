@@ -61,8 +61,10 @@ Proves spawn → camera → trim → write end-to-end before touching 449 buildi
 - [x] Deliverable: all building icons regenerated at 200 px/cell.
 
 ### Phase 3 — fidelity pass (QA-driven)
-- [x] Choose the correct display state per building: spawn-`"off"` buildings (e.g.
-      `SolidTransferArm`) switched to `"on"` for a representative pose; never `"ui"` (icon scale).
+- [x] Choose the correct display state per building: `PoseActive` scores each build's real
+      animation list and plays the most-active state (working/generating/on) seeked to a
+      mid-loop frame, instead of the drab idle/off frame-0 pose; never `"ui"` (icon scale).
+      See `BUILDING_IMAGES_FINDINGS.md` "Active-state posing".
 - [x] Handle multi-`KBatchedAnimController` buildings (render iterates all child controllers,
       z-ordered) and material tint (live-batch render already captures `TintColour` /
       `SetSymbolTint` — verified against decompiled Assembly-CSharp; see findings doc. No fix).

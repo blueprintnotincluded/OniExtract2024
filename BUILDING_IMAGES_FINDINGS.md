@@ -96,16 +96,40 @@ isolation first.
 
 ---
 
-## SolidTransferArm animation state
+## Active-state posing (PoseActive)
 
-The Auto-Sweeper (`SolidTransferArm`, 3×1) spawns in `defaultAnimState = "off"`.
-In `"off"` the arm is retracted — the building looks like a flat 3×1 bar. The
-website/game shows it with the arm extended upward (a T-shape bleeding into the row
-above), which requires a different animation state, likely `"on"` or `"working"`.
+**Problem (reported post-ship):** buildings rendered "drab" / "shut down". Two causes,
+one root: we captured an *idle/off state at frame 0*.
+- The old logic only switched `defaultAnimState == "off"` → `"on"`; every other building
+  was snapshotted in whatever calm state it auto-spawned into (no power/inputs).
+- `Play(anim, Paused)` parks on frame 0 — for a `working_loop`/`generating_loop` that is
+  the retracted "starting" pose (e.g. `SolidTransferArm`'s arm pulled in).
 
-This is the Phase 3 fidelity issue flagged in `IMAGES_PLAN.md`. The fix is to detect
-`defaultAnimState == "off"` and try `"on"` instead, or to inspect which animations
-the building has and pick the fullest one. Do not use `"ui"` (see above).
+**Fix:** `BuildingImageSnapshotter.PoseActive` runs right before `SnapShot()` (no
+intervening game tick, so a building's own state machine can't revert it):
+1. `ChooseActiveAnim` enumerates the build's real animation names —
+   `KAnimGroupFile.GetGroup(kbac.GetBuildHash()).animNames` (all public firstpass API,
+   no reflection) — and scores them: `working/generating/channeling/dispensing/emitting`
+   = 100, `on` = 50, `idle` = 20, `+10` for a `loop`, `−8` for `_pre`/`_pst`; anything
+   matching `InactiveMarkers` (`off`, `broken`, `unpowered`, `ui`, …) is rejected.
+   The highest strictly-positive score wins; otherwise the building keeps its default.
+2. If the anim list can't be enumerated (group lookup keyed by tag returns null), it
+   falls back to `ProbeFallback` — a fixed most-active-first list probed via
+   `HasAnimation`. So the improvement holds even if enumeration mis-keys for some build.
+3. The chosen anim is played `Paused` on the **root controller only**, then seeked with
+   `SetPositionPercent(PoseFramePercent)` (default **0.5** = mid-loop, the fully-deployed/
+   emitting pose).
+
+**Do NOT drive child controllers.** An earlier revision called `Play`/`SetPositionPercent`
+on every `GetComponentsInChildren` controller that had the anim. Child controllers (a
+separate arm/base/decorative part) sit at their own transform offsets and rotations, so
+forcing them to the main building anim stamped a *full extra copy of the building* at each
+child's offset — the snapshots came out as multiple overlapping/rotated building copies.
+The render path already draws every child in its own natural state; posing must touch only
+the root controller (as the original `Play("on")` via `GetComponent` did).
+
+Never use `"ui"` (icon scale — see above). To tune the look, adjust `PoseFramePercent`
+or the `ScoreAnim` weights / `InactiveMarkers` in `BuildingImageSnapshotter.cs`.
 
 ---
 

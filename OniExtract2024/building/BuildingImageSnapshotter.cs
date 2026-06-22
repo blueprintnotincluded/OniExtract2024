@@ -31,6 +31,28 @@ namespace OniExtract2024.building
         private const float PaddingPx = 400f;
         private static readonly int DrawLayer = 30;
 
+        // Where in the chosen animation to snapshot. Frame 0 of a working/generating loop
+        // is the "starting / retracting" pose (arm pulled in, nothing emitted) — the
+        // "shut down" look. Mid-loop the building is fully deployed and emitting, which
+        // reads as "active". 0.5 = halfway through the current animation's timeline.
+        private const float PoseFramePercent = 0.5f;
+
+        // Substrings that mark an animation as a non-active state — never snapshot these.
+        private static readonly string[] InactiveMarkers =
+        {
+            "off", "broken", "error", "dead", "disabled", "outofnetwork",
+            "no_power", "nopower", "unpowered", "closed", "empty", "ui",
+        };
+
+        // Fallback probe order if the build's anim list can't be enumerated. Most-active
+        // first; the first one the controller actually has wins. Covers the common ONI
+        // naming so we still improve buildings even when group enumeration returns null.
+        private static readonly string[] ActiveAnimFallback =
+        {
+            "working_loop", "generating_loop", "channeling_loop", "working", "generating",
+            "channeling", "dispensing", "on_loop", "on", "idle_loop", "idle",
+        };
+
         private Camera snapshotCamera;
         private RenderTexture targetTexture;
 
@@ -60,16 +82,12 @@ namespace OniExtract2024.building
 
             if (kpid != null && kbac != null)
             {
-                // Buildings that spawn in "off" state show a retracted/idle pose (e.g.
-                // SolidTransferArm shows a flat bar instead of the extended T-shape).
-                // Switch to "on" for a representative icon. Never use "ui" — it renders
-                // at atlas/icon scale, not live-kanim scale (see BUILDING_IMAGES_FINDINGS.md).
-                var building = GetComponent<Building>();
-                if (building != null && building.Def.DefaultAnimState == "off" && kbac.HasAnimation("on"))
-                {
-                    kbac.Play("on", KAnim.PlayMode.Paused);
-                    yield return null;
-                }
+                // Pose the building in its most "active" state at a representative frame
+                // rather than the drab idle/off pose it auto-spawns into. Applied right
+                // before SnapShot with no intervening game tick, so a building's own state
+                // machine can't revert it before we read pixels. Never use "ui" — it
+                // renders at atlas/icon scale, not live-kanim scale (see findings doc).
+                PoseActive(kbac);
 
                 string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
                 Texture2D raw = SnapShot();
@@ -199,6 +217,99 @@ namespace OniExtract2024.building
         private UiImageRect ComputeRect(int minX, int minY, int cw, int ch)
         {
             return UiImageRect.FromCrop(minX, minY, cw, ch, texW, texH, cellW, cellH, PixelsPerCell);
+        }
+
+        // Pose the building's main kanim in the most "active" animation it has, seeked to
+        // a representative frame. Picks the best state from the building's real anim list
+        // (not a guess), so generators show "generating", arms show their extended
+        // "working" pose, etc. — instead of the idle/off frame-0 pose they spawn into.
+        //
+        // ONLY the root controller is posed. Child controllers (a separate arm/base/part)
+        // sit at their own transform offsets and rotations; forcing them to play the main
+        // building anim stamps a full extra copy of the building at each child's offset.
+        // The snapshot still *renders* every child in its own natural state — we just must
+        // not drive them. (This mirrors the original Play("on") which used GetComponent.)
+        private void PoseActive(KBatchedAnimController rootKbac)
+        {
+            string anim = ChooseActiveAnim(rootKbac);
+            if (anim == null)
+                return;
+
+            rootKbac.Play(anim, KAnim.PlayMode.Paused);
+            rootKbac.SetPositionPercent(PoseFramePercent);
+        }
+
+        // Returns the highest-scoring active animation the controller actually has, or
+        // null to leave the spawned default untouched (no positive candidate). Scans the
+        // build's real anim list via the group file rather than probing fixed names, so
+        // it adapts to per-building naming (working_loop / generating_loop / channeling…).
+        private static string ChooseActiveAnim(KBatchedAnimController kbac)
+        {
+            List<HashedString> names = GetAnimNames(kbac);
+            if (names == null || names.Count == 0)
+                return ProbeFallback(kbac);
+
+            string best = null;
+            int bestScore = 0; // require a strictly positive score to override the default
+            foreach (HashedString hashed in names)
+            {
+                // ToString resolves back to the source anim name via HashCache; a building
+                // whose name didn't register reads as digits and scores 0 (safe fallback).
+                string name = hashed.ToString();
+                if (string.IsNullOrEmpty(name) || !kbac.HasAnimation(hashed))
+                    continue;
+                int score = ScoreAnim(name);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = name;
+                }
+            }
+            return best ?? ProbeFallback(kbac);
+        }
+
+        // Last resort when the anim list is empty/unscored: try a fixed most-active-first
+        // list and take the first animation the controller actually has.
+        private static string ProbeFallback(KBatchedAnimController kbac)
+        {
+            foreach (string name in ActiveAnimFallback)
+                if (kbac.HasAnimation(name))
+                    return name;
+            return null;
+        }
+
+        // Higher = more representative of an operating building. Negative = never use.
+        private static int ScoreAnim(string name)
+        {
+            string n = name.ToLowerInvariant();
+            foreach (string bad in InactiveMarkers)
+                if (n.Contains(bad))
+                    return -1;
+
+            int score;
+            if (n.Contains("working") || n.Contains("generating") || n.Contains("dispensing")
+                || n.Contains("channeling") || n.Contains("emitting") || n.Contains("charged"))
+                score = 100;                                   // actively doing its job
+            else if (n == "on" || n.StartsWith("on_") || n.EndsWith("_on"))
+                score = 50;                                    // powered/idle, lit
+            else if (n.Contains("idle"))
+                score = 20;                                    // better than off, still calm
+            else
+                return 0;                                      // unknown state, don't prefer it
+
+            if (n.Contains("loop"))
+                score += 10;                                   // the steady operating loop
+            if (n.EndsWith("_pre") || n.EndsWith("_pst"))
+                score -= 8;                                    // transitions, not the held pose
+            return score;
+        }
+
+        // The build's animation names, via the global group file keyed by build hash.
+        // All public API on stock Assembly-CSharp-firstpass — no reflection needed.
+        private static List<HashedString> GetAnimNames(KBatchedAnimController kbac)
+        {
+            var group = KAnimGroupFile.GetGroup(kbac.GetBuildHash());
+            return group != null ? group.animNames : null;
         }
 
         // --- reflection shims for stock (non-publicized) Assembly-CSharp -------------
