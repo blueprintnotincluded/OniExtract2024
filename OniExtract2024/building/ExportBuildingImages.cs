@@ -49,55 +49,61 @@ namespace OniExtract2024.building
         private static IEnumerator Run()
         {
             IsRunning = true;
-            Rects.Clear();
-            Debug.Log("OniExtract: building-image export started -> " + OutputDir);
-
-            // Rocket modules need a CraftModuleInterface ancestor to find on spawn.
-            // Attach the minimum set to the world object so they bind rather than
-            // null-ref. Pattern taken from Sgt_Imalas AnimExportTool/Patches.cs.
-            var worldGO = ClusterManager.Instance.activeWorld.gameObject;
-            worldGO.AddOrGet<ClusterDestinationSelector>();
-            worldGO.AddOrGet<ClusterTraveler>();
-            worldGO.AddOrGet<Clustercraft>();
-            worldGO.AddOrGet<CraftModuleInterface>();
-
-            // Spawn well off-screen to avoid disturbing the live colony.
-            int cell = Grid.PosToCell(Camera.main.transform.position);
-            for (int i = 0; i < 12; i++)
-                cell = Grid.CellDownLeft(cell);
-            Vector3 spawnPos = Grid.CellToPos(cell);
-
-            int exported = 0, skipped = 0;
-            foreach (var def in Assets.BuildingDefs)
+            try
             {
-                if (!BuildingSpawnFilter.IsRenderable(def))
+                Rects.Clear();
+                Debug.Log("OniExtract: building-image export started -> " + OutputDir);
+
+                // Rocket modules need a CraftModuleInterface ancestor to find on spawn.
+                // Attach the minimum set to the world object so they bind rather than
+                // null-ref. Pattern taken from Sgt_Imalas AnimExportTool/Patches.cs.
+                var worldGO = ClusterManager.Instance.activeWorld.gameObject;
+                worldGO.AddOrGet<ClusterDestinationSelector>();
+                worldGO.AddOrGet<ClusterTraveler>();
+                worldGO.AddOrGet<Clustercraft>();
+                worldGO.AddOrGet<CraftModuleInterface>();
+
+                // Spawn well off-screen to avoid disturbing the live colony.
+                int cell = Grid.PosToCell(Camera.main.transform.position);
+                for (int i = 0; i < 12; i++)
+                    cell = Grid.CellDownLeft(cell);
+                Vector3 spawnPos = Grid.CellToPos(cell);
+
+                int exported = 0, skipped = 0;
+                foreach (var def in Assets.BuildingDefs)
                 {
-                    skipped++;
-                    continue;
+                    if (!BuildingSpawnFilter.IsRenderable(def))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    GameObject temp = def.Create(spawnPos, null,
+                        new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
+                    if (temp == null)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
+                    snapshotter.StartExport(OutputDir, Rects);
+                    // Wait for the snapshotter to destroy the temp building. Unity defers
+                    // Destroy to end-of-frame, so IsNullOrDestroyed becomes true one frame
+                    // after KDestroyGameObject — the while loop handles this robustly.
+                    while (!temp.IsNullOrDestroyed())
+                        yield return null;
+                    exported++;
                 }
 
-                GameObject temp = def.Create(spawnPos, null,
-                    new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
-                if (temp == null)
-                {
-                    skipped++;
-                    continue;
-                }
+                Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
 
-                var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                snapshotter.StartExport(OutputDir, Rects);
-                // Wait for the snapshotter to destroy the temp building. Unity defers
-                // Destroy to end-of-frame, so IsNullOrDestroyed becomes true one frame
-                // after KDestroyGameObject — the while loop handles this robustly.
-                while (!temp.IsNullOrDestroyed())
-                    yield return null;
-                exported++;
+                PatchBuildingJsonRects(Rects);
             }
-
-            Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
-
-            PatchBuildingJsonRects(Rects);
-            IsRunning = false;
+            finally
+            {
+                IsRunning = false;
+            }
         }
 
         // Re-export a single already-posed building from the inspector ("touch-up" path):
