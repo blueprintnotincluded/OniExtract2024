@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HarmonyLib;
 using PeterHan.PLib.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -447,23 +446,11 @@ namespace OniExtract2024.building
             if (s_kbac == null || s_animNames == null || s_animNames.Count == 0) return;
 
             string anim = s_animNames[s_animIndex];
-            s_kbac.Play(anim, KAnim.PlayMode.Paused);
 
-            int numFrames = s_kbac.GetCurrentNumFrames();
-            if (numFrames <= 0) numFrames = 1;
+            // Pose via the shared helper so the preview matches the export exactly (and so the
+            // play→start→scrub→commit ordering that makes frame-scrubbing work lives in one place).
+            int numFrames = BuildingImageSnapshotter.PoseController(s_kbac, anim, s_frameIndex);
             s_frameIndex = Mathf.Clamp(s_frameIndex, 0, numFrames - 1);
-            s_kbac.SetPositionPercent(BuildingPoseOverrides.PercentForFrame(s_frameIndex, numFrames));
-
-            // The temp building sits off-screen, so the engine flags it not-visible and skips
-            // its per-frame vertex write — re-posing the SAME reused controller would keep
-            // rendering the previously-shown anim/frame. Force it visible, force a rebuild, mark
-            // it dirty, then call UpdateFrame (the method that actually writes the current frame
-            // into the batch) so the preview reflects the new pose. UpdateAnim(0f) alone was
-            // insufficient: with dt=0 and isVisible=false it can skip the frame write entirely.
-            s_kbac.SetVisiblity(true);
-            Traverse.Create(s_kbac).Property("forceRebuild").SetValue(true);
-            s_kbac.SetDirty();
-            Traverse.Create(s_kbac).Method("UpdateFrame", 0f).GetValue();
 
             // Update slider range without triggering the value-changed callback.
             if (s_frameSlider != null)
@@ -565,10 +552,11 @@ namespace OniExtract2024.building
                 SetLabelText(s_statusLabelGO, "nothing to save");
                 return;
             }
-            BuildingPoseOverrides.Save(PrefabId, pose);
+            bool ok = BuildingPoseOverrides.Save(PrefabId, pose);
             UpdateCounter();
-            SetLabelText(s_statusLabelGO,
-                "saved " + PrefabId + "  (" + BuildingPoseOverrides.SavedCount + " total)");
+            SetLabelText(s_statusLabelGO, ok
+                ? "saved " + BuildingPoseOverrides.SavedCount + " -> " + BuildingPoseOverrides.PersistPath
+                : "SAVE FAILED: " + BuildingPoseOverrides.LastSaveError);
         }
 
         // Re-render just this building at the current pose and overwrite its ui_image PNG +

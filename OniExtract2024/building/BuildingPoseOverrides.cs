@@ -65,9 +65,14 @@ namespace OniExtract2024.building
             }
         }
 
+        // Set to the error message when the last Save failed, else null. Surfaced in the
+        // inspector status line so a write failure (vs. looking in the wrong folder) is visible.
+        public static string LastSaveError { get; private set; }
+
         // Records a choice and writes the whole runtime store back to disk immediately, so a
-        // crash mid-session never loses more than the in-flight entry.
-        public static void Save(string prefabId, BuildingPose pose)
+        // crash mid-session never loses more than the in-flight entry. Returns true on a
+        // successful disk write.
+        public static bool Save(string prefabId, BuildingPose pose)
         {
             Runtime[prefabId] = pose;
             try
@@ -75,11 +80,17 @@ namespace OniExtract2024.building
                 Directory.CreateDirectory(Path.GetDirectoryName(PersistPath));
                 File.WriteAllText(PersistPath,
                     JsonConvert.SerializeObject(Runtime, Formatting.Indented));
-                Debug.Log("OniExtract: saved pose " + prefabId + " -> " + pose.Anim + " @ frame " + pose.Frame);
+                LastSaveError = null;
+                Debug.Log("OniExtract: saved pose " + prefabId + " -> " + pose.Anim
+                    + " @ frame " + pose.Frame + "  (" + PersistPath + ")");
+                return true;
             }
             catch (Exception e)
             {
-                Debug.LogWarning("OniExtract: failed to save pose overrides: " + e.Message);
+                LastSaveError = e.Message;
+                Debug.LogWarning("OniExtract: failed to save pose overrides to "
+                    + PersistPath + ": " + e);
+                return false;
             }
         }
 

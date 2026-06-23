@@ -122,28 +122,46 @@ namespace OniExtract2024.building
         private void PoseActive(KBatchedAnimController rootKbac, string prefabId)
         {
             if (BuildingPoseOverrides.TryGet(prefabId, out var pose))
-            {
-                rootKbac.Play(pose.Anim, KAnim.PlayMode.Paused);
-                int numFrames = rootKbac.GetCurrentNumFrames();
-                rootKbac.SetPositionPercent(BuildingPoseOverrides.PercentForFrame(pose.Frame, numFrames > 0 ? numFrames : 1));
-            }
+                PoseController(rootKbac, pose.Anim, pose.Frame);
             else
-            {
-                string anim = ChooseActiveAnim(rootKbac);
-                if (anim == null) return;
-                rootKbac.Play(anim, KAnim.PlayMode.Paused);
-                rootKbac.SetPositionPercent(PoseFramePercent);
-            }
+                PoseController(rootKbac, ChooseActiveAnim(rootKbac), -1);
+        }
 
-            // The building spawns off-screen, so the engine flags it not-visible and may skip
-            // the per-frame vertex write — leaving the rendered batch on the spawn-default pose
-            // instead of the one we just Play()'d. Force it visible + rebuild + write the frame
-            // so the snapshot captures the chosen pose. (forceRebuild/UpdateFrame are protected,
-            // hence Traverse; SetVisiblity is public.) Mirrors the inspector preview flush.
-            rootKbac.SetVisiblity(true);
-            Traverse.Create(rootKbac).Property("forceRebuild").SetValue(true);
-            rootKbac.SetDirty();
-            Traverse.Create(rootKbac).Method("UpdateFrame", 0f).GetValue();
+        // Poses an off-screen controller at a specific anim + frame so the chosen frame
+        // actually renders. Shared by the export sweep, the single-image export, and the
+        // inspector preview, so all three behave identically. Pass frame &lt; 0 for the
+        // mid-loop default (PoseFramePercent). Returns the anim's frame count (>= 1).
+        //
+        // Two subtleties are handled here, in this exact order:
+        //  1) Play() only QUEUES the anim; it isn't applied — and the timeline isn't reset to
+        //     frame 0 — until the controller next updates. So we Play, then UpdateFrame(0f)
+        //     ONCE to start the queued anim (landing on frame 0), and ONLY THEN set the frame
+        //     position. Doing SetPositionPercent before the queued anim starts gets wiped back
+        //     to frame 0 when it starts — which made every anim show only its first frame and
+        //     the frame slider appear dead.
+        //  2) The building is off-screen, so the engine flags it not-visible and skips the
+        //     per-frame vertex write. SetVisiblity(true) + forceRebuild + SetDirty force the
+        //     write. (forceRebuild/UpdateFrame are protected → Traverse; the rest are public.)
+        public static int PoseController(KBatchedAnimController kbac, string anim, int frame)
+        {
+            if (kbac == null || string.IsNullOrEmpty(anim)) return 1;
+
+            kbac.SetVisiblity(true);
+            kbac.Play(anim, KAnim.PlayMode.Paused);
+            kbac.SetDirty();
+            Traverse.Create(kbac).Method("UpdateFrame", 0f).GetValue();   // start queued anim @ frame 0
+
+            int numFrames = kbac.GetCurrentNumFrames();
+            if (numFrames <= 0) numFrames = 1;
+            float percent = frame < 0
+                ? PoseFramePercent
+                : BuildingPoseOverrides.PercentForFrame(frame, numFrames);
+            kbac.SetPositionPercent(percent);
+
+            Traverse.Create(kbac).Property("forceRebuild").SetValue(true);
+            kbac.SetDirty();
+            Traverse.Create(kbac).Method("UpdateFrame", 0f).GetValue();   // commit the scrubbed frame
+            return numFrames;
         }
 
         // Returns the highest-scoring active animation the controller actually has, or

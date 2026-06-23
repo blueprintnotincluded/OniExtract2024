@@ -212,6 +212,24 @@ them, layered OVER the hard-coded `BuildingPoseOverrides.Overrides`.
 7. For a full regen, run **Export Building Images** — sweeps every renderable building,
    honouring saved poses, and rewrites `ui_image/` + the `uiImageRect` values in `building.json`.
 
+### Session 4 (2026-06-22) — frame scrubbing fixed (was a queued-anim ordering bug)
+
+In-game confirmed from session 3: anim cycling, preview update, and single-image export all
+work. Two follow-ups:
+- **Frame slider/buttons did nothing → FIXED.** Root cause: `Play()` only *queues* the anim;
+  the queued anim isn't applied (and the timeline reset to frame 0) until the controller next
+  updates. The code did `Play → SetPositionPercent → UpdateFrame`, so that single `UpdateFrame`
+  started the queued anim and reset to frame 0, **clobbering** the scrub. Net effect: every anim
+  rendered only its first frame and the slider looked dead — and the **export had the same bug**
+  (saved frames ignored; e.g. battery always exported at frame 0). Fix: realize the anim first —
+  `Play → UpdateFrame (start) → SetPositionPercent → UpdateFrame (commit)`. Centralised in
+  `BuildingImageSnapshotter.PoseController(kbac, anim, frame)`, now used by the inspector
+  preview, the export sweep, and the single-image export, so they can't drift.
+- **`pose_overrides.json` "missing".** Likely looked in `export/ui_image/`; the file lives one
+  level up in `export/`. Save now reports the absolute path (or the real error) in the status
+  line and logs it, so this is self-evident next run. `Util.RootFolder()/export/` is confirmed
+  writable (that's where the images land).
+
 ### Session 3 (2026-06-22) — inspector is now a real worklist tool
 
 Added in response to: export ignored selections, picker reset on reopen, paste line was
