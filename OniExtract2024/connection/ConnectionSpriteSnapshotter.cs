@@ -186,6 +186,9 @@ namespace OniExtract2024.connection
             snapshotCamera.enabled = false;
             Destroy(snapshotCamera.gameObject);
             snapshotCamera = null;
+            targetTexture.Release();
+            Destroy(targetTexture);
+            targetTexture = null;
             CameraController.Instance.baseCamera.enabled = true;
             return tex;
         }
