@@ -61,18 +61,27 @@ namespace OniExtract2024
         public string GetDatabaseLocation() =>
             BuildExportPath(Util.RootFolder(), DatabaseDirName, DlcManager.IsExpansion1Active());
 
+        // The serializer settings every export uses. Exposed so tests can validate field
+        // serialization (e.g. uiImageRect's omit-when-null) against the real configuration
+        // rather than a drifting copy.
+        public static JsonSerializerSettings BuildSerializerSettings()
+        {
+            var settings = new JsonSerializerSettings();
+            settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            settings.Formatting = Formatting.Indented;
+            settings.ContractResolver = new SkipUnityObjectContractResolver();
+            settings.Converters.Add(new SkipUnityObjectConverter());
+            return settings;
+        }
+
         public void ExportJsonFile()
         {
             if (!Directory.Exists(GetDatabaseLocation()))
             {
                 Directory.CreateDirectory(GetDatabaseLocation());
             }
-            JsonSerializerSettings settings = new JsonSerializerSettings();
-            settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
-            settings.Formatting = Formatting.Indented;
-            settings.ContractResolver = new SkipUnityObjectContractResolver();
-            settings.Converters.Add(new SkipUnityObjectConverter());
-            File.WriteAllText(Path.Combine(GetDatabaseLocation(), ExportFileName + ".json"), JsonConvert.SerializeObject(this, settings));
+            File.WriteAllText(Path.Combine(GetDatabaseLocation(), ExportFileName + ".json"),
+                JsonConvert.SerializeObject(this, BuildSerializerSettings()));
         }
     }
 }

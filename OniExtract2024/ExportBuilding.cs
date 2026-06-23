@@ -26,6 +26,10 @@ public class ExportBuilding : BaseExport
         GameObject go = buildingDef.BuildingComplete;
         KPrefabID prefabID = go.GetComponent<KPrefabID>();
         BBuildingEntity bBuild = new BBuildingEntity(buildingDef.Tag.Name, prefabID);
+        // Carry the measured ui_image placement (if any) from the durable sidecar so it
+        // survives this main-menu rewrite of building.json. Keyed by Tag.Name == json `name`.
+        if (OniExtract2024.building.UiImageRectStore.TryGet(buildingDef.Tag.Name, out var uiRect))
+            bBuild.uiImageRect = uiRect;
         bBuild.widthInCells = buildingDef.WidthInCells;
         bBuild.heightInCells = buildingDef.HeightInCells;
         bBuild.materialCategory = buildingDef.MaterialCategory;

@@ -124,6 +124,12 @@ namespace OniExtract2024.building
         {
             if (rects == null || rects.Count == 0) return;
 
+            // Persist to the durable sidecar first, so the rects survive the next game
+            // load even if the full sweep isn't re-run (the main-menu pass reads this).
+            // The direct building.json patch below keeps the CURRENT export correct
+            // without waiting for a reload. See UIIMAGERECT_DURABILITY.md.
+            UiImageRectStore.SaveAll(rects);
+
             string dbDir = BaseExport.BuildExportPath(
                 Util.RootFolder(), "database", DlcManager.IsExpansion1Active());
             string path = Path.Combine(dbDir, "building.json");

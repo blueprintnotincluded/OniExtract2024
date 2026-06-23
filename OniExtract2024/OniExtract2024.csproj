@@ -185,6 +185,7 @@
     <Compile Include="building\ExportBuildingImages.cs" />
     <Compile Include="building\BuildingImageSnapshotter.cs" />
     <Compile Include="building\BuildingPoseOverrides.cs" />
+    <Compile Include="building\UiImageRectStore.cs" />
     <Compile Include="building\BuildingKanimRenderer.cs" />
     <Compile Include="building\BuildingPoseInspectorScreen.cs" />
     <Compile Include="connection\ExportConnectionSprites.cs" />
