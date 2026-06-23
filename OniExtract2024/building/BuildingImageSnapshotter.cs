@@ -88,16 +88,22 @@ namespace OniExtract2024.building
             var renderer = new BuildingKanimRenderer();
             renderer.Init(cellW, cellH, go.transform.GetPosition());
 
-            CameraController.Instance.baseCamera.enabled = false;
-            var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
-                .OrderBy(k => k.transform.position.z);
-            renderer.Render(kbacs);
-            CameraController.Instance.baseCamera.enabled = true;
-
-            Texture2D raw = renderer.ReadPixels();
-            // Release the RT immediately — not doing so leaks graphics memory at a rate
-            // that crashes the game before the export sweep finishes.
-            renderer.Cleanup();
+            Texture2D raw = null;
+            try
+            {
+                CameraController.Instance.baseCamera.enabled = false;
+                var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
+                    .OrderBy(k => k.transform.position.z);
+                renderer.Render(kbacs);
+                raw = renderer.ReadPixels();
+            }
+            finally
+            {
+                // Always restore camera and release the RT — not doing so leaks graphics
+                // memory at a rate that crashes the game before the export sweep finishes.
+                CameraController.Instance.baseCamera.enabled = true;
+                renderer.Cleanup();
+            }
             if (raw == null) return;
 
             Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
