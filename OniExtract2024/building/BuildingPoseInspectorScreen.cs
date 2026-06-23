@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using PeterHan.PLib.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -43,6 +44,7 @@ namespace OniExtract2024.building
         private static GameObject s_animNameLabelGO;
         private static GameObject s_frameInfoLabelGO;
         private static GameObject s_pasteLineLabelGO;
+        private static GameObject s_statusLabelGO;
         private static Image s_previewImage;
         private static Slider s_frameSlider;
         private static bool s_suppressSliderEvents;
@@ -89,6 +91,7 @@ namespace OniExtract2024.building
             s_animNameLabelGO = null;
             s_frameInfoLabelGO = null;
             s_pasteLineLabelGO = null;
+            s_statusLabelGO = null;
             s_previewImage = null;
             s_frameSlider = null;
             s_suppressSliderEvents = false;
@@ -157,6 +160,8 @@ namespace OniExtract2024.building
                 };
                 pasteLine.OnRealize += (go) => s_pasteLineLabelGO = go;
                 body.AddChild(pasteLine);
+
+                BuildActionRow(body);
             }
 
             var dialogGO = dialog.Build();
@@ -208,6 +213,47 @@ namespace OniExtract2024.building
             // No building list: PLib's scroll pane couldn't be bounded reliably and grew the
             // dialog off-screen. Navigation is the search box (narrows the set) plus the
             // prev/next buttons above (step through the current match set).
+        }
+
+        // Save / single-image export / clipboard actions, plus a one-line status readout.
+        // These are what make the inspector usable for the 449-building worklist: Save persists
+        // the choice so the exporter (and a reopened inspector) sees it without a rebuild;
+        // Export image re-renders just this building for touch-ups; Copy line / Copy all put
+        // paste-ready C# on the system clipboard so nothing is hand-transcribed.
+        private static void BuildActionRow(PPanel body)
+        {
+            var row = new PPanel("ActionRow")
+            {
+                Direction = PanelDirection.Horizontal,
+                Spacing = 4,
+                FlexSize = new Vector2(1f, 0f),
+            };
+
+            var saveB = new PButton("SavePose") { Text = "Save" };
+            saveB.OnClick = (_) => SavePose();
+            row.AddChild(saveB);
+
+            var exportB = new PButton("ExportImage") { Text = "Export image" };
+            exportB.OnClick = (_) => ExportImage();
+            row.AddChild(exportB);
+
+            var copyB = new PButton("CopyLine") { Text = "Copy line" };
+            copyB.OnClick = (_) => CopyLine();
+            row.AddChild(copyB);
+
+            var copyAllB = new PButton("CopyAll") { Text = "Copy all (C#)" };
+            copyAllB.OnClick = (_) => CopyAll();
+            row.AddChild(copyAllB);
+
+            body.AddChild(row);
+
+            var status = new PLabel("StatusLabel")
+            {
+                Text = "",
+                FlexSize = new Vector2(1f, 0f),
+            };
+            status.OnRealize += (go) => s_statusLabelGO = go;
+            body.AddChild(status);
         }
 
         private static void BuildAnimAndFrameRows(PPanel body)
@@ -327,7 +373,8 @@ namespace OniExtract2024.building
         {
             int n = s_filtered?.Count ?? 0;
             int pos = s_filteredPos >= 0 ? s_filteredPos + 1 : 0;
-            SetLabelText(s_counterLabelGO, pos + " / " + n);
+            string saved = (s_def != null && BuildingPoseOverrides.HasSaved(PrefabId)) ? "  ★ saved" : "";
+            SetLabelText(s_counterLabelGO, pos + " / " + n + saved);
         }
 
         // -------------------------------------------------------------------
@@ -359,21 +406,31 @@ namespace OniExtract2024.building
             s_kbac = s_tempBuilding.GetComponent<KBatchedAnimController>();
             if (s_kbac == null) return;
 
-            // Build the selectable anim list from the group file.
+            // Build the selectable anim list — readable names straight from the controller.
             var rawNames = BuildingImageSnapshotter.GetAnimNames(s_kbac);
             s_animNames = rawNames != null
                 ? rawNames
-                    .Where(hs => s_kbac.HasAnimation(hs))
-                    .Select(hs => hs.ToString())
-                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Where(n => !string.IsNullOrEmpty(n) && s_kbac.HasAnimation(n))
                     .ToList()
                 : new List<string>();
 
-            // Seed at the same anim the exporter would auto-pick.
-            string autoAnim = BuildingImageSnapshotter.ChooseActiveAnim(s_kbac);
-            s_animIndex = s_animNames.IndexOf(autoAnim);
+            // Seed from a previously-saved override if one exists, so reopening the inspector
+            // restores your last choice; otherwise fall back to the anim the exporter would
+            // auto-pick.
+            if (BuildingPoseOverrides.TryGet(PrefabId, out var saved)
+                && s_animNames.Contains(saved.Anim))
+            {
+                s_animIndex = s_animNames.IndexOf(saved.Anim);
+                s_frameIndex = saved.Frame;
+            }
+            else
+            {
+                string autoAnim = BuildingImageSnapshotter.ChooseActiveAnim(s_kbac);
+                s_animIndex = s_animNames.IndexOf(autoAnim);
+                s_frameIndex = 0;
+            }
             if (s_animIndex < 0) s_animIndex = 0;
-            s_frameIndex = 0;
+            if (s_frameIndex < 0) s_frameIndex = 0;
 
             var building = s_tempBuilding.GetComponent<Building>();
             int w = building?.Def.WidthInCells ?? 1;
@@ -397,12 +454,16 @@ namespace OniExtract2024.building
             s_frameIndex = Mathf.Clamp(s_frameIndex, 0, numFrames - 1);
             s_kbac.SetPositionPercent(BuildingPoseOverrides.PercentForFrame(s_frameIndex, numFrames));
 
-            // The temp building sits off-screen (outside the camera's active area), so nothing
-            // drives the controller's per-frame update — re-posing it would keep rendering the
-            // previously-shown anim/frame. Force the controller to flush the new pose into its
-            // batch so the preview actually changes when cycling anims or scrubbing frames.
+            // The temp building sits off-screen, so the engine flags it not-visible and skips
+            // its per-frame vertex write — re-posing the SAME reused controller would keep
+            // rendering the previously-shown anim/frame. Force it visible, force a rebuild, mark
+            // it dirty, then call UpdateFrame (the method that actually writes the current frame
+            // into the batch) so the preview reflects the new pose. UpdateAnim(0f) alone was
+            // insufficient: with dt=0 and isVisible=false it can skip the frame write entirely.
+            s_kbac.SetVisiblity(true);
+            Traverse.Create(s_kbac).Property("forceRebuild").SetValue(true);
             s_kbac.SetDirty();
-            s_kbac.UpdateAnim(0f);
+            Traverse.Create(s_kbac).Method("UpdateFrame", 0f).GetValue();
 
             // Update slider range without triggering the value-changed callback.
             if (s_frameSlider != null)
@@ -485,6 +546,61 @@ namespace OniExtract2024.building
             return "{ \"" + PrefabId + "\", new BuildingPose(\"" + anim + "\", " + s_frameIndex + ") },";
         }
 
+        // Returns the current selection as a pose, or false if nothing valid is selected.
+        private static bool TryGetCurrentPose(out BuildingPoseOverrides.BuildingPose pose)
+        {
+            pose = default;
+            if (s_def == null || s_animNames == null || s_animIndex < 0 || s_animIndex >= s_animNames.Count)
+                return false;
+            pose = new BuildingPoseOverrides.BuildingPose(s_animNames[s_animIndex], s_frameIndex);
+            return true;
+        }
+
+        // Persist the current choice to pose_overrides.json (read back by the exporter and by a
+        // reopened inspector).
+        private static void SavePose()
+        {
+            if (!TryGetCurrentPose(out var pose))
+            {
+                SetLabelText(s_statusLabelGO, "nothing to save");
+                return;
+            }
+            BuildingPoseOverrides.Save(PrefabId, pose);
+            UpdateCounter();
+            SetLabelText(s_statusLabelGO,
+                "saved " + PrefabId + "  (" + BuildingPoseOverrides.SavedCount + " total)");
+        }
+
+        // Re-render just this building at the current pose and overwrite its ui_image PNG +
+        // uiImageRect — the touch-up path, so you don't re-run the whole sweep for one tweak.
+        private static void ExportImage()
+        {
+            if (s_def == null || s_tempBuilding == null || s_tempBuilding.IsNullOrDestroyed())
+            {
+                SetLabelText(s_statusLabelGO, "no building loaded");
+                return;
+            }
+            if (TryGetCurrentPose(out var pose))
+                BuildingPoseOverrides.Save(PrefabId, pose);   // keep PNG and saved choice in sync
+            ExportBuildingImages.ExportSingle(s_tempBuilding);
+            UpdateCounter();
+            RenderPreview();   // ExportSingle ran its own render pass; restore the on-screen RT
+            SetLabelText(s_statusLabelGO, "exported " + PrefabId + ".png");
+        }
+
+        private static void CopyLine()
+        {
+            GUIUtility.systemCopyBuffer = GetPasteLine();
+            SetLabelText(s_statusLabelGO, "copied line to clipboard");
+        }
+
+        private static void CopyAll()
+        {
+            GUIUtility.systemCopyBuffer = BuildingPoseOverrides.ToOverridesCode();
+            SetLabelText(s_statusLabelGO,
+                "copied " + BuildingPoseOverrides.SavedCount + " saved override(s) to clipboard");
+        }
+
         private static void SetLabelText(GameObject go, string text)
         {
             if (go == null) return;
@@ -529,6 +645,7 @@ namespace OniExtract2024.building
             s_animNameLabelGO = null;
             s_frameInfoLabelGO = null;
             s_pasteLineLabelGO = null;
+            s_statusLabelGO = null;
             s_frameSlider = null;
         }
     }

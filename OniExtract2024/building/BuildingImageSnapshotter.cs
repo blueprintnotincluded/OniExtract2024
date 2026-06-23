@@ -46,10 +46,6 @@ namespace OniExtract2024.building
             "channeling", "dispensing", "on_loop", "on", "idle_loop", "idle",
         };
 
-        // Render geometry set during Init, needed to map the crop back to cell coords.
-        private int cellW;
-        private int cellH;
-
         public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null)
         {
             StartCoroutine(DoExport(outputDir, rects));
@@ -65,52 +61,58 @@ namespace OniExtract2024.building
             if (kpid != null && kbac != null)
             {
                 PoseActive(kbac, kpid.PrefabTag.Name);
-
-                string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
-                Texture2D raw = SnapShot();
-                if (raw != null)
-                {
-                    Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
-                    Destroy(raw);
-                    if (cropped != null)
-                    {
-                        Directory.CreateDirectory(outputDir);
-                        string filePath = Path.Combine(outputDir, fileName + ".png");
-                        File.WriteAllBytes(filePath, cropped.EncodeToPNG());
-                        Destroy(cropped);
-                        Debug.Log("OniExtract: building image -> " + filePath);
-
-                        if (rects != null)
-                            rects[kpid.PrefabTag.Name] = ComputeRect(minX, minY, cw, ch);
-                    }
-                }
+                RenderAndWrite(gameObject, outputDir, rects);
             }
 
             Util.KDestroyGameObject(gameObject);
         }
 
-        private Texture2D SnapShot()
+        // Renders an already-posed building, crops to the opaque bbox, writes
+        // ui_image/{prefabId}.png, and (optionally) records its uiImageRect. Does NOT pose or
+        // destroy the GameObject — the caller owns posing and lifetime. Shared by the export
+        // sweep (DoExport) and the inspector's single-image touch-up export, so both produce
+        // pixel-identical output. Static so the inspector can reuse it without an attached
+        // snapshotter component on the temp building.
+        public static void RenderAndWrite(GameObject go, string outputDir,
+            IDictionary<string, UiImageRect> rects = null)
         {
+            var kpid = go.GetComponent<KPrefabID>();
+            if (kpid == null) return;
+
             SelectTool.Instance.Select(null);
 
-            var building = GetComponent<Building>();
-            cellW = building != null ? building.Def.WidthInCells : 1;
-            cellH = building != null ? building.Def.HeightInCells : 1;
+            var building = go.GetComponent<Building>();
+            int cellW = building != null ? building.Def.WidthInCells : 1;
+            int cellH = building != null ? building.Def.HeightInCells : 1;
 
             var renderer = new BuildingKanimRenderer();
-            renderer.Init(cellW, cellH, transform.GetPosition());
+            renderer.Init(cellW, cellH, go.transform.GetPosition());
 
             CameraController.Instance.baseCamera.enabled = false;
-            var kbacs = gameObject.GetComponentsInChildren<KBatchedAnimController>()
+            var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
                 .OrderBy(k => k.transform.position.z);
             renderer.Render(kbacs);
             CameraController.Instance.baseCamera.enabled = true;
 
-            Texture2D tex = renderer.ReadPixels();
+            Texture2D raw = renderer.ReadPixels();
             // Release the RT immediately — not doing so leaks graphics memory at a rate
             // that crashes the game before the export sweep finishes.
             renderer.Cleanup();
-            return tex;
+            if (raw == null) return;
+
+            Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
+            UnityEngine.Object.Destroy(raw);
+            if (cropped == null) return;
+
+            Directory.CreateDirectory(outputDir);
+            string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
+            string filePath = Path.Combine(outputDir, fileName + ".png");
+            File.WriteAllBytes(filePath, cropped.EncodeToPNG());
+            UnityEngine.Object.Destroy(cropped);
+            Debug.Log("OniExtract: building image -> " + filePath);
+
+            if (rects != null)
+                rects[kpid.PrefabTag.Name] = ComputeRect(minX, minY, cw, ch, cellW, cellH);
         }
 
         // Pose the building's main kanim in the most "active" state. Checks
@@ -132,6 +134,16 @@ namespace OniExtract2024.building
                 rootKbac.Play(anim, KAnim.PlayMode.Paused);
                 rootKbac.SetPositionPercent(PoseFramePercent);
             }
+
+            // The building spawns off-screen, so the engine flags it not-visible and may skip
+            // the per-frame vertex write — leaving the rendered batch on the spawn-default pose
+            // instead of the one we just Play()'d. Force it visible + rebuild + write the frame
+            // so the snapshot captures the chosen pose. (forceRebuild/UpdateFrame are protected,
+            // hence Traverse; SetVisiblity is public.) Mirrors the inspector preview flush.
+            rootKbac.SetVisiblity(true);
+            Traverse.Create(rootKbac).Property("forceRebuild").SetValue(true);
+            rootKbac.SetDirty();
+            Traverse.Create(rootKbac).Method("UpdateFrame", 0f).GetValue();
         }
 
         // Returns the highest-scoring active animation the controller actually has, or
@@ -139,16 +151,15 @@ namespace OniExtract2024.building
         // can seed its anim picker with the same default the exporter would choose.
         internal static string ChooseActiveAnim(KBatchedAnimController kbac)
         {
-            List<HashedString> names = GetAnimNames(kbac);
+            List<string> names = GetAnimNames(kbac);
             if (names == null || names.Count == 0)
                 return ProbeFallback(kbac);
 
             string best = null;
             int bestScore = 0;
-            foreach (HashedString hashed in names)
+            foreach (string name in names)
             {
-                string name = hashed.ToString();
-                if (string.IsNullOrEmpty(name) || !kbac.HasAnimation(hashed))
+                if (string.IsNullOrEmpty(name) || !kbac.HasAnimation(name))
                     continue;
                 int score = ScoreAnim(name);
                 if (score > bestScore)
@@ -160,21 +171,30 @@ namespace OniExtract2024.building
             return best ?? ProbeFallback(kbac);
         }
 
-        // Returns all animation names this controller can actually play. Reads the
-        // controller's own `anims` map (KAnimControllerBase.anims), which is the authoritative
-        // per-controller set. (The old approach went via KAnimGroupFile.GetGroup(GetBuildHash())
-        // — but GetGroup is keyed by GROUP hash, not BUILD hash, so it returned null for most
-        // buildings and produced an empty list.) Exposed internal so the inspector can
-        // populate its animation picker.
-        internal static List<HashedString> GetAnimNames(KBatchedAnimController kbac)
+        // Returns the readable names of every animation this controller can actually play.
+        // Reads the controller's own `anims` map (KAnimControllerBase.anims) — the authoritative
+        // per-controller set — but resolves each entry to a real name string instead of the
+        // dict KEY: those keys are HashedStrings whose source string isn't in HashCache, so
+        // .ToString() returns the numeric hash (useless for Play()/overrides). Each value is a
+        // KAnimControllerBase.AnimLookupData carrying an `animIndex`; GetAnim(animIndex) yields
+        // the KAnim.Anim whose `name` field is the readable string the exporter must store.
+        // (The even-older approach went via KAnimGroupFile.GetGroup(GetBuildHash()) — but
+        // GetGroup is keyed by GROUP hash, not BUILD hash, so it returned null for most
+        // buildings.) Exposed internal so the inspector can populate its animation picker.
+        internal static List<string> GetAnimNames(KBatchedAnimController kbac)
         {
             var dict = Traverse.Create(kbac).Field("anims").GetValue() as IDictionary;
             if (dict == null || dict.Count == 0)
                 return null;
 
-            var names = new List<HashedString>(dict.Count);
-            foreach (var key in dict.Keys)
-                names.Add((HashedString)key);
+            var names = new List<string>(dict.Count);
+            foreach (var val in dict.Values)
+            {
+                int animIndex = Traverse.Create(val).Field("animIndex").GetValue<int>();
+                KAnim.Anim anim = kbac.GetAnim(animIndex);
+                if (anim != null && !string.IsNullOrEmpty(anim.name))
+                    names.Add(anim.name);
+            }
             return names;
         }
 
@@ -229,7 +249,7 @@ namespace OniExtract2024.building
             return result;
         }
 
-        private UiImageRect ComputeRect(int minX, int minY, int cw, int ch) =>
+        private static UiImageRect ComputeRect(int minX, int minY, int cw, int ch, int cellW, int cellH) =>
             UiImageRect.FromCrop(minX, minY, cw, ch,
                 Mathf.CeilToInt(cellW * BuildingKanimRenderer.PixelsPerCell + 2 * BuildingKanimRenderer.PaddingPx),
                 Mathf.CeilToInt(cellH * BuildingKanimRenderer.PixelsPerCell + 2 * BuildingKanimRenderer.PaddingPx),

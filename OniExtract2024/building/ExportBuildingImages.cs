@@ -96,8 +96,22 @@ namespace OniExtract2024.building
 
             Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
 
-            PatchBuildingJson();
+            PatchBuildingJsonRects(Rects);
             IsRunning = false;
+        }
+
+        // Re-export a single already-posed building from the inspector ("touch-up" path):
+        // overwrite its ui_image PNG and refresh its uiImageRect in building.json, so a one-off
+        // pose tweak lands in the same output the full sweep produces — no full re-run needed.
+        // The crop bbox (and thus the rect) can shift when the pose changes, so the rect is
+        // always re-merged, not just the PNG.
+        public static void ExportSingle(GameObject posedBuilding)
+        {
+            if (posedBuilding == null || posedBuilding.IsNullOrDestroyed()) return;
+            var rects = new Dictionary<string, UiImageRect>();
+            BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
+            if (rects.Count > 0)
+                PatchBuildingJsonRects(rects);
         }
 
         // Merge the measured uiImageRect for each rendered building into the building.json
@@ -106,8 +120,10 @@ namespace OniExtract2024.building
         // long after the no-save JSON export. The website reads uiImageRect off each
         // bBuildingDefList entry; buildings we did not render keep the legacy
         // stretch-to-footprint fallback (field omitted).
-        private static void PatchBuildingJson()
+        private static void PatchBuildingJsonRects(IDictionary<string, UiImageRect> rects)
         {
+            if (rects == null || rects.Count == 0) return;
+
             string dbDir = BaseExport.BuildExportPath(
                 Util.RootFolder(), "database", DlcManager.IsExpansion1Active());
             string path = Path.Combine(dbDir, "building.json");
@@ -130,7 +146,7 @@ namespace OniExtract2024.building
             foreach (JObject entry in list)
             {
                 string name = (string)entry["name"];
-                if (name != null && Rects.TryGetValue(name, out UiImageRect r))
+                if (name != null && rects.TryGetValue(name, out UiImageRect r))
                 {
                     entry["uiImageRect"] = new JObject
                     {

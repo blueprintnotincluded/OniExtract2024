@@ -1,4 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace OniExtract2024.building
@@ -13,7 +18,9 @@ namespace OniExtract2024.building
             public BuildingPose(string anim, int frame) { Anim = anim; Frame = frame; }
         }
 
-        // Edit this dictionary to override the auto-posed animation for specific buildings.
+        // Hard-coded baseline overrides (the committed source of truth). The runtime store
+        // below is layered OVER this, so anything saved from the inspector wins until you
+        // bake it back into this dictionary via the inspector's "Copy all (C#)" button.
         // Key: prefab tag name (KPrefabID.PrefabTag.Name).
         // Example entry: { "SteamTurbine2", new BuildingPose("generating_loop", 7) },
         public static readonly Dictionary<string, BuildingPose> Overrides =
@@ -22,8 +29,83 @@ namespace OniExtract2024.building
             // Add per-building overrides here.
         };
 
-        public static bool TryGet(string prefabId, out BuildingPose pose) =>
-            Overrides.TryGetValue(prefabId, out pose);
+        // Runtime overrides saved live from the pose inspector. Persisted to disk so the
+        // exporter picks them up the same session — no rebuild/restart needed — and so
+        // reopening the inspector restores your last choice. Lazily loaded.
+        private static Dictionary<string, BuildingPose> s_runtime;
+
+        // Sits next to the exported images so it travels with the export output.
+        public static string PersistPath =>
+            Path.Combine(Util.RootFolder(), "export", "pose_overrides.json");
+
+        private static Dictionary<string, BuildingPose> Runtime
+        {
+            get
+            {
+                if (s_runtime == null) Load();
+                return s_runtime;
+            }
+        }
+
+        public static void Load()
+        {
+            s_runtime = new Dictionary<string, BuildingPose>();
+            try
+            {
+                if (File.Exists(PersistPath))
+                {
+                    var data = JsonConvert.DeserializeObject<Dictionary<string, BuildingPose>>(
+                        File.ReadAllText(PersistPath));
+                    if (data != null) s_runtime = data;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("OniExtract: failed to load pose overrides: " + e.Message);
+            }
+        }
+
+        // Records a choice and writes the whole runtime store back to disk immediately, so a
+        // crash mid-session never loses more than the in-flight entry.
+        public static void Save(string prefabId, BuildingPose pose)
+        {
+            Runtime[prefabId] = pose;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(PersistPath));
+                File.WriteAllText(PersistPath,
+                    JsonConvert.SerializeObject(Runtime, Formatting.Indented));
+                Debug.Log("OniExtract: saved pose " + prefabId + " -> " + pose.Anim + " @ frame " + pose.Frame);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("OniExtract: failed to save pose overrides: " + e.Message);
+            }
+        }
+
+        public static bool HasSaved(string prefabId) => Runtime.ContainsKey(prefabId);
+
+        public static int SavedCount => Runtime.Count;
+
+        // Runtime store wins over the hard-coded baseline.
+        public static bool TryGet(string prefabId, out BuildingPose pose)
+        {
+            if (Runtime.TryGetValue(prefabId, out pose)) return true;
+            return Overrides.TryGetValue(prefabId, out pose);
+        }
+
+        // One paste-ready C# line for a single building.
+        public static string ToCodeLine(string prefabId, BuildingPose pose) =>
+            "{ \"" + prefabId + "\", new BuildingPose(\"" + pose.Anim + "\", " + pose.Frame + ") },";
+
+        // The full saved set as a C# block, ready to paste into Overrides above and commit.
+        public static string ToOverridesCode()
+        {
+            var sb = new StringBuilder();
+            foreach (var kv in Runtime.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                sb.AppendLine("            " + ToCodeLine(kv.Key, kv.Value));
+            return sb.ToString();
+        }
 
         // Maps a 0-based frame index to a SetPositionPercent value centred on that frame.
         // (frame + 0.5) / numFrames matches the exporter's own 0.5 default when frame = numFrames/2,

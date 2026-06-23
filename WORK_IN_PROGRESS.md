@@ -46,37 +46,41 @@ Worked through a chain of bugs in the inspector. Committed on branch `picker`:
    Now reads the controller's own `KAnimControllerBase.anims` dictionary via `Traverse`.
    Anims and frames now cycle.
 
-### Still broken — START HERE next session
+### Session 2 (2026-06-22, branch `picker`) — code fixes landed for (A)/(B)/(C); NEEDS IN-GAME CONFIRM
 
-- **(A) Anim names show as a hex code, not a readable name.** The `anims` dict keys are
-  `HashedString`s whose source string isn't in `HashCache`, so `.ToString()` returns the
-  numeric hash. This is **blocking**: the paste line / `BuildingPoseOverrides` entry must
-  store the real anim name string, because the exporter does `Play(pose.Anim)` and a hex
-  string would re-hash to the wrong thing. Need a readable name source — probe
-  `KAnim.Anim.name` (via `KAnimControllerBase.GetAnim(int)`), or `AnimLookupData`, or
-  `KAnimFile.GetData().GetAnim(i).name`. Use the dotnet metadata probe (see
-  `[[oni-assembly-field-probe]]` memory) to confirm the struct members first.
-- **(B) The RT preview does not visibly update on pose change.** `ApplyPoseAndRender` now
-  runs to completion (labels update), so `RenderPreview` IS being called, but the on-screen
-  preview image doesn't change. Open questions to answer in order:
-  1. Does the preview panel show the building **at all** now (vs. the temp building visible
-     in the world behind the dialog)? Confirm the RT→sprite path actually displays.
-  2. Does a building **switch** update the preview? If switch works but pose-change doesn't,
-     it's the reused-off-screen-controller flush problem.
-  3. The current flush (`SetDirty()` + `UpdateAnim(0f)`) was insufficient. `UpdateAnim(0f)`
-     with dt=0 may skip the frame write. Try forcing `forceRebuild = true` before, or call
-     the protected `UpdateFrame(float)` via `Traverse`, or re-evaluate whether the
-     off-screen controller can be rendered at all without the engine driving it.
-- **(C) Frame counts looked "suspiciously consistent."** Verify `GetCurrentNumFrames()`
-  actually changes when cycling anims (across buildings it did: 4 vs 6). Re-add targeted
-  logging if needed.
+All three were addressed at the code level (build clean, 11 tests pass, auto-deployed). None
+are visually confirmed yet — that requires running the game. Verify in the order below.
 
-### Note on the export path
+- **(A) Anim names — FIXED (code).** Confirmed via the dotnet metadata probe (see
+  `[[oni-assembly-field-probe]]`): the `anims` dict values are `KAnimControllerBase.AnimLookupData`
+  structs carrying only an `int animIndex`; `KAnimControllerBase.GetAnim(int)` returns a
+  `KAnim.Anim` whose `string name` field is the readable name. `GetAnimNames` now returns
+  `List<string>` of real names (resolves each entry's `animIndex` → `GetAnim().name`) instead
+  of the hex-rendering dict keys. Both callers updated (`ChooseActiveAnim`, inspector
+  `InitBuilding`). **Confirm in-game:** anim label + paste line show a readable name (e.g.
+  `working_loop`), not a hex string.
+- **(B) RT preview not updating — FLUSH STRENGTHENED (code).** Root-cause hypothesis: the
+  off-screen controller is flagged `isVisible=false`, so the old `SetDirty()` + `UpdateAnim(0f)`
+  skipped the frame write. Replaced with: `SetVisiblity(true)` (public) + `forceRebuild = true`
+  (protected → Traverse) + `SetDirty()` + `UpdateFrame(0f)` (protected → Traverse, the method
+  that actually writes the current frame into the batch). **Confirm in-game, in order:**
+  1. Does the preview panel show the building at all (vs. the temp building in the world behind)?
+  2. Does a building *switch* update the preview?
+  3. Does cycling anim / scrubbing frame now visibly change the preview? If still not, the
+     remaining lever is whether the off-screen controller renders at all without the engine
+     driving it — re-add targeted logging around `UpdateFrame`/`Render`.
+- **(C) Frame counts "suspiciously consistent."** Still to verify: confirm
+  `GetCurrentNumFrames()` actually changes when cycling anims (across buildings it did: 4 vs 6).
+  Re-add targeted logging if needed. (Should be moot now that real anim names play.)
 
-The same `GetAnimNames` bug means `ChooseActiveAnim` was silently falling back to its probe
-list (never scoring). Now fixed — but **re-verify an exported PNG**, and the off-screen
-flush concern (B) may also affect `BuildingImageSnapshotter.PoseActive` → exports could be
-showing the spawn-default pose instead of the chosen one. Spot-check before trusting output.
+### Note on the export path — same flush applied
+
+`BuildingImageSnapshotter.PoseActive` had **no** flush at all, so exports risked capturing the
+spawn-default pose instead of the chosen one. Applied the same flush
+(`SetVisiblity(true)` + `forceRebuild` + `SetDirty()` + `UpdateFrame(0f)`) after posing the root
+controller. Also: the old `GetAnimNames` hex bug meant `ChooseActiveAnim` silently fell back to
+its probe list (never scored real names) — now fixed. **Spot-check an exported PNG** before
+trusting the sweep output.
 
 ---
 
@@ -189,12 +193,38 @@ seeing them in-game. `BUILDING_POSE_WORKLIST.md` remains an inherently manual, v
 
 ## Workflow reference
 
+The inspector now **persists choices to disk and exports per-building**, so there's no
+edit-source → rebuild → restart cycle per building. Saved poses live in
+`export/pose_overrides.json` (next to `ui_image/`); both the inspector and the exporter read
+them, layered OVER the hard-coded `BuildingPoseOverrides.Overrides`.
+
 1. Open **Inspect Building Poses** from the pause menu.
 2. Search/select a building; step anim (◄ Anim / Anim ►) and frame (◄ / slider / ►) until it
-   looks right.
-3. Copy the generated line into `Overrides` in
-   `OniExtract2024/building/BuildingPoseOverrides.cs`, e.g.
-   `{ "SteamTurbine2", new BuildingPose("generating_loop", 7) },`.
-4. Tick the building in `BUILDING_POSE_WORKLIST.md`.
-5. When done (or to spot-check), run **Export Building Images** to regenerate `ui_image/`
-   PNGs and the `uiImageRect` values in `building.json`.
+   looks right. (Reopening a building restores its saved pose; the counter shows `★ saved`.)
+3. **Save** — writes the choice to `pose_overrides.json`. That's all the exporter needs.
+4. **Export image** — re-renders *just this building* at the current pose and overwrites its
+   `ui_image/{id}.png` + refreshes its `uiImageRect` in `building.json`. Use this for
+   touch-ups (mass-export first, then replace the few you don't like one at a time).
+5. **Copy line** / **Copy all (C#)** — put paste-ready C# on the system clipboard. Use
+   *Copy all* when you're ready to bake the whole saved set back into
+   `BuildingPoseOverrides.Overrides` and commit it (then `pose_overrides.json` is just a cache).
+6. Tick the building in `BUILDING_POSE_WORKLIST.md`.
+7. For a full regen, run **Export Building Images** — sweeps every renderable building,
+   honouring saved poses, and rewrites `ui_image/` + the `uiImageRect` values in `building.json`.
+
+### Session 3 (2026-06-22) — inspector is now a real worklist tool
+
+Added in response to: export ignored selections, picker reset on reopen, paste line was
+hand-transcribed (error-prone), and no per-building re-export for touch-ups.
+- **Runtime persistence:** `BuildingPoseOverrides` gained a runtime store loaded from / saved
+  to `export/pose_overrides.json`; `TryGet` checks it before the hard-coded baseline. The
+  exporter picks up saves the same session — no rebuild/restart.
+- **Inspector buttons:** Save, Export image (single-building touch-up), Copy line, Copy all
+  (C#) — clipboard via `GUIUtility.systemCopyBuffer` (needed a new `UnityEngine.IMGUIModule`
+  reference in the csproj). Plus a status line and a `★ saved` marker, and each building seeds
+  from its saved pose on load.
+- **Shared export path:** `BuildingImageSnapshotter.RenderAndWrite(...)` is now a static
+  render→crop→write used by both the full sweep and `ExportBuildingImages.ExportSingle(...)`;
+  the building.json rect-merge was generalised to `PatchBuildingJsonRects(rects)` so a single
+  touch-up updates one entry. **Still needs in-game confirmation** that Save/Export/Copy behave
+  and that a touched-up PNG + its uiImageRect land correctly.
