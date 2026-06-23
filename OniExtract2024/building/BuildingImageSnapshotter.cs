@@ -55,16 +55,21 @@ namespace OniExtract2024.building
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
-            var kpid = GetComponent<KPrefabID>();
-            var kbac = GetComponent<KBatchedAnimController>();
-
-            if (kpid != null && kbac != null)
+            try
             {
-                PoseActive(kbac, kpid.PrefabTag.Name);
-                RenderAndWrite(gameObject, outputDir, rects);
-            }
+                var kpid = GetComponent<KPrefabID>();
+                var kbac = GetComponent<KBatchedAnimController>();
 
-            Util.KDestroyGameObject(gameObject);
+                if (kpid != null && kbac != null)
+                {
+                    PoseActive(kbac, kpid.PrefabTag.Name);
+                    RenderAndWrite(gameObject, outputDir, rects);
+                }
+            }
+            finally
+            {
+                Util.KDestroyGameObject(gameObject);
+            }
         }
 
         // Renders an already-posed building, crops to the opaque bbox, writes
