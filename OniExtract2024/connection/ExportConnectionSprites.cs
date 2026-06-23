@@ -59,48 +59,54 @@ namespace OniExtract2024.connection
             int tileBuildings = 0, tileSprites = 0;
             int utilityBuildings = 0;
 
-            // --- 1) Tiles: extracted straight from BlockTileAtlas (no placement) -----
-            foreach (var def in Assets.BuildingDefs)
+            try
             {
-                if (def == null || !def.isKAnimTile)
-                    continue;
-                int files = TileConnectionExtractor.Export(def);
-                if (files > 0)
+                // --- 1) Tiles: extracted straight from BlockTileAtlas (no placement) -----
+                foreach (var def in Assets.BuildingDefs)
                 {
-                    tileBuildings++;
-                    tileSprites += files;
+                    if (def == null || !def.isKAnimTile)
+                        continue;
+                    int files = TileConnectionExtractor.Export(def);
+                    if (files > 0)
+                    {
+                        tileBuildings++;
+                        tileSprites += files;
+                    }
+                    yield return null;
                 }
-                yield return null;
+                Debug.Log("OniExtract: tiles exported - " + tileBuildings + " buildings, " + tileSprites + " sprites.");
+
+                // --- 2) Utilities: spawn a temp instance, snapshot 16 kanim states -------
+                // Place well away from the camera/colony to avoid disturbing the view.
+                int cell = Grid.PosToCell(Camera.main.transform.position);
+                for (int i = 0; i < 12; i++)
+                    cell = Grid.CellDownLeft(cell);
+                Vector3 spawnPos = Grid.CellToPos(cell);
+
+                foreach (var def in Assets.BuildingDefs)
+                {
+                    if (def == null || !def.isUtility)
+                        continue;
+                    if (def.BuildingComplete == null || !def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
+                        continue;
+
+                    GameObject temp = def.Create(spawnPos, null,
+                        new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
+                    if (temp == null)
+                        continue;
+
+                    var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
+                    utilityBuildings++;
+                    yield return snapshotter.ExportThenDestroy();
+                }
+                Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
+
+                Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
             }
-            Debug.Log("OniExtract: tiles exported - " + tileBuildings + " buildings, " + tileSprites + " sprites.");
-
-            // --- 2) Utilities: spawn a temp instance, snapshot 16 kanim states -------
-            // Place well away from the camera/colony to avoid disturbing the view.
-            int cell = Grid.PosToCell(Camera.main.transform.position);
-            for (int i = 0; i < 12; i++)
-                cell = Grid.CellDownLeft(cell);
-            Vector3 spawnPos = Grid.CellToPos(cell);
-
-            foreach (var def in Assets.BuildingDefs)
+            finally
             {
-                if (def == null || !def.isUtility)
-                    continue;
-                if (def.BuildingComplete == null || !def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
-                    continue;
-
-                GameObject temp = def.Create(spawnPos, null,
-                    new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
-                if (temp == null)
-                    continue;
-
-                var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
-                utilityBuildings++;
-                yield return snapshotter.ExportThenDestroy();
+                IsRunning = false;
             }
-            Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
-
-            Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
-            IsRunning = false;
         }
     }
 }
