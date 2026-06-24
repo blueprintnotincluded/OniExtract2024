@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master, aqua]
+  pull_request:
+
+jobs:
+  core-tests:
+    name: Build & test OniExtract2024.Core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Only the Unity-free Core + its tests are built here. The mod project
+      # (OniExtract2024) and OniExtract2024.Tests reference ONI's Assembly-CSharp and
+      # UnityEngine, which are not redistributable and not present on a hosted runner, so
+      # they are intentionally excluded from CI and built locally in Visual Studio instead.
+      - name: Restore
+        run: dotnet restore OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj
+
+      - name: Test
+        run: dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj --configuration Release --no-restore

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the Unity-free OniExtract2024.Core. Targets a modern runtime and
+       references no game DLLs, so `dotnet test` runs on a stock CI runner (see
+       .github/workflows/ci.yml). Game-coupled tests live in OniExtract2024.Tests, which
+       needs a local ONI install and is not part of CI. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OniExtract2024.Core\OniExtract2024.Core.csproj" />
+  </ItemGroup>
+
+</Project>
