@@ -143,6 +143,33 @@ Control ports (MUX/DEMUX selector bits) are logic inputs and are exported as
 
 ---
 
+## ElementFilter buildings (GasFilter / LiquidFilter / SolidFilter)
+
+These three buildings bypass the standard `ConduitConsumer` / `ConduitDispenser` /
+`SolidConduitConsumer` / `SolidConduitDispenser` pattern entirely. Instead, their
+`ConfigureBuildingTemplate()` adds an `ElementFilter` component, and the
+`ElementFilter` registers its own cells on the conduit network at spawn time.
+
+Port layout (all three follow the same pattern):
+
+| Port | Offset | Source |
+|---|---|---|
+| Primary input | `BuildingDef.UtilityInputOffset` = `(-1, 0)` | `ConduitConsumer` (Gas/Liquid only; added by `ConfigureBuildingTemplate`) / `BuildingDef.InputConduitType` fallback (Solid) |
+| Primary output | `BuildingDef.UtilityOutputOffset` = `(1, 0)` | `BuildingDef.OutputConduitType` fallback (no `ConduitDispenser` present) |
+| Secondary output (filtered) | `ElementFilter.portInfo.offset` = `(0, 0)` | `ElementFilter.ISecondaryOutput.GetSecondaryConduitOffset` |
+
+**Why does GasFilter have a `ConduitConsumer` but not a `ConduitDispenser`?**
+`ConfigureBuildingTemplate` explicitly adds `ElementFilter` with `portInfo = secondaryPort`.
+For gas/liquid, `ElementFilter.OnSpawn()` calls `GetComponent<ConduitConsumer>().isConsuming = false`
+— implying a `ConduitConsumer` must already exist (likely added by `BuildingTemplates`
+when `InputConduitType != None`). No `ConduitDispenser` is added; `ElementFilter` handles
+both output cells internally.
+
+**Export consequence:** Always add the primary/secondary output via the `BuildingDef`
+fallback + `ISecondaryOutput` scan, not via `ConduitDispenser` loops.
+
+---
+
 ## Secondary conduit ports
 
 Buildings with two inputs or two outputs of the same conduit type (e.g. a building that
@@ -182,3 +209,4 @@ applies rotation at display/placement time; the exported offsets are always pre-
 | `LogicGate` component → same as `LogicPorts`? | No — completely separate system. `LogicGate` extends `LogicGateBase` and stores `CellOffset[]` arrays, not `List<LogicPorts.Port>` |
 | `go.GetDef<LogicPorts.Def>()` | Compile error in this game version — `LogicPorts.Def` does not exist |
 | `BuildingDef.LogicInputPorts` populated for gates | It is NOT. Gates use `LogicGateBase.inputPortOffsets` instead |
+| `ConduitDispenser` present on GasFilter/LiquidFilter/SolidFilter | There is none. Outputs are managed by `ElementFilter`; use the `BuildingDef.OutputConduitType` fallback + `ISecondaryOutput` scan |

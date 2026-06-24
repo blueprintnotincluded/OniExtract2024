@@ -152,11 +152,11 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 | `PowerInput` | `BuildingDef.EnergyConsumptionWhenActive > 0` → offset from `PowerInputOffset` |
 | `PowerOutput` | `EnergyGenerator` or `Battery` component → offset from `PowerOutputOffset` |
 | `GasInput` | `ConduitConsumer` with `conduitType == Gas` → primary: `UtilityInputOffset`; secondary: `ISecondaryInput.GetSecondaryConduitOffset` |
-| `GasOutput` | `ConduitDispenser` with `conduitType == Gas` → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset` |
+| `GasOutput` | `ConduitDispenser` with `conduitType == Gas` → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset`. Also: `BuildingDef.OutputConduitType == Gas` fallback when no ConduitDispenser present (e.g. GasFilter uses ElementFilter instead) |
 | `LiquidInput` | `ConduitConsumer` with `conduitType == Liquid` — same offset rules |
-| `LiquidOutput` | `ConduitDispenser` with `conduitType == Liquid` — same offset rules |
-| `SolidInput` | `SolidConduitConsumer` component (separate class from `ConduitConsumer`) → primary: `UtilityInputOffset`; secondary: `ISecondaryInput.GetSecondaryConduitOffset(Solid)` |
-| `SolidOutput` | `SolidConduitDispenser` component → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset(Solid)` |
+| `LiquidOutput` | `ConduitDispenser` with `conduitType == Liquid` — same offset rules; fallback as above (e.g. LiquidFilter) |
+| `SolidInput` | `SolidConduitConsumer` component (separate class from `ConduitConsumer`) → primary: `UtilityInputOffset`; secondary: `ISecondaryInput.GetSecondaryConduitOffset(Solid)`. Also: `BuildingDef.InputConduitType == Solid` fallback when no SolidConduitConsumer present (e.g. SolidFilter) |
+| `SolidOutput` | `SolidConduitDispenser` component → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset(Solid)`. Also: `BuildingDef.OutputConduitType == Solid` fallback (e.g. SolidFilter) |
 | `LogicInput` | `BuildingDef.LogicInputPorts[i].cellOffset` (sensors/non-gates), OR `LogicGateBase.inputPortOffsets[i]` / `controlPortOffsets[i]` (gates) |
 | `LogicOutput` | `BuildingDef.LogicOutputPorts[i].cellOffset` OR `LogicGateBase.outputPortOffsets[i]` |
 | `LogicRibbonInput` | Same sources as LogicInput; detected by `spriteType.ToString()` containing "ribbon" and not "out" |
@@ -166,6 +166,8 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 > **Why two logic port sources?** Standard buildings (sensors, controllers) set `BuildingDef.LogicInputPorts`/`LogicOutputPorts` in `CreateBuildingDef()`. Logic gates (AND/OR/XOR/NOT/BUFFER/FILTER/MUX/DEMUX) never set those — they add a `LogicGate` (`LogicGateBase` subclass) component in `DoPostConfigureComplete()` instead, storing offsets in `inputPortOffsets`/`outputPortOffsets`/`controlPortOffsets`. See `GAME_INTERNALS.md` for the broader pattern.
 
 > **Conveyor belt note:** `ConduitConsumer` / `ConduitDispenser` are **never** used for solid/conveyor conduit. The game uses entirely separate component classes (`SolidConduitConsumer` / `SolidConduitDispenser`) that happen to share the same offset fields on `BuildingDef`.
+
+> **ElementFilter note:** `GasFilter`, `LiquidFilter`, and `SolidFilter` bypass standard conduit components entirely and use an `ElementFilter` component that directly registers cells on the conduit network. These buildings have no `ConduitDispenser`/`SolidConduitDispenser`; their primary output comes from the `BuildingDef.OutputConduitType` / `UtilityOutputOffset` fallback path, and their secondary (filtered-element) output comes from `ElementFilter`'s `ISecondaryOutput.GetSecondaryConduitOffset` implementation — it returns `portInfo.offset` set in `ConfigureBuildingTemplate()`. The secondary output port will have `isSecondary: true`.
 
 **OutStorage shape** (when present):
 

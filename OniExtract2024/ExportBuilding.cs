@@ -280,6 +280,56 @@ public class ExportBuilding : BaseExport
             ports.Add(new OutUtilityPort(off, ConnectionType.SolidOutput, d.useSecondaryOutput));
         }
 
+        // ── Conduit primary ports: BuildingDef fallback ───────────────────────────────────
+        // Buildings like GasFilter/LiquidFilter/SolidFilter manage conduit flow via ElementFilter
+        // rather than ConduitConsumer/ConduitDispenser, so the component loops above capture no
+        // conduit ports for them.  If BuildingDef declares a conduit type but no matching port
+        // was added above, fall back to the BuildingDef input/output offsets.
+        if (def.InputConduitType == ConduitType.Gas    && !ports.Any(p => p.type == ConnectionType.GasInput))
+            ports.Add(new OutUtilityPort(def.UtilityInputOffset, ConnectionType.GasInput, false));
+        if (def.InputConduitType == ConduitType.Liquid && !ports.Any(p => p.type == ConnectionType.LiquidInput))
+            ports.Add(new OutUtilityPort(def.UtilityInputOffset, ConnectionType.LiquidInput, false));
+        if (def.InputConduitType == ConduitType.Solid  && !ports.Any(p => p.type == ConnectionType.SolidInput))
+            ports.Add(new OutUtilityPort(def.UtilityInputOffset, ConnectionType.SolidInput, false));
+        if (def.OutputConduitType == ConduitType.Gas    && !ports.Any(p => p.type == ConnectionType.GasOutput))
+            ports.Add(new OutUtilityPort(def.UtilityOutputOffset, ConnectionType.GasOutput, false));
+        if (def.OutputConduitType == ConduitType.Liquid && !ports.Any(p => p.type == ConnectionType.LiquidOutput))
+            ports.Add(new OutUtilityPort(def.UtilityOutputOffset, ConnectionType.LiquidOutput, false));
+        if (def.OutputConduitType == ConduitType.Solid  && !ports.Any(p => p.type == ConnectionType.SolidOutput))
+            ports.Add(new OutUtilityPort(def.UtilityOutputOffset, ConnectionType.SolidOutput, false));
+
+        // ── Secondary conduit outputs via ISecondaryOutput ──────────────────────────────
+        // ElementFilter (GasFilter / LiquidFilter / SolidFilter) implements ISecondaryOutput and
+        // registers a filtered-element port at portInfo.offset (distinct from UtilityOutputOffset).
+        // Detected via reflection to avoid a hard reference to the interface.
+        foreach (Component comp in go.GetComponents<Component>())
+        {
+            if (comp == null) continue;
+            var hasMeth = comp.GetType().GetMethod(
+                "HasSecondaryConduitType",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, new[] { typeof(ConduitType) }, null);
+            var getMeth = comp.GetType().GetMethod(
+                "GetSecondaryConduitOffset",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, new[] { typeof(ConduitType) }, null);
+            if (hasMeth == null || getMeth == null) continue;
+            foreach (ConduitType ct in new[] { ConduitType.Gas, ConduitType.Liquid, ConduitType.Solid })
+            {
+                bool has = false;
+                try { has = (bool)hasMeth.Invoke(comp, new object[] { ct }); } catch { continue; }
+                if (!has) continue;
+                ConnectionType outType = ct == ConduitType.Gas    ? ConnectionType.GasOutput :
+                                         ct == ConduitType.Liquid ? ConnectionType.LiquidOutput :
+                                                                    ConnectionType.SolidOutput;
+                // Skip if the ConduitDispenser loop already added a secondary port of this type.
+                if (ports.Any(p => p.type == outType && p.isSecondary)) continue;
+                CellOffset off = new CellOffset(0, 0);
+                try { off = (CellOffset)getMeth.Invoke(comp, new object[] { ct }); } catch { continue; }
+                ports.Add(new OutUtilityPort(off, outType, true));
+            }
+        }
+
         // ── Power ports ────────────────────────────────────────────────────────
         if (def.EnergyConsumptionWhenActive > 0f)
             ports.Add(new OutUtilityPort(def.PowerInputOffset, ConnectionType.PowerInput, false));
