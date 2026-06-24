@@ -21,15 +21,6 @@ namespace OniExtract2024.building
     {
         public static bool IsRunning { get; private set; }
 
-        // Deprecated buildings as a class crash the sweep: spawning one without full
-        // game context corrupts state and the run dies mid-sweep (the exact culprit was
-        // never isolated). So we skip Deprecated by default and opt back in only buildings
-        // vetted to spawn cleanly that the website still displays and needs a hi-res icon for.
-        private static readonly HashSet<string> DeprecatedAllowlist = new HashSet<string>
-        {
-            "SteamTurbine", // old 5x4 steam turbine; site still shows it, low-res today
-        };
-
         public static string OutputDir =>
             Path.Combine(Util.RootFolder(), "export", "ui_image");
 
@@ -79,29 +70,7 @@ namespace OniExtract2024.building
             int exported = 0, skipped = 0;
             foreach (var def in Assets.BuildingDefs)
             {
-                if (def == null || def.BuildingComplete == null || !def.ShowInBuildMenu)
-                {
-                    skipped++;
-                    continue;
-                }
-                // Deprecated buildings crash the sweep unless vetted (see DeprecatedAllowlist).
-                if (def.Deprecated)
-                {
-                    var dkpid = def.BuildingComplete.GetComponent<KPrefabID>();
-                    if (dkpid == null || !DeprecatedAllowlist.Contains(dkpid.PrefabTag.Name))
-                    {
-                        skipped++;
-                        continue;
-                    }
-                }
-                if (!def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
-                {
-                    skipped++;
-                    continue;
-                }
-                // RocketModuleCluster buildings crash on spawn without a full rocket context;
-                // WireUtilitySemiVirtualNetworkLink crashes are subsumed by this filter.
-                if (def.BuildingComplete.TryGetComponent<RocketModuleCluster>(out _))
+                if (!BuildingSpawnFilter.IsRenderable(def))
                 {
                     skipped++;
                     continue;
@@ -127,8 +96,22 @@ namespace OniExtract2024.building
 
             Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
 
-            PatchBuildingJson();
+            PatchBuildingJsonRects(Rects);
             IsRunning = false;
+        }
+
+        // Re-export a single already-posed building from the inspector ("touch-up" path):
+        // overwrite its ui_image PNG and refresh its uiImageRect in building.json, so a one-off
+        // pose tweak lands in the same output the full sweep produces — no full re-run needed.
+        // The crop bbox (and thus the rect) can shift when the pose changes, so the rect is
+        // always re-merged, not just the PNG.
+        public static void ExportSingle(GameObject posedBuilding)
+        {
+            if (posedBuilding == null || posedBuilding.IsNullOrDestroyed()) return;
+            var rects = new Dictionary<string, UiImageRect>();
+            BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
+            if (rects.Count > 0)
+                PatchBuildingJsonRects(rects);
         }
 
         // Merge the measured uiImageRect for each rendered building into the building.json
@@ -137,8 +120,16 @@ namespace OniExtract2024.building
         // long after the no-save JSON export. The website reads uiImageRect off each
         // bBuildingDefList entry; buildings we did not render keep the legacy
         // stretch-to-footprint fallback (field omitted).
-        private static void PatchBuildingJson()
+        private static void PatchBuildingJsonRects(IDictionary<string, UiImageRect> rects)
         {
+            if (rects == null || rects.Count == 0) return;
+
+            // Persist to the durable sidecar first, so the rects survive the next game
+            // load even if the full sweep isn't re-run (the main-menu pass reads this).
+            // The direct building.json patch below keeps the CURRENT export correct
+            // without waiting for a reload. See UIIMAGERECT_DURABILITY.md.
+            UiImageRectStore.SaveAll(rects);
+
             string dbDir = BaseExport.BuildExportPath(
                 Util.RootFolder(), "database", DlcManager.IsExpansion1Active());
             string path = Path.Combine(dbDir, "building.json");
@@ -161,7 +152,7 @@ namespace OniExtract2024.building
             foreach (JObject entry in list)
             {
                 string name = (string)entry["name"];
-                if (name != null && Rects.TryGetValue(name, out UiImageRect r))
+                if (name != null && rects.TryGetValue(name, out UiImageRect r))
                 {
                     entry["uiImageRect"] = new JObject
                     {

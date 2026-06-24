@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
+using OniExtract2024.building;
 
 namespace OniExtract2024
 {
@@ -8,6 +10,14 @@ namespace OniExtract2024
         public string nameString;
         public BKprefabID kPrefabID;
         public HashSet<Tag> tags;
+
+        // Rendered ui_image placement in footprint cells (see UiImageRect / the website
+        // contract). Measured by the in-game building-image pass and carried here via the
+        // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
+        // have no measurement for this building — that means "image == footprint" to the
+        // website (do NOT emit null). See UIIMAGERECT_DURABILITY.md.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public UiImageRect? uiImageRect = null;
 
         // BuildingDef display fields (missing from original 2024 export)
         public int widthInCells;

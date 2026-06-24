@@ -353,9 +353,9 @@ Most component fields are `null` when absent for that entity type.
 
 Edible item definitions.
 
-| Field | Type | Count |
-|---|---|---|
-| `foodInfoList` | array | 64 non-null |
+| Field | Type | Count | Notes |
+|---|---|---|---|
+| `foodInfoList` | array | 64 non-null |  |
 | `requiredDlcIdsMap` | dict | 64 keys | Keyed by food Id |
 | `forbiddenDlcIdsMap` | dict | 64 keys | Keyed by food Id |
 | `qualityEffects` | dict | 8 keys | Quality level → effect name |
@@ -389,10 +389,10 @@ Edible item definitions.
 
 Geyser type definitions.
 
-| Field | Type | Count |
-|---|---|---|
-| `geysers` | array | 27 non-null |
-| `CategorySettings` | dict | 7 keys |
+| Field | Type | Count | Notes |
+|---|---|---|---|
+| `geysers` | array | 27 non-null |  |
+| `CategorySettings` | dict | 7 keys |  |
 | `geotunerGeyserSettings` | dict | 27 keys | Keyed by geyser prefab ID |
 | `geyserIdHashDictionary` | dict | 27 keys | Keyed by geyser prefab ID → hash |
 
@@ -497,9 +497,9 @@ Same shape as eggs but without `incubatorMonitorDef`; `kBoxCollider2D` may be nu
 
 Space POIs, meteor showers, comets, and other cluster-map entities.
 
-| Field | Type | Count |
-|---|---|---|
-| `multiEntities` | array | 132 non-null |
+| Field | Type | Count | Notes |
+|---|---|---|---|
+| `multiEntities` | array | 132 non-null |  |
 | `meteorShowerEventMap` | dict | 19 keys | Keyed by event ID |
 
 ### multiEntities entry
@@ -725,8 +725,8 @@ These values are the same as the keys in `elements.json`'s `elementTable`.
 
 Sprite metadata for UI icons.
 
-| Field | Type | Count |
-|---|---|---|
+| Field | Type | Count | Notes |
+|---|---|---|---|
 | `uiSpriteInfos` | dict | 1241 keys | Keyed by item prefab ID |
 | `uiFacadeInfos` | dict | 988 keys | Keyed by facade ID |
 

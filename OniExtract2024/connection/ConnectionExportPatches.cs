@@ -34,6 +34,13 @@ namespace OniExtract2024.connection
                 connectionSpritesButton.isEnabled = true;
                 list.Insert(index, connectionSpritesButton);
 
+                var inspectButton = new KButtonMenu.ButtonInfo(
+                    "Inspect Building Poses",
+                    global::Action.NumActions,
+                    new UnityAction(BuildingPoseInspectorScreen.Open));
+                inspectButton.isEnabled = true;
+                list.Insert(index, inspectButton);
+
                 ___buttons = list.ToArray();
             }
         }
