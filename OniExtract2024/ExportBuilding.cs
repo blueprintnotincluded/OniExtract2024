@@ -241,7 +241,7 @@ public class ExportBuilding : BaseExport
     {
         var ports = new List<OutUtilityPort>();
 
-        // ── Conduit ports (gas / liquid / solid) ──────────────────────────────
+        // ── Conduit ports (gas / liquid) ──────────────────────────────────────
         //
         // Primary consumer/dispenser use BuildingDef.UtilityInputOffset / UtilityOutputOffset.
         // Secondary ones (useSecondaryInput/Output = true) call TryGetSecondaryOffset which
@@ -262,6 +262,24 @@ public class ExportBuilding : BaseExport
             ports.Add(new OutUtilityPort(off, ConduitTypeToOutput(d.conduitType), d.useSecondaryOutput));
         }
 
+        // ── Conduit ports (solid / conveyor belt) ─────────────────────────────
+        // Solid conduit uses SolidConduitConsumer/SolidConduitDispenser, which are
+        // separate component types from ConduitConsumer/ConduitDispenser.
+        foreach (SolidConduitConsumer c in go.GetComponents<SolidConduitConsumer>())
+        {
+            CellOffset off = c.useSecondaryInput
+                ? TryGetSecondaryOffset(go, ConduitType.Solid)
+                : def.UtilityInputOffset;
+            ports.Add(new OutUtilityPort(off, ConnectionType.SolidInput, c.useSecondaryInput));
+        }
+        foreach (SolidConduitDispenser d in go.GetComponents<SolidConduitDispenser>())
+        {
+            CellOffset off = d.useSecondaryOutput
+                ? TryGetSecondaryOffset(go, ConduitType.Solid)
+                : def.UtilityOutputOffset;
+            ports.Add(new OutUtilityPort(off, ConnectionType.SolidOutput, d.useSecondaryOutput));
+        }
+
         // ── Power ports ────────────────────────────────────────────────────────
         if (def.EnergyConsumptionWhenActive > 0f)
             ports.Add(new OutUtilityPort(def.PowerInputOffset, ConnectionType.PowerInput, false));
@@ -269,11 +287,9 @@ public class ExportBuilding : BaseExport
         if (go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
             ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
 
-        // ── Logic ports ────────────────────────────────────────────────────────
+        // ── Logic ports (sensors and standard buildings) ───────────────────────
         // BuildingDef.LogicInputPorts/LogicOutputPorts are set during CreateBuildingDef()
-        // and are reliably populated for all buildings. The LogicPorts component's
-        // inputPortInfo/outputPortInfo are only initialised at spawn time for some buildings
-        // (e.g. logic gates), so the BuildingDef fields are the correct source here.
+        // for sensors and most buildings that connect to the logic network.
         if (def.LogicInputPorts != null)
             foreach (var p in def.LogicInputPorts)
                 ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, true), false));
@@ -281,27 +297,37 @@ public class ExportBuilding : BaseExport
             foreach (var p in def.LogicOutputPorts)
                 ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
 
+        // ── Logic ports (gates: AND/OR/XOR/NOT/BUFFER/FILTER/MUX/DEMUX) ────────
+        // Logic gates do NOT set BuildingDef.LogicInputPorts/LogicOutputPorts.
+        // Instead they add a LogicGateBase component in DoPostConfigureComplete and
+        // store port offsets directly in its inputPortOffsets/outputPortOffsets/
+        // controlPortOffsets arrays — these are set at prefab config time, not spawn time.
+        LogicGateBase logicGate = go.GetComponent<LogicGateBase>();
+        if (logicGate != null)
+        {
+            if (logicGate.inputPortOffsets != null)
+                foreach (var off in logicGate.inputPortOffsets)
+                    ports.Add(new OutUtilityPort(off, ConnectionType.LogicInput, false));
+            if (logicGate.outputPortOffsets != null)
+                foreach (var off in logicGate.outputPortOffsets)
+                    ports.Add(new OutUtilityPort(off, ConnectionType.LogicOutput, false));
+            // control ports (MUX/DEMUX selector bits) act as logic inputs
+            if (logicGate.controlPortOffsets != null)
+                foreach (var off in logicGate.controlPortOffsets)
+                    ports.Add(new OutUtilityPort(off, ConnectionType.LogicInput, false));
+        }
+
         return ports;
     }
 
     private static ConnectionType ConduitTypeToInput(ConduitType ct)
     {
-        switch (ct)
-        {
-            case ConduitType.Liquid: return ConnectionType.LiquidInput;
-            case ConduitType.Solid:  return ConnectionType.SolidInput;
-            default:                 return ConnectionType.GasInput;
-        }
+        return ct == ConduitType.Liquid ? ConnectionType.LiquidInput : ConnectionType.GasInput;
     }
 
     private static ConnectionType ConduitTypeToOutput(ConduitType ct)
     {
-        switch (ct)
-        {
-            case ConduitType.Liquid: return ConnectionType.LiquidOutput;
-            case ConduitType.Solid:  return ConnectionType.SolidOutput;
-            default:                 return ConnectionType.GasOutput;
-        }
+        return ct == ConduitType.Liquid ? ConnectionType.LiquidOutput : ConnectionType.GasOutput;
     }
 
     // Maps LogicPortSpriteType (matched by .ToString() so it is resilient to int value

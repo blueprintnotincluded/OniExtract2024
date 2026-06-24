@@ -131,9 +131,41 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "cargoBayCluster": null,
   "treeFilterable": null,
   "battery": null,
-  "rocketUsageRestrictionDef": null
+  "rocketUsageRestrictionDef": null,
+
+  // Utility port connections (power, conduit, logic).
+  // Empty array [] when the building has no utility connections.
+  "utilities": [
+    {
+      "offset": { "x": 0.0, "y": 0.0 }, // CellOffset from bottom-left, pre-rotation (not world cell)
+      "type": "PowerInput",               // ConnectionType string — see table below
+      "isSecondary": false               // true for the 2nd port of the same conduit network
+    }
+  ]
 }
 ```
+
+**ConnectionType values** (serialised as the enum name string):
+
+| Value | Source component / field |
+|---|---|
+| `PowerInput` | `BuildingDef.EnergyConsumptionWhenActive > 0` → offset from `PowerInputOffset` |
+| `PowerOutput` | `EnergyGenerator` or `Battery` component → offset from `PowerOutputOffset` |
+| `GasInput` | `ConduitConsumer` with `conduitType == Gas` → primary: `UtilityInputOffset`; secondary: `ISecondaryInput.GetSecondaryConduitOffset` |
+| `GasOutput` | `ConduitDispenser` with `conduitType == Gas` → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset` |
+| `LiquidInput` | `ConduitConsumer` with `conduitType == Liquid` — same offset rules |
+| `LiquidOutput` | `ConduitDispenser` with `conduitType == Liquid` — same offset rules |
+| `SolidInput` | `SolidConduitConsumer` component (separate class from `ConduitConsumer`) → primary: `UtilityInputOffset`; secondary: `ISecondaryInput.GetSecondaryConduitOffset(Solid)` |
+| `SolidOutput` | `SolidConduitDispenser` component → primary: `UtilityOutputOffset`; secondary: `ISecondaryOutput.GetSecondaryConduitOffset(Solid)` |
+| `LogicInput` | `BuildingDef.LogicInputPorts[i].cellOffset` (sensors/non-gates), OR `LogicGateBase.inputPortOffsets[i]` / `controlPortOffsets[i]` (gates) |
+| `LogicOutput` | `BuildingDef.LogicOutputPorts[i].cellOffset` OR `LogicGateBase.outputPortOffsets[i]` |
+| `LogicRibbonInput` | Same sources as LogicInput; detected by `spriteType.ToString()` containing "ribbon" and not "out" |
+| `LogicRibbonOutput` | Same sources; detected by "ribbon" + "out" in spriteType |
+| `LogicReset` | Same sources; detected by "reset" or "update" in spriteType |
+
+> **Why two logic port sources?** Standard buildings (sensors, controllers) set `BuildingDef.LogicInputPorts`/`LogicOutputPorts` in `CreateBuildingDef()`. Logic gates (AND/OR/XOR/NOT/BUFFER/FILTER/MUX/DEMUX) never set those — they add a `LogicGate` (`LogicGateBase` subclass) component in `DoPostConfigureComplete()` instead, storing offsets in `inputPortOffsets`/`outputPortOffsets`/`controlPortOffsets`. See `GAME_INTERNALS.md` for the broader pattern.
+
+> **Conveyor belt note:** `ConduitConsumer` / `ConduitDispenser` are **never** used for solid/conveyor conduit. The game uses entirely separate component classes (`SolidConduitConsumer` / `SolidConduitDispenser`) that happen to share the same offset fields on `BuildingDef`.
 
 **OutStorage shape** (when present):
 
