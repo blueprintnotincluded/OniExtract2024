@@ -1,3 +1,6 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 namespace OniExtract2024
 {
     // Connection port types used by buildings. Serialised as the enum name string.
@@ -7,6 +10,7 @@ namespace OniExtract2024
     //   logicInput / logicOutput   -> logic ports
     //   logicResetUpdate           -> logic reset/update ports
     //   logic_ribbon_all_in / out  -> logic ribbon ports
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum ConnectionType
     {
         PowerInput,

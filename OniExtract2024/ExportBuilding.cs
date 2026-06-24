@@ -270,16 +270,16 @@ public class ExportBuilding : BaseExport
             ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
 
         // ── Logic ports ────────────────────────────────────────────────────────
-        LogicPorts.Def logicDef = go.GetDef<LogicPorts.Def>();
-        if (logicDef != null)
-        {
-            if (logicDef.inputPortInfo != null)
-                foreach (var p in logicDef.inputPortInfo)
-                    ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, true), false));
-            if (logicDef.outputPortInfo != null)
-                foreach (var p in logicDef.outputPortInfo)
-                    ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
-        }
+        // BuildingDef.LogicInputPorts/LogicOutputPorts are set during CreateBuildingDef()
+        // and are reliably populated for all buildings. The LogicPorts component's
+        // inputPortInfo/outputPortInfo are only initialised at spawn time for some buildings
+        // (e.g. logic gates), so the BuildingDef fields are the correct source here.
+        if (def.LogicInputPorts != null)
+            foreach (var p in def.LogicInputPorts)
+                ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, true), false));
+        if (def.LogicOutputPorts != null)
+            foreach (var p in def.LogicOutputPorts)
+                ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
 
         return ports;
     }
