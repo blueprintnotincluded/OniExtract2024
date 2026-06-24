@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using OniExtract2024;
+using OniExtract2024.utils;
 using System.Linq;
 
 public class ExportBuilding : BaseExport
@@ -205,7 +208,136 @@ public class ExportBuilding : BaseExport
             bBuild.rocketUsageRestrictionDef = rocketUsage;
         }
 
+        bBuild.utilities = BuildUtilityPorts(buildingDef, go);
+
         this.bBuildingDefList.Add(bBuild);
+    }
+
+    // Exports the ~8 generic port indicator icons (same for every building) to ui_image/.
+    // sprite names match what Assets.GetSprite() returns in-game.
+    public void ExportPortIcons()
+    {
+        string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
+        Directory.CreateDirectory(dir);
+        string[] names =
+        {
+            "input", "output",
+            "electrical_disconnected",
+            "logicInput", "logicOutput", "logicResetUpdate",
+            "logic_ribbon_all_in", "logic_ribbon_all_out",
+        };
+        foreach (string name in names)
+        {
+            Sprite sprite = Assets.GetSprite(name);
+            if (sprite != null)
+                AnimTool.WriteUISpriteToFile(sprite, dir, name);
+            else
+                Debug.LogWarning("OniExtract: port icon sprite not found: " + name);
+        }
+    }
+
+    // Returns one OutUtilityPort per connection port on this building.
+    private static List<OutUtilityPort> BuildUtilityPorts(BuildingDef def, GameObject go)
+    {
+        var ports = new List<OutUtilityPort>();
+
+        // ── Conduit ports (gas / liquid / solid) ──────────────────────────────
+        //
+        // Primary consumer/dispenser use BuildingDef.UtilityInputOffset / UtilityOutputOffset.
+        // Secondary ones (useSecondaryInput/Output = true) call TryGetSecondaryOffset which
+        // scans components via reflection for GetSecondaryConduitOffset(ConduitType) —
+        // falls back to (0,0) if not found; isSecondary is still set correctly.
+        foreach (ConduitConsumer c in go.GetComponents<ConduitConsumer>())
+        {
+            CellOffset off = c.useSecondaryInput
+                ? TryGetSecondaryOffset(go, c.conduitType)
+                : def.UtilityInputOffset;
+            ports.Add(new OutUtilityPort(off, ConduitTypeToInput(c.conduitType), c.useSecondaryInput));
+        }
+        foreach (ConduitDispenser d in go.GetComponents<ConduitDispenser>())
+        {
+            CellOffset off = d.useSecondaryOutput
+                ? TryGetSecondaryOffset(go, d.conduitType)
+                : def.UtilityOutputOffset;
+            ports.Add(new OutUtilityPort(off, ConduitTypeToOutput(d.conduitType), d.useSecondaryOutput));
+        }
+
+        // ── Power ports ────────────────────────────────────────────────────────
+        if (def.EnergyConsumptionWhenActive > 0f)
+            ports.Add(new OutUtilityPort(def.PowerInputOffset, ConnectionType.PowerInput, false));
+        // EnergyGenerator = wired generators; Battery = rechargeable storage that also outputs
+        if (go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
+            ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
+
+        // ── Logic ports ────────────────────────────────────────────────────────
+        LogicPorts.Def logicDef = go.GetDef<LogicPorts.Def>();
+        if (logicDef != null)
+        {
+            if (logicDef.inputPortInfo != null)
+                foreach (var p in logicDef.inputPortInfo)
+                    ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, true), false));
+            if (logicDef.outputPortInfo != null)
+                foreach (var p in logicDef.outputPortInfo)
+                    ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
+        }
+
+        return ports;
+    }
+
+    private static ConnectionType ConduitTypeToInput(ConduitType ct)
+    {
+        switch (ct)
+        {
+            case ConduitType.Liquid: return ConnectionType.LiquidInput;
+            case ConduitType.Solid:  return ConnectionType.SolidInput;
+            default:                 return ConnectionType.GasInput;
+        }
+    }
+
+    private static ConnectionType ConduitTypeToOutput(ConduitType ct)
+    {
+        switch (ct)
+        {
+            case ConduitType.Liquid: return ConnectionType.LiquidOutput;
+            case ConduitType.Solid:  return ConnectionType.SolidOutput;
+            default:                 return ConnectionType.GasOutput;
+        }
+    }
+
+    // Maps LogicPortSpriteType (matched by .ToString() so it is resilient to int value
+    // changes across ONI updates) to ConnectionType.  Defaults to the port direction.
+    private static ConnectionType LogicSpriteToType(LogicPortSpriteType spriteType, bool isInput)
+    {
+        string s = spriteType.ToString();
+        if (s.IndexOf("ribbon", StringComparison.OrdinalIgnoreCase) >= 0)
+            return s.IndexOf("out", StringComparison.OrdinalIgnoreCase) >= 0
+                ? ConnectionType.LogicRibbonOutput
+                : ConnectionType.LogicRibbonInput;
+        if (s.IndexOf("reset", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            s.IndexOf("update", StringComparison.OrdinalIgnoreCase) >= 0)
+            return ConnectionType.LogicReset;
+        return isInput ? ConnectionType.LogicInput : ConnectionType.LogicOutput;
+    }
+
+    // Scans every component on the GameObject for a public GetSecondaryConduitOffset(ConduitType)
+    // method (avoids a hard reference to ISecondaryInput/ISecondaryOutput, which may not be
+    // public interfaces in all ONI builds).  Falls back to (0,0) — isSecondary is still set.
+    private static CellOffset TryGetSecondaryOffset(GameObject go, ConduitType conduitType)
+    {
+        foreach (Component comp in go.GetComponents<Component>())
+        {
+            if (comp == null) continue;
+            var m = comp.GetType().GetMethod(
+                "GetSecondaryConduitOffset",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(ConduitType) },
+                null);
+            if (m == null) continue;
+            try { return (CellOffset)m.Invoke(comp, new object[] { conduitType }); }
+            catch { }
+        }
+        return new CellOffset(0, 0);
     }
 
     public void ExportBuildMenu()

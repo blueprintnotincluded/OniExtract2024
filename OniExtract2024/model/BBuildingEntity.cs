@@ -60,6 +60,7 @@ namespace OniExtract2024
         public OutBattery battery = null;
         public RoomTracker roomTracker = null;
         public RocketUsageRestriction.Def rocketUsageRestrictionDef = null;
+        public List<OutUtilityPort> utilities = new List<OutUtilityPort>();
 
         public BBuildingEntity(string name, KPrefabID kPrefabID)
         {
