@@ -99,6 +99,32 @@ namespace OniExtract2024.connection
             }
             Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
 
+            // --- 3) Bridges: non-utility, non-tile buildings with KAnimGraphTileVisualizer
+            // (e.g. wire/pipe bridges). isUtility=false so they're skipped by pass 2, but
+            // they carry KAnimGraphTileVisualizer and animate connection states identically.
+            int bridgeBuildings = 0;
+            foreach (var def in Assets.BuildingDefs)
+            {
+                if (def == null || def.isKAnimTile || def.isUtility)
+                    continue;
+                if (def.BuildingComplete == null)
+                    continue;
+                if (!def.BuildingComplete.TryGetComponent<KAnimGraphTileVisualizer>(out _))
+                    continue;
+                if (!def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
+                    continue;
+
+                GameObject temp = def.Create(spawnPos, null,
+                    new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
+                if (temp == null)
+                    continue;
+
+                var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
+                bridgeBuildings++;
+                yield return snapshotter.ExportThenDestroy();
+            }
+            Debug.Log("OniExtract: bridges exported - " + bridgeBuildings + " buildings.");
+
             Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
             IsRunning = false;
         }

@@ -36,8 +36,17 @@ namespace OniExtract2024
         public string defaultAnimState;
         public string uiSpriteName;
         public OutEnergyGenerator energyGenerator;
+        public OutEnergyConsumer energyConsumer;
         public OutConduitConsumer conduitConsumer;
         public OutConduitDispenser conduitDispenser;
+
+        // Power port cell offsets — non-null only when the corresponding connection exists.
+        // powerInputOffset: where a wire plugs in for buildings that consume power (RequiresPowerInput=true).
+        // powerOutputOffset: where a wire plugs in for buildings that generate power (have EnergyGenerator).
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public CellOffset? powerInputOffset = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public CellOffset? powerOutputOffset = null;
         public OutPlantablePlot plantablePlot;
         public List<OutElementConverter> elementConverters = new List<OutElementConverter>();
         public List<OutElementConsumer> elementConsumers = new List<OutElementConsumer>();

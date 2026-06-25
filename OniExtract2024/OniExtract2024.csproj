@@ -136,6 +136,7 @@
     <Compile Include="model\OutConsumedElement.cs" />
     <Compile Include="model\OutElementConsumer.cs" />
     <Compile Include="model\OutElementConverter.cs" />
+    <Compile Include="model\OutEnergyConsumer.cs" />
     <Compile Include="model\OutEnergyGenerator.cs" />
     <Compile Include="model\OutLight2D.cs" />
     <Compile Include="model\OutOperational.cs" />

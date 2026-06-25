@@ -112,12 +112,15 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int
   "objectLayer": 1,                     // ObjectLayer enum as int
-  "viewMode": "Default",                // HashedString toString — overlay mode name
+  "viewMode": "power",                  // Overlay mode name (string). Known values: "power", "decor", "oxygen", "light". Empty string when the hash isn't registered in HashCache at export time (affects gas/liquid/solid conduits, logic wire, and travel tube despite those having distinct overlays in-game).
   "defaultAnimState": "off",
   "uiSpriteName": "generatormanual_0",  // sprite name; cross-ref uiSpriteInfos[name].spriteName
 
   // Component fields — null when that component is absent on this building
   "energyGenerator": null,
+  "energyConsumer": null,       // non-null for buildings that draw power (machines, lights, etc.)
+  "powerInputOffset": null,     // CellOffset {x,y} — where a wire connects as INPUT; omitted when absent
+  "powerOutputOffset": null,    // CellOffset {x,y} — where a wire connects as OUTPUT (generators); omitted when absent
   "conduitConsumer": null,
   "conduitDispenser": null,
   "plantablePlot": null,
@@ -132,6 +135,15 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "treeFilterable": null,
   "battery": null,
   "rocketUsageRestrictionDef": null
+}
+```
+
+**OutEnergyConsumer shape** (when present — buildings that draw from the power network):
+
+```jsonc
+{
+  "baseWattageRating": 240.0,   // watts consumed when active — sourced from BuildingDef.EnergyConsumptionWhenActive (not the component's runtime field, which is 0 at main-menu export)
+  "powerSortOrder": 0           // overlay sort priority
 }
 ```
 

@@ -42,17 +42,31 @@ public class ExportBuilding : BaseExport
         bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
         bBuild.sceneLayer = (int)buildingDef.SceneLayer;
         bBuild.objectLayer = (int)buildingDef.ObjectLayer;
-        bBuild.viewMode = buildingDef.ViewMode.ToString();
+        bBuild.viewMode = HashCache.Get().Get(buildingDef.ViewMode);
         bBuild.defaultAnimState = buildingDef.DefaultAnimState;
         bBuild.uiSpriteName = buildingDef.UISprite != null ? buildingDef.UISprite.name : null;
         EnergyGenerator energyGenerator = go.GetComponent<EnergyGenerator>();
         if (energyGenerator != null)
         {
             bBuild.energyGenerator = new OutEnergyGenerator(energyGenerator);
+            bBuild.powerOutputOffset = buildingDef.PowerOutputOffset;
         }
         else
         {
             bBuild.energyGenerator = null;
+        }
+        EnergyConsumer energyConsumer = go.GetComponent<EnergyConsumer>();
+        if (energyConsumer != null)
+        {
+            var ec = new OutEnergyConsumer(energyConsumer);
+            // BaseWattageRating is a runtime field set by the building's state machine;
+            // at main-menu export it is always 0. Read the static value from BuildingDef.
+            ec.baseWattageRating = buildingDef.EnergyConsumptionWhenActive;
+            bBuild.energyConsumer = ec;
+        }
+        if (buildingDef.RequiresPowerInput)
+        {
+            bBuild.powerInputOffset = buildingDef.PowerInputOffset;
         }
         ConduitConsumer conduitConsumer = go.GetComponent<ConduitConsumer>();
         if (conduitConsumer != null)
