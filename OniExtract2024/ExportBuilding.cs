@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using OniExtract2024;
+using OniExtract2024.utils;
 using System.Linq;
 
 public class ExportBuilding : BaseExport
@@ -223,6 +225,29 @@ public class ExportBuilding : BaseExport
         bBuild.utilities = BuildUtilityPorts(buildingDef, go);
 
         this.bBuildingDefList.Add(bBuild);
+    }
+
+    // Exports the ~8 generic port indicator icons (same for every building) to ui_image/.
+    // sprite names match what Assets.GetSprite() returns in-game.
+    public void ExportPortIcons()
+    {
+        string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
+        Directory.CreateDirectory(dir);
+        string[] names =
+        {
+            "input", "output",
+            "electrical_disconnected",
+            "logicInput", "logicOutput", "logicResetUpdate",
+            "logic_ribbon_all_in", "logic_ribbon_all_out",
+        };
+        foreach (string name in names)
+        {
+            Sprite sprite = Assets.GetSprite(name);
+            if (sprite != null)
+                AnimTool.WriteUISpriteToFile(sprite, dir, name);
+            else
+                Debug.LogWarning("OniExtract: port icon sprite not found: " + name);
+        }
     }
 
     // Maps a building's overlay HashedString (BuildingDef.ViewMode) to the game-native

@@ -187,6 +187,7 @@ namespace OniExtract2024
                         exportBuilding.AddNewBuildingDef(buildingDef);
                     }
 
+                    exportBuilding.ExportPortIcons();
                     exportBuilding.ExportJsonFile();
                 }
 

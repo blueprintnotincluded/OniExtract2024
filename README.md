@@ -24,11 +24,24 @@ download_depot <AppID> <DepotsID> <ManifestID>
 
 ## Build
 
-1. Open `OniExtract2024\OniExtract2024.csproj` in **Visual Studio Code**.
-2. Check `<GameLibsFolder>` , adjust to your own game installation.
-3. Check `<ModFolder>` , adjust to your mod installation.
-4. Open `OniExtract2024.sln` in **Visual Studio**. Load up solution, click `Build`-`Build Solution`. 
-5. Mod will be installed to your mod installation. default path: `Documents\Klei\OxygenNotIncluded\mods\dev`.
+1. Check `<GameLibsFolder>` in `OniExtract2024\OniExtract2024.csproj`, adjust to your game installation.
+2. Check `<ModFolder>`, adjust to your mod installation.
+3. Run MSBuild from the terminal:
+
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" "OniExtract2024\OniExtract2024.csproj" /p:Configuration=Debug /v:minimal
+```
+
+The post-build step (`CopyModsToDevFolder` in the csproj) automatically copies the DLLs and YAML
+files to `<ModFolder>\OniExtract2024_dev\`. Default: `Documents\Klei\OxygenNotIncluded\mods\dev`.
+
+## Rebuild and redeploy after a code change
+
+1. Make your source edits.
+2. Run the same MSBuild command above. The DLL is automatically deployed to the mod folder.
+3. **Fully close and relaunch ONI.** The game loads mod DLLs once at startup and holds them in
+   memory for the entire session — running the export after a rebuild without restarting will
+   silently use the old code.
 
 ## Install
 

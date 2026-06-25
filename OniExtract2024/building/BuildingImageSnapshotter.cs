@@ -55,16 +55,21 @@ namespace OniExtract2024.building
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
-            var kpid = GetComponent<KPrefabID>();
-            var kbac = GetComponent<KBatchedAnimController>();
-
-            if (kpid != null && kbac != null)
+            try
             {
-                PoseActive(kbac, kpid.PrefabTag.Name);
-                RenderAndWrite(gameObject, outputDir, rects);
-            }
+                var kpid = GetComponent<KPrefabID>();
+                var kbac = GetComponent<KBatchedAnimController>();
 
-            Util.KDestroyGameObject(gameObject);
+                if (kpid != null && kbac != null)
+                {
+                    PoseActive(kbac, kpid.PrefabTag.Name);
+                    RenderAndWrite(gameObject, outputDir, rects);
+                }
+            }
+            finally
+            {
+                Util.KDestroyGameObject(gameObject);
+            }
         }
 
         // Renders an already-posed building, crops to the opaque bbox, writes
@@ -88,16 +93,22 @@ namespace OniExtract2024.building
             var renderer = new BuildingKanimRenderer();
             renderer.Init(cellW, cellH, go.transform.GetPosition());
 
-            CameraController.Instance.baseCamera.enabled = false;
-            var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
-                .OrderBy(k => k.transform.position.z);
-            renderer.Render(kbacs);
-            CameraController.Instance.baseCamera.enabled = true;
-
-            Texture2D raw = renderer.ReadPixels();
-            // Release the RT immediately — not doing so leaks graphics memory at a rate
-            // that crashes the game before the export sweep finishes.
-            renderer.Cleanup();
+            Texture2D raw = null;
+            try
+            {
+                CameraController.Instance.baseCamera.enabled = false;
+                var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
+                    .OrderBy(k => k.transform.position.z);
+                renderer.Render(kbacs);
+                raw = renderer.ReadPixels();
+            }
+            finally
+            {
+                // Always restore camera and release the RT — not doing so leaks graphics
+                // memory at a rate that crashes the game before the export sweep finishes.
+                CameraController.Instance.baseCamera.enabled = true;
+                renderer.Cleanup();
+            }
             if (raw == null) return;
 
             Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
