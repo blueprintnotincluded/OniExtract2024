@@ -112,7 +112,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int
   "objectLayer": 1,                     // ObjectLayer enum as int
-  "viewMode": "power",                  // Overlay mode name (string). Known values: "power", "decor", "oxygen", "light". Empty string when the hash isn't registered in HashCache at export time (affects gas/liquid/solid conduits, logic wire, and travel tube despite those having distinct overlays in-game).
+  "viewMode": "Power",                  // Overlay mode name (game-native string), or null when the building has no special overlay. Values: "Power", "GasConduit", "LiquidConduit", "SolidConveyor", "Logic", "Oxygen", "Decor", "Light", "Temperature", "Rooms", "Radiation", "Disease", "Crop". Mapped from BuildingDef.ViewMode via the OverlayModes.*.ID lookup so conduit/logic overlays resolve correctly (no longer null/hash).
   "defaultAnimState": "off",
   "uiSpriteName": "generatormanual_0",  // sprite name; cross-ref uiSpriteInfos[name].spriteName
 
@@ -121,6 +121,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "energyConsumer": null,       // non-null for buildings that draw power (machines, lights, etc.)
   "powerInputOffset": null,     // CellOffset {x,y} — where a wire connects as INPUT; omitted when absent
   "powerOutputOffset": null,    // CellOffset {x,y} — where a wire connects as OUTPUT (generators); omitted when absent
+  "utilities": [ /* OutUtilityPort[] — every connection port; see below */ ],
   "conduitConsumer": null,
   "conduitDispenser": null,
   "plantablePlot": null,
@@ -146,6 +147,24 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "powerSortOrder": 0           // overlay sort priority
 }
 ```
+
+**OutUtilityPort shape** (one entry per connection port in the `utilities` array):
+
+```jsonc
+{
+  "offset": { "x": 0, "y": 0 },   // cell offset from the building's bottom-left corner (pre-rotation)
+  "type": "GasInput",             // ConnectionType enum name (string)
+  "isSecondary": false            // true for secondary/filtered ports (e.g. ElementFilter outputs)
+}
+```
+
+`type` is one of: `PowerInput`, `PowerOutput`, `GasInput`, `GasOutput`, `LiquidInput`,
+`LiquidOutput`, `SolidInput`, `SolidOutput`, `LogicInput`, `LogicOutput`,
+`LogicRibbonInput`, `LogicRibbonOutput`, `LogicReset`.
+
+`utilities` is the authoritative port list for placement and covers all connection types.
+The top-level `powerInputOffset` / `powerOutputOffset` fields are kept for backward
+compatibility and duplicate the `PowerInput` / `PowerOutput` entries here.
 
 **OutStorage shape** (when present):
 
