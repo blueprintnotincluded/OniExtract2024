@@ -379,6 +379,23 @@ public class ExportBuilding : BaseExport
         if (go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
             ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
 
+        // ── Power bridge ports (wire bridges) ──────────────────────────────────
+        // Wire bridges (WireBridge / WireBridgeHighWattage / WireRefined* / WireRubber*) pass
+        // power straight through and have no EnergyConsumer/EnergyGenerator/Battery, so the
+        // blocks above add nothing. Their two connection cells live on the WireUtilityNetworkLink
+        // component as link1/link2 ([SerializeField], set in AddNetworkLink during
+        // ConfigureBuildingTemplate/DoPostConfigureComplete — readable on the prefab). These are
+        // the real wire connection cells; the building's UtilityInput/OutputOffset are unrelated.
+        // Note these offsets do NOT mirror the power-only powerInputOffset/powerOutputOffset
+        // fields, which stay omitted for bridges. Emit link1 as PowerInput and link2 as
+        // PowerOutput to mirror the input-end/output-end convention used for conduit bridges.
+        WireUtilityNetworkLink wireLink = go.GetComponent<WireUtilityNetworkLink>();
+        if (wireLink != null)
+        {
+            ports.Add(new OutUtilityPort(wireLink.link1, ConnectionType.PowerInput, false));
+            ports.Add(new OutUtilityPort(wireLink.link2, ConnectionType.PowerOutput, false));
+        }
+
         // ── Logic ports (sensors and standard buildings) ───────────────────────
         // BuildingDef.LogicInputPorts/LogicOutputPorts are set during CreateBuildingDef()
         // for sensors and most buildings that connect to the logic network.

@@ -13,8 +13,9 @@
 ## 1. `building.json` — `utilities[]` (authoritative connection-port list)
 
 Every building has a `utilities` array: **one entry per connection port**, each with the cell it
-occupies. This is the source of truth for where wires/pipes/rails/automation connect. Buildings
-that transport but don't connect (e.g. `Wire`, `GasConduit`) have an **empty** array.
+occupies. This is the source of truth for where wires/pipes/rails/automation connect. Plain
+transport segments (e.g. `Wire`, `GasConduit`) have an **empty** array — but *bridges* are not
+transport-only: they connect at two cells and **do** get ports (see the bridge note below).
 
 ```jsonc
 "utilities": [
@@ -62,8 +63,30 @@ Notes:
 | `BatterySmart` | `PowerOutput(0,0)`, `LogicOutput(0,0)` |
 | `LogicGateAND` | `LogicInput(0,0)`, `LogicInput(0,1)`, `LogicOutput(1,0)` |
 | `Wire` | *(empty — transport only)* |
+| `WireBridge` | `PowerInput(-1,0)`, `PowerOutput(1,0)` |
+| `GasConduitBridge` | `GasInput(-1,0)`, `GasOutput(1,0)` |
 
-Coverage: **275 / 449** buildings have at least one port.
+Coverage: **280 / 449** buildings have at least one port.
+
+### Bridges
+
+A *bridge* (gas/liquid/solid/power/logic) is a pass-through link with two connection cells, one at
+each end. It is **not** transport-only. Each conduit bridge emits an input-end + output-end port
+(`GasInput`/`GasOutput`, `LiquidInput`/`LiquidOutput`, `SolidInput`/`SolidOutput`); each wire
+bridge emits `PowerInput` + `PowerOutput`; logic bridges emit two logic ports. The Input/Output
+labels are a convention for the two ends — current flows both ways through a bridge.
+
+> ⚠️ **Pending re-run:** the five power bridges (`WireBridge`, `WireBridgeHighWattage`,
+> `WireRefinedBridge`, `WireRefinedBridgeHighWattage`, `WireRubberBridge`) were shipping with an
+> empty `utilities[]` in the export validated above; this is fixed in the current mod DLL but, like
+> the connection sprites (§4), requires a full game restart + re-export to appear on disk. Until
+> then those five still read `utilities: []`.
+
+> **Networks with no port type (still empty `utilities[]`, by design):** `HEPBridgeTile`
+> (radbolt / high-energy-particle network), `TravelTubeWallBridge` (transit tube), and
+> `ModularLaunchpadPortBridge` (rocket launchpad). The `type` enum has no value for these
+> networks, so they emit no ports. Adding them would require new `ConnectionType` values **and**
+> matching `ui_image/` icons — file an issue if the front-end needs them.
 
 ---
 
