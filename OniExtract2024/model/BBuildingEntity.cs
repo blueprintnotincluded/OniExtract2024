@@ -42,7 +42,8 @@ namespace OniExtract2024
 
         // Power port cell offsets — non-null only when the corresponding connection exists.
         // powerInputOffset: where a wire plugs in for buildings that consume power (RequiresPowerInput=true).
-        // powerOutputOffset: where a wire plugs in for buildings that generate power (have EnergyGenerator).
+        // powerOutputOffset: where a wire plugs in for buildings that produce/store power
+        //   (RequiresPowerOutput=true, an EnergyGenerator, or a Battery).
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public CellOffset? powerInputOffset = null;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]

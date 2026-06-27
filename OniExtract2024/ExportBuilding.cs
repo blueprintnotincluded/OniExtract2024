@@ -49,14 +49,13 @@ public class ExportBuilding : BaseExport
         bBuild.defaultAnimState = buildingDef.DefaultAnimState;
         bBuild.uiSpriteName = buildingDef.UISprite != null ? buildingDef.UISprite.name : null;
         EnergyGenerator energyGenerator = go.GetComponent<EnergyGenerator>();
-        if (energyGenerator != null)
+        bBuild.energyGenerator = energyGenerator != null ? new OutEnergyGenerator(energyGenerator) : null;
+        // powerOutputOffset duplicates the utilities[] PowerOutput entry: emit it for every power
+        // producer — generators (incl. solar/Staterpillar via RequiresPowerOutput) and batteries —
+        // so it stays consistent with utilities[], not just for EnergyGenerator-component buildings.
+        if (buildingDef.RequiresPowerOutput || energyGenerator != null || go.GetComponent<Battery>() != null)
         {
-            bBuild.energyGenerator = new OutEnergyGenerator(energyGenerator);
             bBuild.powerOutputOffset = buildingDef.PowerOutputOffset;
-        }
-        else
-        {
-            bBuild.energyGenerator = null;
         }
         EnergyConsumer energyConsumer = go.GetComponent<EnergyConsumer>();
         if (energyConsumer != null)
@@ -373,27 +372,40 @@ public class ExportBuilding : BaseExport
         }
 
         // ── Power ports ────────────────────────────────────────────────────────
-        if (def.EnergyConsumptionWhenActive > 0f)
+        // RequiresPowerInput/RequiresPowerOutput are the game's authoritative BuildingDef flags
+        // for whether a building plugs into the power grid as a consumer / producer — the same
+        // flags it uses to place wire-connection cells. Gate on these rather than on the
+        // EnergyConsumer/EnergyGenerator components: solar panels, the Staterpillar and the rocket
+        // power plug produce power without an EnergyGenerator, and a consumer can RequirePowerInput
+        // with zero active draw (e.g. PowerTransformer). Batteries are the one producer that sets
+        // neither flag (they connect via the Battery component), so keep an explicit Battery check.
+        if (def.RequiresPowerInput)
             ports.Add(new OutUtilityPort(def.PowerInputOffset, ConnectionType.PowerInput, false));
-        // EnergyGenerator = wired generators; Battery = rechargeable storage that also outputs
-        if (go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
+        if (def.RequiresPowerOutput || go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
             ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
 
-        // ── Power bridge ports (wire bridges) ──────────────────────────────────
-        // Wire bridges (WireBridge / WireBridgeHighWattage / WireRefined* / WireRubber*) pass
-        // power straight through and have no EnergyConsumer/EnergyGenerator/Battery, so the
-        // blocks above add nothing. Their two connection cells live on the WireUtilityNetworkLink
-        // component as link1/link2 ([SerializeField], set in AddNetworkLink during
-        // ConfigureBuildingTemplate/DoPostConfigureComplete — readable on the prefab). These are
-        // the real wire connection cells; the building's UtilityInput/OutputOffset are unrelated.
-        // Note these offsets do NOT mirror the power-only powerInputOffset/powerOutputOffset
-        // fields, which stay omitted for bridges. Emit link1 as PowerInput and link2 as
-        // PowerOutput to mirror the input-end/output-end convention used for conduit bridges.
+        // ── Power pass-through links (wire bridges & switches) ─────────────────
+        // Bridges and switches carry power straight through and set no RequiresPower flag, so the
+        // block above adds nothing for them. Their connection cells live on dedicated components.
+        // Wire bridges (WireBridge / *HighWattage / WireRefined* / WireRubber*) expose two cells as
+        // WireUtilityNetworkLink.link1/link2 ([SerializeField], set in AddNetworkLink during
+        // ConfigureBuildingTemplate/DoPostConfigureComplete — readable on the prefab; the building's
+        // UtilityInput/OutputOffset are unrelated). Power switches (CircuitSwitch: Switch /
+        // PressureSwitchGas|Liquid / TemperatureControlledSwitch) are 1x1 and interrupt the wire in
+        // their single cell (0,0). Emit an input-end + output-end pair for each, mirroring the
+        // conduit-bridge convention; for a 1x1 switch the two ends coincide at (0,0). These offsets
+        // do NOT mirror the power-only powerInputOffset/powerOutputOffset fields (omitted for
+        // pass-through buildings) — utilities[] is the authoritative port list.
         WireUtilityNetworkLink wireLink = go.GetComponent<WireUtilityNetworkLink>();
         if (wireLink != null)
         {
             ports.Add(new OutUtilityPort(wireLink.link1, ConnectionType.PowerInput, false));
             ports.Add(new OutUtilityPort(wireLink.link2, ConnectionType.PowerOutput, false));
+        }
+        else if (go.GetComponent<CircuitSwitch>() != null)
+        {
+            ports.Add(new OutUtilityPort(new CellOffset(0, 0), ConnectionType.PowerInput, false));
+            ports.Add(new OutUtilityPort(new CellOffset(0, 0), ConnectionType.PowerOutput, false));
         }
 
         // ── Logic ports (sensors and standard buildings) ───────────────────────
