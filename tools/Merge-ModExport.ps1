@@ -1,20 +1,27 @@
 <#
 .SYNOPSIS
-Merges the offline mod extraction into a game export folder, as if the mods had been
-part of the in-game export run.
+Fallback-merges the offline mod extraction into a game export folder — additive only.
 
 .DESCRIPTION
-Takes mods\mod_database.json and:
-  1. Appends every mod building to database\building.json bBuildingDefList
-     (entries keep their extension fields plus the `mod` = workshopId marker).
-  2. Registers each building in buildingAndSubcategoryDataPairs under its planCategory
-     (honoring addAfter ordering within the category).
-  3. Copies mods\images\<prefabId>.png into ui_image\.
-  4. Stamps a root `modMergeInfo` field (provenance: which mods, which DLL hashes, when).
+The PRIMARY way to get mod buildings into the export is the normal in-game export with
+the mods enabled: every export pass (main-menu JSON, building-image sweep, connection
+sprites) iterates Assets.BuildingDefs, which includes every loaded mod's buildings, at
+full image quality. This script is the OFFLINE FALLBACK for buildings that path cannot
+cover (mods incompatible with the Extract mod, or buildings the in-game sweep misses).
 
-Idempotent and re-export-safe: entries carrying a `mod` property (and their menu pairs)
-are stripped before merging, so re-running after a fresh game export or a mod-data update
-always converges. The stripped (vanilla-equivalent) building.json is saved alongside as
+For each building in mods\mod_database.json NOT already present in database\building.json:
+  1. Appends it to bBuildingDefList (with its `mod` = workshopId marker).
+  2. Registers it in buildingAndSubcategoryDataPairs under its planCategory
+     (honoring addAfter ordering within the category).
+  3. Copies mods\images\<prefabId>.png into ui_image\ — only if no icon exists there
+     (never overwrites an in-game hi-res render with the low-res offline crop).
+  4. Stamps a root `modMergeInfo` field recording what was appended and what was
+     skipped as natively exported.
+
+Buildings the game exported natively are left untouched. Idempotent: previously
+offline-merged entries (marker: the `mod` property) and their menu pairs are stripped
+before re-evaluating, so re-running after a fresh game export or a mod-data update
+always converges. The stripped building.json is saved alongside as
 building.pre-mod-merge.json each run.
 
 .PARAMETER ExportDir
@@ -37,11 +44,10 @@ if (-not (Test-Path $uiImageDir)) { throw "No ui_image folder at $uiImageDir -- 
 $modDb = Get-Content (Join-Path $modsRoot 'mod_database.json') -Raw | ConvertFrom-Json
 $doc = Get-Content $buildingJsonPath -Raw | ConvertFrom-Json
 
-# --- 1. strip any previously merged mod entries (idempotency) --------------------
+# --- 1. strip only previously OFFLINE-merged entries (marker: `mod` property) ----
+# Entries the game exported natively have no marker and are never touched.
 $existing = @($doc.bBuildingDefList)
-$stripNames = @($existing | Where-Object { $_.PSObject.Properties.Name -contains 'mod' } | ForEach-Object { $_.name })
-$stripNames += @($modDb.bBuildingDefList | ForEach-Object { $_.name })
-$stripNames = $stripNames | Sort-Object -Unique
+$stripNames = @($existing | Where-Object { $_.PSObject.Properties.Name -contains 'mod' } | ForEach-Object { $_.name }) | Sort-Object -Unique
 
 $clean = @($existing | Where-Object { $stripNames -notcontains $_.name })
 foreach ($catProp in $doc.buildingAndSubcategoryDataPairs.PSObject.Properties) {
@@ -49,15 +55,20 @@ foreach ($catProp in $doc.buildingAndSubcategoryDataPairs.PSObject.Properties) {
 }
 $vanillaCount = $clean.Count
 
-# Keep a vanilla-equivalent copy beside the merged file.
+# Keep an as-exported (offline-merge-free) copy beside the merged file.
 $doc.bBuildingDefList = $clean
 [System.IO.File]::WriteAllText((Join-Path $ExportDir 'database\building.pre-mod-merge.json'), ($doc | ConvertTo-Json -Depth 24))
 
-# --- 2. append mod buildings + register menu pairs -------------------------------
-$doc.bBuildingDefList = $clean + @($modDb.bBuildingDefList)
+# --- 2. append only buildings the in-game export did NOT cover -------------------
+$nativeNames = @($clean | ForEach-Object { $_.name })
+$toAppend = @($modDb.bBuildingDefList | Where-Object { $nativeNames -notcontains $_.name })
+$skippedNative = @($modDb.bBuildingDefList | Where-Object { $nativeNames -contains $_.name } | ForEach-Object { $_.name })
+foreach ($n in $skippedNative) { Write-Host "native: $n already in building.json (in-game export) -- offline data skipped" }
+
+$doc.bBuildingDefList = $clean + $toAppend
 
 $errors = 0
-foreach ($b in $modDb.bBuildingDefList) {
+foreach ($b in $toAppend) {
     $catKey = $doc.buildingAndSubcategoryDataPairs.PSObject.Properties.Name |
         Where-Object { $_ -ieq $b.planCategory } | Select-Object -First 1
     if (-not $catKey) {
@@ -84,9 +95,11 @@ foreach ($b in $modDb.bBuildingDefList) {
 
 # --- 3. provenance marker --------------------------------------------------------
 $mergeInfo = [pscustomobject]@{
-    mergedAt = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-    source   = 'OniExtract2024 mods/mod_database.json (offline extraction; see mods/README.md)'
-    mods     = $modDb.mods
+    mergedAt        = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+    source          = 'OniExtract2024 mods/mod_database.json (offline fallback merge; see mods/README.md)'
+    appended        = @($toAppend | ForEach-Object { $_.name })
+    nativelyExported = $skippedNative
+    mods            = $modDb.mods
 }
 if ($doc.PSObject.Properties.Name -contains 'modMergeInfo') {
     $doc.modMergeInfo = $mergeInfo
@@ -96,23 +109,26 @@ if ($doc.PSObject.Properties.Name -contains 'modMergeInfo') {
 
 [System.IO.File]::WriteAllText($buildingJsonPath, ($doc | ConvertTo-Json -Depth 24))
 
-# --- 4. icons --------------------------------------------------------------------
+# --- 4. icons: fill gaps only — an existing PNG is an in-game hi-res render ------
 $iconCount = 0
 foreach ($b in $modDb.bBuildingDefList) {
+    $dst = Join-Path $uiImageDir "$($b.name).png"
+    if (Test-Path $dst) { continue }
     $src = Join-Path $imagesDir "$($b.name).png"
     if (Test-Path $src) {
-        Copy-Item $src (Join-Path $uiImageDir "$($b.name).png") -Force
+        Copy-Item $src $dst
         $iconCount++
+        Write-Host "icon: $($b.name).png filled from offline crop (no in-game render present)"
     } else {
-        Write-Warning "$($b.name): no icon at $src (run tools\Export-ModImages.ps1) -- website import will fail validation for this building"
+        Write-Warning "$($b.name): no icon in ui_image\ and none at $src (run tools\Export-ModImages.ps1) -- website import will fail validation for this building"
         $errors++
     }
 }
 
-$total = $vanillaCount + @($modDb.bBuildingDefList).Count
-Write-Host "`nMerged $(@($modDb.bBuildingDefList).Count) mod buildings into building.json ($vanillaCount vanilla -> $total total)."
-Write-Host "Copied $iconCount icon(s) into ui_image\."
-Write-Host "Vanilla-equivalent snapshot: database\building.pre-mod-merge.json"
+$total = $vanillaCount + @($toAppend).Count
+Write-Host "`nAppended $(@($toAppend).Count) offline building(s) ($vanillaCount as-exported -> $total total); $(@($skippedNative).Count) already exported in-game."
+Write-Host "Filled $iconCount icon gap(s) in ui_image\."
+Write-Host "As-exported snapshot: database\building.pre-mod-merge.json"
 if ($errors -gt 0) {
     Write-Warning "$errors problem(s) above."
     exit 1

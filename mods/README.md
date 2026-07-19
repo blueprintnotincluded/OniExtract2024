@@ -1,11 +1,42 @@
 # Mod Building Extraction — Playbook
 
-Offline, per-mod extraction of buildable-building data from installed mod files (DLL +
-kanims), **without launching the game and without loading the mods together**. Research
-background: [../MOD_OFFLINE_EXTRACTION.md](../MOD_OFFLINE_EXTRACTION.md).
+How mod buildings get into the website export. Research background:
+[../MOD_OFFLINE_EXTRACTION.md](../MOD_OFFLINE_EXTRACTION.md).
 
-The output is **`mods/mod_database.json`** — modded buildings kept separate from the
-base-game `database/building.json` export, in a compatible-but-extended schema (below).
+## Two paths — in-game first, offline as fallback
+
+**Primary — the normal in-game export, with the mods enabled.** Every export pass
+(main-menu JSON, in-game building-image sweep, connection-sprite tool) iterates
+`Assets.BuildingDefs`, and the game registers every enabled mod's `IBuildingConfig`
+buildings into that list before the export patch runs (`LegacyModMain.Load` collects
+types from **all** loaded assemblies). So mod buildings ride the existing crawl with
+**zero exporter changes**: full data, hi-res 200 px/cell images with `uiImageRect`, and
+connection sprites for modded pipes. If a mod is compatible with the Extract mod, this
+is the way — the offline kanim `ui`-symbol crops are small thumbnails by comparison
+(see the image-quality note below).
+
+**Fallback — this offline pipeline** (decompile + kanim parsing, no game launch), for
+mods that **cannot be loaded** alongside the Extract mod (incompatible mods), or to
+fill anything the in-game sweep missed. Its output is **`mods/mod_database.json`**, in
+a building.json-compatible schema (below), applied additively by
+`tools\Merge-ModExport.ps1`.
+
+### Export run checklist (in-game path)
+
+1. Enable the Extract mod **plus the content mods** you want exported. Consider
+   disabling art-replacement mods (e.g. True Tiles) so vanilla art isn't contaminated.
+2. Main-menu export → building.json now includes the mod buildings natively.
+3. Load a throwaway save → pause-screen buttons: building-image export (hi-res icons +
+   uiImageRect) and connection-sprite export (covers modded pipes). Don't save after —
+   the sweep spawns buildings, and Buildable Natural Tile's spawn patch places a real
+   solid block near the spawn cell.
+4. Optionally run `tools\Merge-ModExport.ps1` — it appends only what the in-game run
+   didn't cover and fills only missing icons, so it is always safe.
+
+⚠️ **Buildable Natural Tile quirk:** its Harmony patch deletes the building the moment
+a `NaturalTileComplete` spawns (that's the mod's whole point), so the image sweep may
+fail to render it. The offline icon in `mods/images/` remains its fallback via
+Merge-ModExport.
 
 ## Directory layout
 
@@ -45,11 +76,12 @@ tools/
 
 ### After every in-game re-export
 
-The game rewrites `building.json` clean, so re-run the merge before handing the export
-to the website:
+If the export ran **with the content mods enabled**, the mod buildings are already in
+`building.json` natively — running the merge is optional (it's a no-op for them). If the
+export ran without some mod, or for offline-only mods, run the fallback merge:
 
 ```powershell
-.\tools\Merge-ModExport.ps1             # default -ExportDir: Documents\Klei\OxygenNotIncluded\export
+.\tools\Merge-ModExport.ps1             # additive-only; default -ExportDir: Documents\Klei\OxygenNotIncluded\export
 ```
 
 If the **game** updated, also regenerate `tuning_constants.json` values that changed
@@ -154,7 +186,7 @@ Selector, Mass Move Tool, Blueprints Expanded, and all the remaining QoL/UI mods
 
 ## Art / images
 
-### Icons — DONE, `mods/images/<prefabId>.png`
+### Offline fallback icons — `mods/images/<prefabId>.png`
 
 ```powershell
 .\tools\Export-ModImages.ps1     # re-run after a mod update changes art
@@ -164,6 +196,12 @@ Extracts the **`ui` symbol** (build-menu icon) from each building's kanim atlas 
 every mod kanim surveyed ships one. Kanim folder = `mods/Steam/<id>/anim/assets/<kanim
 minus "_kanim">/` (matched case-insensitively; Splitters' folders are mixed-case).
 All 15 icons verified visually.
+
+⚠️ **Quality caveat — these are fallbacks.** The kanim `ui` symbol is a small
+atlas thumbnail (~120–160 px, loose framing), noticeably below the in-game
+building-image sweep's 200 px/cell tight-cropped renders with `uiImageRect`. Prefer the
+in-game export for any mod that can load alongside the Extract mod; Merge-ModExport
+only uses these PNGs where no in-game render exists.
 
 ⚠️ **BILD UV quirk:** atlas UVs are **top-left origin** (`pxY = v1 * atlasH`). An earlier
 draft of MOD_OFFLINE_EXTRACTION.md claimed bottom-left origin with a `(1 - v2)` flip — that
@@ -179,28 +217,25 @@ produces misaligned crops. Fixed in both `Parse-KanimBuild.ps1` and `Export-ModI
   footprint box (bottom-anchored, 1 cell = 100 px). Our icons are footprint-style `ui`
   sprites — the same kind the legacy base-game export used — so **no `uiImageRect` is
   needed**; the legacy stretch path renders them correctly.
-- **Export merge — `tools\Merge-ModExport.ps1`:** merges the mod data into the game's
-  export folder so the website ingests one combined extract. Appends the mod entries to
-  `building.json` `bBuildingDefList` (they use the importer's field names/shapes),
-  registers each in `buildingAndSubcategoryDataPairs` (honoring `addAfter`), copies
-  `mods/images/*.png` into `ui_image/`, and stamps a root `modMergeInfo` provenance field.
-  Idempotent: previously merged entries (marker: the `mod` property) are stripped first,
-  so it converges after a fresh game re-export or a mod-data update. A vanilla-equivalent
-  `building.pre-mod-merge.json` snapshot is written beside it each run.
+- **Fallback export merge — `tools\Merge-ModExport.ps1`:** additively merges the
+  offline data into the game's export folder. Only buildings **not already present** in
+  `building.json` are appended (entries the in-game export produced natively are never
+  touched), menu pairs registered (honoring `addAfter`), and icons copied **only where
+  no PNG exists** — an existing icon is assumed to be an in-game hi-res render and wins.
+  Stamps a root `modMergeInfo` field recording what was appended vs. natively exported.
+  Idempotent: previously offline-merged entries (marker: the `mod` property) are
+  stripped and re-evaluated each run, so it converges after a fresh game re-export.
+  An as-exported `building.pre-mod-merge.json` snapshot is written beside it each run.
 
-### Connection sprites — the one remaining gap (2 buildings)
+### Connection sprites (2 buildings) — covered by the in-game path
 
 `HighPressureGasConduit` and `HighPressureLiquidConduit` are drag-build utilities; for
 proper run-tiling the website wants `connection_sprites/<prefabId>/0..15.png` (it treats a
 building as connectable **only if that directory exists** — without it they fall back to the
-flat icon, which is acceptable short-term).
+flat icon).
 
-The 16 tiling states live in the kanim's `_anim.bytes` (ANIM format), which we don't parse
-yet. Two routes:
-
-1. **Pragmatic (recommended):** HPA is compatible with the Extract mod — load both in-game
-   and run the existing connection-sprite tool (pause-screen button). The offline-only
-   constraint matters for *incompatible* mods; HPA isn't one.
-2. **Fully offline (future):** parse `_anim.bytes` (vendor kanimal-SE's reader) and
-   composite the 16 states — also unlocks assembled default poses for incompatible mods'
-   buildings, should we ever support one whose art can't be captured in-game.
+The connection-sprite tool iterates `Assets.BuildingDefs` and keys off
+`KAnimGraphTileVisualizer`, which both HPA pipes have — so running it with HPA enabled
+exports their 16 states like any vanilla pipe. No offline equivalent exists (the tiling
+states live in `_anim.bytes`, which we don't parse); an offline ANIM compositor via
+kanimal-SE remains future work only if an *incompatible* mod ever ships a pipe.
