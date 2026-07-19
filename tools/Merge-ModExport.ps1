@@ -61,9 +61,12 @@ foreach ($catProp in $doc.buildingAndSubcategoryDataPairs.PSObject.Properties) {
 }
 $vanillaCount = $clean.Count
 
-# Keep an as-exported (offline-merge-free) copy beside the merged file.
+# Keep an as-exported (offline-merge-free) copy in the export ROOT — not database\,
+# so it doesn't ride along when the export/database folder is pulled to the website.
 $doc.bBuildingDefList = $clean
-[System.IO.File]::WriteAllText((Join-Path $ExportDir 'database\building.pre-mod-merge.json'), ($doc | ConvertTo-Json -Depth 24))
+[System.IO.File]::WriteAllText((Join-Path $ExportDir 'building.pre-mod-merge.json'), ($doc | ConvertTo-Json -Depth 24))
+$staleSnapshot = Join-Path $ExportDir 'database\building.pre-mod-merge.json'
+if (Test-Path $staleSnapshot) { Remove-Item $staleSnapshot }
 
 # --- 2. append only buildings the in-game export did NOT cover -------------------
 $nativeNames = @($clean | ForEach-Object { $_.name })
@@ -138,7 +141,7 @@ foreach ($b in $modDb.bBuildingDefList) {
 $total = $vanillaCount + @($toAppend).Count
 Write-Host "`nAppended $(@($toAppend).Count) offline building(s) ($vanillaCount as-exported -> $total total); $(@($skippedNative).Count) already exported in-game."
 Write-Host "Filled $iconCount icon gap(s) in ui_image\."
-Write-Host "As-exported snapshot: database\building.pre-mod-merge.json"
+Write-Host "As-exported snapshot: building.pre-mod-merge.json (export root)"
 if ($errors -gt 0) {
     Write-Warning "$errors problem(s) above."
     exit 1
