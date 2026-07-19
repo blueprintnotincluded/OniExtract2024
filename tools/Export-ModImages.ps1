@@ -25,6 +25,31 @@ $steamRoot = $manifest._meta.steamModsRoot
 $outDir = Join-Path $modsRoot 'images'
 New-Item -ItemType Directory -Force $outDir | Out-Null
 
+# Crops a bitmap to its opaque (alpha > threshold) bounding box — same rule as the
+# in-game exporters (ImageCrop.FindOpaqueBBox, threshold 0.03 ≈ 8/255). The kanim "ui"
+# frame rect usually carries baked-in transparent padding; the website stretches the whole
+# PNG to the footprint, so padding renders as blank border. Returns a NEW bitmap the
+# caller must dispose, or $null when the input is already tight (or fully transparent).
+function Trim-ToOpaqueBBox([System.Drawing.Bitmap]$bmp, [int]$alphaThreshold = 8) {
+    $w = $bmp.Width; $h = $bmp.Height
+    $minX = $w; $maxX = -1; $minY = $h; $maxY = -1
+    for ($y = 0; $y -lt $h; $y++) {
+        for ($x = 0; $x -lt $w; $x++) {
+            if ($bmp.GetPixel($x, $y).A -gt $alphaThreshold) {
+                if ($x -lt $minX) { $minX = $x }
+                if ($x -gt $maxX) { $maxX = $x }
+                if ($y -lt $minY) { $minY = $y }
+                if ($y -gt $maxY) { $maxY = $y }
+            }
+        }
+    }
+    if ($maxX -lt $minX) { return $null }
+    $cw = $maxX - $minX + 1; $ch = $maxY - $minY + 1
+    if ($cw -eq $w -and $ch -eq $h) { return $null }
+    $rect = New-Object System.Drawing.Rectangle($minX, $minY, $cw, $ch)
+    return $bmp.Clone($rect, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+}
+
 function Read-KleiString($reader) {
     $len = $reader.ReadInt32()
     if ($len -le 0) { return '' }
@@ -120,10 +145,13 @@ foreach ($mod in $manifest.mods) {
             $rect = New-Object System.Drawing.Rectangle($fr.pxX, $fr.pxY, $fr.pxW, $fr.pxH)
             $crop = $atlas.Clone($rect, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
             try {
+                $trimmed = Trim-ToOpaqueBBox $crop
+                $final = if ($null -ne $trimmed) { $trimmed } else { $crop }
                 $outFile = Join-Path $outDir "$($b.name).png"
-                $crop.Save($outFile, [System.Drawing.Imaging.ImageFormat]::Png)
-                Write-Host "OK  $($b.name).png  ($($fr.pxW)x$($fr.pxH) from $base)"
+                $final.Save($outFile, [System.Drawing.Imaging.ImageFormat]::Png)
+                Write-Host "OK  $($b.name).png  ($($final.Width)x$($final.Height) from $base, ui frame $($fr.pxW)x$($fr.pxH))"
                 $ok++
+                if ($null -ne $trimmed) { $trimmed.Dispose() }
             } finally { $crop.Dispose() }
         } finally {
             $atlas.Dispose()
