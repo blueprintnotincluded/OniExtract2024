@@ -76,6 +76,11 @@ foreach ($n in $skippedNative) { Write-Host "native: $n already in building.json
 foreach ($b in $toAppend) {
     if ($b.PSObject.Properties.Name -contains 'offlineMerged') { $b.offlineMerged = $true }
     else { $b | Add-Member -NotePropertyName 'offlineMerged' -NotePropertyValue $true }
+    # Keep the mod/modTitle field pair uniform with natively exported entries.
+    if (-not ($b.PSObject.Properties.Name -contains 'modTitle')) {
+        $meta = $modDb.mods | Where-Object { $_.workshopId -eq $b.mod } | Select-Object -First 1
+        if ($meta) { $b | Add-Member -NotePropertyName 'modTitle' -NotePropertyValue $meta.title }
+    }
 }
 
 $doc.bBuildingDefList = $clean + $toAppend
