@@ -40,6 +40,16 @@ tools/
 
 ```powershell
 .\tools\Build-ModDatabase.ps1           # regenerate mods/mod_database.json
+.\tools\Merge-ModExport.ps1             # re-merge into the game export for the website
+```
+
+### After every in-game re-export
+
+The game rewrites `building.json` clean, so re-run the merge before handing the export
+to the website:
+
+```powershell
+.\tools\Merge-ModExport.ps1             # default -ExportDir: Documents\Klei\OxygenNotIncluded\export
 ```
 
 If the **game** updated, also regenerate `tuning_constants.json` values that changed
@@ -169,11 +179,14 @@ produces misaligned crops. Fixed in both `Parse-KanimBuild.ps1` and `Export-ModI
   footprint box (bottom-anchored, 1 cell = 100 px). Our icons are footprint-style `ui`
   sprites — the same kind the legacy base-game export used — so **no `uiImageRect` is
   needed**; the legacy stretch path renders them correctly.
-- **Website-side merge:** the importer reads `database/building.json`. The entries in
-  `mod_database.json` use the same field names/shapes the importer consumes (`name`,
-  `nameString`, `widthInCells`, ..., `viewMode`) precisely so they can be appended to
-  `bBuildingDefList` (and `planCategory`/`planSubCategory` → `buildingAndSubcategoryDataPairs`)
-  in a pre-import merge step or an importer extension. That merge lives website-side.
+- **Export merge — `tools\Merge-ModExport.ps1`:** merges the mod data into the game's
+  export folder so the website ingests one combined extract. Appends the mod entries to
+  `building.json` `bBuildingDefList` (they use the importer's field names/shapes),
+  registers each in `buildingAndSubcategoryDataPairs` (honoring `addAfter`), copies
+  `mods/images/*.png` into `ui_image/`, and stamps a root `modMergeInfo` provenance field.
+  Idempotent: previously merged entries (marker: the `mod` property) are stripped first,
+  so it converges after a fresh game re-export or a mod-data update. A vanilla-equivalent
+  `building.pre-mod-merge.json` snapshot is written beside it each run.
 
 ### Connection sprites — the one remaining gap (2 buildings)
 
