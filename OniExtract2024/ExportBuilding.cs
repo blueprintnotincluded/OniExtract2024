@@ -14,6 +14,9 @@ public class ExportBuilding : BaseExport
     public Dictionary<string, List<KeyValuePair<string, string>>> buildingAndSubcategoryDataPairs = new Dictionary<string, List<KeyValuePair<string, string>>>();
     public List<Tag> roomConstraintTags= new List<Tag>();
     public Dictionary<string, string> requiredSkillPerkMap = new Dictionary<string, string>();
+    // Roster of enabled mods that contributed buildings to this export; each entry's `id`
+    // matches the per-building `mod` field. Empty for a vanilla-only export.
+    public List<OutModInfo> mods = new List<OutModInfo>();
 
     public ExportBuilding()
     {
@@ -226,6 +229,21 @@ public class ExportBuilding : BaseExport
         List<OutAreaOfEffect> areasOfEffect = AreaOfEffectBuilder.Build(go);
         bBuild.areasOfEffect = areasOfEffect.Count > 0 ? areasOfEffect : null;
 
+        // Source-mod attribution (omitted for base-game buildings) + root roster upkeep.
+        if (OniExtract2024.building.ModSourceTracker.TryGetMod(buildingDef.PrefabID,
+                out string sourceModId, out string sourceModTitle))
+        {
+            bBuild.mod = sourceModId;
+            bBuild.modTitle = sourceModTitle;
+            OutModInfo rosterEntry = this.mods.Find(m => m.id == sourceModId);
+            if (rosterEntry == null)
+            {
+                rosterEntry = new OutModInfo { id = sourceModId, title = sourceModTitle };
+                this.mods.Add(rosterEntry);
+            }
+            rosterEntry.buildings.Add(buildingDef.Tag.Name);
+        }
+
         this.bBuildingDefList.Add(bBuild);
     }
 
@@ -420,6 +438,31 @@ public class ExportBuilding : BaseExport
         if (def.LogicOutputPorts != null)
             foreach (var p in def.LogicOutputPorts)
                 ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
+
+        // ── Logic ports (PLib-style mods, e.g. Airlock Door) ───────────────────
+        // PLib's PBuilding writes ports straight into LogicPorts.inputPortInfo /
+        // outputPortInfo at prefab-config time instead of BuildingDef.LogicInputPorts.
+        // Vanilla buildings only populate these arrays in LogicPorts.OnSpawn(), so they
+        // are null on vanilla prefabs and nothing is double-counted; dedupe anyway in
+        // case a mod fills both the def lists and the component arrays.
+        LogicPorts logicPorts = go.GetComponent<LogicPorts>();
+        if (logicPorts != null)
+        {
+            if (logicPorts.inputPortInfo != null)
+                foreach (var p in logicPorts.inputPortInfo)
+                {
+                    ConnectionType t = LogicSpriteToType(p.spriteType, true);
+                    if (!ports.Any(x => x.type == t && x.offset.x == p.cellOffset.x && x.offset.y == p.cellOffset.y))
+                        ports.Add(new OutUtilityPort(p.cellOffset, t, false));
+                }
+            if (logicPorts.outputPortInfo != null)
+                foreach (var p in logicPorts.outputPortInfo)
+                {
+                    ConnectionType t = LogicSpriteToType(p.spriteType, false);
+                    if (!ports.Any(x => x.type == t && x.offset.x == p.cellOffset.x && x.offset.y == p.cellOffset.y))
+                        ports.Add(new OutUtilityPort(p.cellOffset, t, false));
+                }
+        }
 
         // ── Logic ports (gates: AND/OR/XOR/NOT/BUFFER/FILTER/MUX/DEMUX) ────────
         // Logic gates do NOT set BuildingDef.LogicInputPorts/LogicOutputPorts.

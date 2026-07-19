@@ -72,11 +72,12 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 
 | Field | Type | Count | Notes |
 |---|---|---|---|
-| `bBuildingDefList` | array | 449 non-null | Building definitions (no leading nulls) |
+| `bBuildingDefList` | array | 449 non-null | Building definitions (no leading nulls); + any enabled content mods' buildings |
 | `buildMenuCategories` | array | 15 non-null | Top-level build menu tabs |
 | `buildingAndSubcategoryDataPairs` | dict | 15 keys | Keyed by category name |
 | `roomConstraintTags` | array | 33 non-null | Tag objects |
 | `requiredSkillPerkMap` | dict | 28 keys | Keyed by skill perk Tag object |
+| `mods` | array | 0+ | Source-mod roster: `{ id, title, buildings[] }` per enabled mod that contributed buildings; `id` = Steam workshop id (or local-mod folder name), matching each entry's `mod` field. Empty for a vanilla-only export. |
 
 ### bBuildingDefList entry
 
@@ -85,6 +86,13 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   // Identity
   "name": "ManualGenerator",             // prefab/code ID (was "prefabId" in 2023)
   "nameString": "<link=\"MANUALGENERATOR\">Manual Generator</link>",
+
+  // Source-mod attribution — PRESENT ONLY on modded buildings (omitted for base game).
+  // Tracked via a BuildingConfigManager.RegisterBuilding patch: the registering
+  // IBuildingConfig's assembly is resolved to a KMod label. Website: filter/group modded
+  // buildings, warn when a blueprint requires a mod. See also the root `mods` roster.
+  "mod": "2094698134",                   // Steam workshop id (or local-mod folder name)
+  "modTitle": "Airlock Door",
   "kPrefabID": {
     "name": "ManualGenerator",
     "nameString": "<link=\"...\">...</link>",

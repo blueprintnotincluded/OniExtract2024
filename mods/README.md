@@ -21,6 +21,22 @@ fill anything the in-game sweep missed. Its output is **`mods/mod_database.json`
 a building.json-compatible schema (below), applied additively by
 `tools\Merge-ModExport.ps1`.
 
+### Mod attribution (which mod does a building come from?)
+
+Both paths record the source mod, with the same contract — the website can rely on it to
+group modded buildings, toggle them per enabled-mod set, and warn when a blueprint
+contains buildings from a mod:
+
+- **Per building:** a `mod` field (Steam workshop id, e.g. `"2094698134"`; local dev mods
+  use their folder name) plus `modTitle`. **Present only on modded buildings** — absence
+  means base game. The in-game exporter fills these via `building/ModSourceTracker.cs`
+  (a `BuildingConfigManager.RegisterBuilding` patch maps each registered def to the
+  registering `IBuildingConfig`'s assembly, then to a KMod label); the offline pipeline
+  writes `mod` in each `buildings.json` entry.
+- **Root roster:** building.json gains a `mods` array — `{ id, title, buildings[] }` per
+  contributing mod (in-game path); the offline merge records the same under
+  `modMergeInfo`.
+
 ### Export run checklist (in-game path)
 
 1. Enable the Extract mod **plus the content mods** you want exported. Consider

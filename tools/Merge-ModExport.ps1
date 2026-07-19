@@ -44,10 +44,16 @@ if (-not (Test-Path $uiImageDir)) { throw "No ui_image folder at $uiImageDir -- 
 $modDb = Get-Content (Join-Path $modsRoot 'mod_database.json') -Raw | ConvertFrom-Json
 $doc = Get-Content $buildingJsonPath -Raw | ConvertFrom-Json
 
-# --- 1. strip only previously OFFLINE-merged entries (marker: `mod` property) ----
-# Entries the game exported natively have no marker and are never touched.
+# --- 1. strip only previously OFFLINE-merged entries ------------------------------
+# Markers: `offlineMerged` (stamped by this script on append) or `configClass` (an
+# offline-schema-only field, catches merges made before the marker existed). The in-game
+# exporter now emits `mod`/`modTitle` on natively exported mod buildings too, so `mod`
+# alone must NOT be treated as an offline marker — native entries are never touched.
 $existing = @($doc.bBuildingDefList)
-$stripNames = @($existing | Where-Object { $_.PSObject.Properties.Name -contains 'mod' } | ForEach-Object { $_.name }) | Sort-Object -Unique
+$stripNames = @($existing | Where-Object {
+        $_.PSObject.Properties.Name -contains 'offlineMerged' -or
+        $_.PSObject.Properties.Name -contains 'configClass'
+    } | ForEach-Object { $_.name }) | Sort-Object -Unique
 
 $clean = @($existing | Where-Object { $stripNames -notcontains $_.name })
 foreach ($catProp in $doc.buildingAndSubcategoryDataPairs.PSObject.Properties) {
@@ -64,6 +70,10 @@ $nativeNames = @($clean | ForEach-Object { $_.name })
 $toAppend = @($modDb.bBuildingDefList | Where-Object { $nativeNames -notcontains $_.name })
 $skippedNative = @($modDb.bBuildingDefList | Where-Object { $nativeNames -contains $_.name } | ForEach-Object { $_.name })
 foreach ($n in $skippedNative) { Write-Host "native: $n already in building.json (in-game export) -- offline data skipped" }
+foreach ($b in $toAppend) {
+    if ($b.PSObject.Properties.Name -contains 'offlineMerged') { $b.offlineMerged = $true }
+    else { $b | Add-Member -NotePropertyName 'offlineMerged' -NotePropertyValue $true }
+}
 
 $doc.bBuildingDefList = $clean + $toAppend
 

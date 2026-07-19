@@ -11,6 +11,16 @@ namespace OniExtract2024
         public BKprefabID kPrefabID;
         public HashSet<Tag> tags;
 
+        // Source-mod attribution: the Steam workshop id (or local-mod folder id) and title
+        // of the mod whose IBuildingConfig registered this building. Omitted entirely for
+        // base-game buildings — "field present" means "modded". The website uses this to
+        // group/filter modded buildings and to flag blueprints that require a mod. Matches
+        // the `mod` field the offline mods/ pipeline emits. See building/ModSourceTracker.cs.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string mod = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string modTitle = null;
+
         // Rendered ui_image placement in footprint cells (see UiImageRect / the website
         // contract). Measured by the in-game building-image pass and carried here via the
         // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
