@@ -223,6 +223,9 @@ public class ExportBuilding : BaseExport
 
         bBuild.utilities = BuildUtilityPorts(buildingDef, go);
 
+        List<OutAreaOfEffect> areasOfEffect = AreaOfEffectBuilder.Build(go);
+        bBuild.areasOfEffect = areasOfEffect.Count > 0 ? areasOfEffect : null;
+
         this.bBuildingDefList.Add(bBuild);
     }
 

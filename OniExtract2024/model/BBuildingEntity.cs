@@ -55,6 +55,13 @@ namespace OniExtract2024
         // *Offset fields above are kept for backward compatibility. Built by
         // ExportBuilding.BuildUtilityPorts(). See EXPORT_SCHEMA.md.
         public List<OutUtilityPort> utilities = new List<OutUtilityPort>();
+
+        // Areas of effect this building projects onto surrounding cells (light cast,
+        // gas/liquid intake reach, operating range, radiation, sky scans). Offsets share
+        // the utilities[].offset convention; cells[] is the nominal unobstructed area.
+        // Omitted entirely when the building projects none. See AREA_OF_EFFECT.md.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<OutAreaOfEffect> areasOfEffect = null;
         public OutPlantablePlot plantablePlot;
         public List<OutElementConverter> elementConverters = new List<OutElementConverter>();
         public List<OutElementConsumer> elementConsumers = new List<OutElementConsumer>();

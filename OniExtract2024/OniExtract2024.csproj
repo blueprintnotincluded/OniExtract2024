@@ -101,6 +101,8 @@
     <Compile Include="ExportElement.cs" />
     <Compile Include="ExportDb.cs" />
     <Compile Include="ExportBuilding.cs" />
+    <Compile Include="AreaOfEffectBuilder.cs" />
+    <Compile Include="model\OutAreaOfEffect.cs" />
     <Compile Include="ExportEntity.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />

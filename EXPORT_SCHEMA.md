@@ -122,6 +122,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "powerInputOffset": null,     // CellOffset {x,y} — where a wire connects as INPUT; omitted when absent
   "powerOutputOffset": null,    // CellOffset {x,y} — where a wire connects as OUTPUT (generators); omitted when absent
   "utilities": [ /* OutUtilityPort[] — every connection port; see below */ ],
+  "areasOfEffect": [ /* OutAreaOfEffect[] — light/intake/range/radiation/sky areas; see below. OMITTED (not null) when the building projects none */ ],
   "conduitConsumer": null,
   "conduitDispenser": null,
   "plantablePlot": null,
@@ -165,6 +166,45 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 `utilities` is the authoritative port list for placement and covers all connection types.
 The top-level `powerInputOffset` / `powerOutputOffset` fields are kept for backward
 compatibility and duplicate the `PowerInput` / `PowerOutput` entries here.
+
+**OutAreaOfEffect shape** (entries of the optional `areasOfEffect` array — omitted
+entirely when the building projects no area of effect; see AREA_OF_EFFECT.md for full
+per-kind semantics and worked examples):
+
+```jsonc
+{
+  "kind": "light",                 // "light" | "elementIntake" | "operationRange" | "radiation" | "skyScan"
+  "source": "Light2D",             // game component the entry came from
+  "shape": "cone",                 // "circle" | "cone" | "quad" | "diamond" | "rect" | "ellipse" | "ellipseArc" | "skyColumns"
+  "origin": { "x": 0, "y": 0 },    // cell the effect emanates from — same offset convention as utilities[].offset
+  "blockedBySolids": true,         // solid tiles occlude/shrink the area at runtime
+  "cells": [[0,0],[-1,-1],[0,-1]], // nominal (unobstructed) affected cells, [x,y] pairs relative to the
+                                   // BUILDING origin cell (origin already applied), pre-rotation.
+                                   // OMITTED for "ellipse"/"ellipseArc"/"skyColumns" (derive from params)
+                                   // and for lists over 1024 cells (safety cap).
+
+  // kind "light" extras:
+  "range": 8.0, "lux": 1800, "falloffRate": 0.5,
+  "lightColor": { "r": 1, "g": 1, "b": 1, "a": 1 },
+  "width": 3, "direction": "South",         // quad lights only
+
+  // kind "elementIntake" extras (raw game consumptionRadius; cells span |dx|+|dy| <= radius-1):
+  "radius": 3, "element": "ContaminatedOxygen", "consumptionRate": 0.13333334,
+
+  // kind "operationRange" extras (inclusive rect relative to `origin`):
+  "rectMin": { "x": -7, "y": -1 }, "rectMax": { "x": 8, "y": 7 },
+
+  // kind "radiation" extras (ellipse (dx/radiusX)^2 + (dy/radiusY)^2 <= 1 around origin):
+  "radiusX": 25, "radiusY": 25, "rads": 120.0, "emitType": "Constant",
+  "arcAngle": 90.0, "arcDirection": 0.0,    // only when a partial arc (< 360°)
+  "radiusScalesWithRads": true,             // only when radius is dynamic at runtime
+
+  // kind "skyScan" extras (columns origin.x+scanMinX .. origin.x+scanMaxX, upward to the sky):
+  "scanMinX": -15, "scanMaxX": 15, "verticalStep": 0
+}
+```
+
+All extras are omitted (never `null`) when they don't apply to the entry's kind.
 
 **OutStorage shape** (when present):
 
