@@ -234,3 +234,6 @@ the per-building UI images:
 4. **Segment sprites** — load `connection_sprites/{name}/{bitmask}.png`; after the next in-game
    sprite re-run this will include the 14 bridges.
 5. **Port icons** — map `type` → icon via the table in §5.
+6. **Areas of effect** — light cast, intake reach, machine operating ranges, radiation and
+   sky scans ship per building in `areasOfEffect[]`; consumer guide in
+   [FRONTEND_AREA_OF_EFFECT.md](FRONTEND_AREA_OF_EFFECT.md).
