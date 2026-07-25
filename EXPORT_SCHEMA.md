@@ -354,6 +354,9 @@ Dict key is the element's SimHash as a **signed decimal integer string** (matche
   "hardness": 10.0,
   "lowTemp": 0.0,                                      // Kelvin — phase transition lower bound
   "highTemp": 272.5,                                   // Kelvin — phase transition upper bound
+  "maxMass": 1100.0,                                   // kg — sim cell capacity; gases are always 1.8
+  "defaultMass": 1000.0,                               // kg — gases are always 1.0
+  "defaultTemperature": 232.15,                        // Kelvin
   "lowTempTransitionTarget": "0",                      // element ID or "0" for none
   "highTempTransitionTarget": "Water",                 // element ID or "0" for none
   "sublimateRate": 0.0,
