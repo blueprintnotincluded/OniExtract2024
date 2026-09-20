@@ -89,3 +89,84 @@ The sidecar removes the hard ordering requirement, but the intended flow is unch
 run the main-menu export, then the in-game **Export Building Images** sweep, so newly
 rendered images and their rects land together. The sidecar just means a later
 main-menu-only export no longer silently drops the rects.
+
+---
+
+# Part 2 — the images weren't durable either (2026-07-30)
+
+The sidecar above made the *rect* survive a main-menu-only export. It did not make the
+*image* survive one. Same class of bug, other half of the pair.
+
+## Symptom
+
+`uiImageRect` promises the PNG maps linearly onto the rect, so `w:h` must equal the PNG's
+pixel aspect (see `WEBSITE_POSTPROCESSING.md`, "The contract: uiImageRect"). Measured
+across a real export, that held for only **40 of 342** buildings:
+
+| prefab | PNG aspect | rect aspect | off by |
+|---|---|---|---|
+| `WireRubberBridge` | 1.400 | 4.022 | 187% |
+| `LiquidConduit` | 0.875 | 1.993 | 128% |
+| `WireRefinedBridge` | 1.521 | 3.133 | 106% |
+| `LogicGateFILTER` | 1.206 | 2.390 | 98% |
+| `BunkerDoor` | 2.040 | 3.741 | 83% |
+
+## Root cause — two passes write the same PNG
+
+Both passes write `ui_image/<prefabId>.png`:
+
+| Pass | What it writes | Source |
+|---|---|---|
+| main-menu | atlas sub-rect icon | `Def.GetUISprite` — the kanim's authored `ui` build symbol |
+| in-game sweep | ~200 px/cell render, **and measures the rect from it** | `BuildingKanimRenderer` |
+
+After Part 1's sidecar, rects persist across runs. Images always did. But the main-menu
+pass runs at every game load and unconditionally overwrote the render with the atlas
+icon — which has no footprint-relative placement and a different aspect entirely. The
+rect then described an image no longer on disk.
+
+Note this is the *inverse* of the Part 1 failure. There the image survived and the rect
+was wiped; here the rect survives and the image is wiped. Either way they drift apart,
+and the website renders the result wrong.
+
+## Fix
+
+1. **The main-menu pass yields to a measured render.** `ExportUISprite` skips its
+   `WriteUISpriteToFile` call when the file it is about to write is already the measured
+   render. `uiSpriteInfo` is still recorded either way, so nothing else in the export
+   changes.
+
+   The test is deliberately *not* "does a rect exist for this prefab". Rects are keyed by
+   prefab tag, but the icon's filename comes from `GetFormatedUIImageFileName`, which the
+   `SaveUIFileName` option switches between the tag and the localised proper name — so key
+   and filename coincide only in `ID` mode. If the option changed between the sweep and a
+   later main-menu pass, the render lives under the *other* name and the file being written
+   is a stale icon or absent, so the write must proceed.
+
+   Instead `ExportBuildingImages.PngMatchesRect` checks the file actually at that path
+   against the rect's aspect. That is the contract itself (`w:h == pngAspect`), so a
+   measured render passes and an atlas icon or missing file fails, in both naming
+   directions and with no extra state to keep in sync.
+2. **The in-game pass asserts the contract.** `VerifyRectsMatchPngs` runs at the end of
+   every sweep, comparing each rect's `w/h` against the PNG's real dimensions (read
+   straight from the IHDR chunk — no texture decode) and logging any deviation over 2%:
+
+   ```
+   OniExtract: uiImageRect aspect check -> N checked, M mismatched, K png missing.
+   ```
+
+   Logged, never fatal. This is the check that would have caught the above years ago.
+
+## Verifying it works
+
+The skip is observable without re-running a sweep: run a main-menu-only export over an
+existing `ui_image/` and compare file timestamps. Every prefab with a rect in
+`ui_image_rects.json` should keep its old mtime; everything else gets rewritten. A run on
+2026-09-20 left 373 of 1369 PNGs untouched — exactly the number of entries then in the
+sidecar, with every one of the other 996 rewritten.
+
+Consumers can assert the same contract on import:
+
+```
+for each entry:  |(w/h) - (pngW/pngH)| / (pngW/pngH)  <  0.02
+```

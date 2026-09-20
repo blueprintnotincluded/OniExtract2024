@@ -50,11 +50,30 @@ public class ExportUISprite : BaseExport
                 }
             }
             var formattedName = GetFormatedUIImageFileName(prefab);
+            // A stored uiImageRect means the in-game pass already rendered this prefab at
+            // 200 px/cell and the rect was measured against THAT crop. Def.GetUISprite returns
+            // something else entirely — the kanim's authored "ui" build symbol, an atlas
+            // sub-rect with no footprint-relative placement — so overwriting the render with it
+            // leaves the rect describing an image that is no longer on disk. That is how 302 of
+            // 342 building rects came to disagree with their PNG's aspect ratio. Keep the render;
+            // uiSpriteInfo is still recorded below either way.
+            //
+            // The rect is keyed by prefab tag, but the icon's filename follows the
+            // SaveUIFileName option, so the two only coincide in ID mode. Don't trust the key
+            // as a proxy: confirm the file actually sitting at formattedName IS the measured
+            // render by checking its aspect against the rect. If the option changed since the
+            // sweep, the render lives under the other name and this path holds a stale icon or
+            // nothing at all — in which case the write must go ahead.
+            bool hasMeasuredRender =
+                OniExtract2024.building.UiImageRectStore.TryGet(prefab.PrefabTag.Name, out var storedRect)
+                && OniExtract2024.building.ExportBuildingImages.PngMatchesRect(
+                    Path.Combine(ExportIconDir, formattedName + ".png"), storedRect);
             Element element = ElementLoader.GetElement(prefab.PrefabTag);
             if (element != null)
             {
                 var tupleUISprite = Def.GetUISprite(element);
-                AnimTool.WriteUISpriteToFile(tupleUISprite.first, ExportIconDir, formattedName, tupleUISprite.second);
+                if (!hasMeasuredRender)
+                    AnimTool.WriteUISpriteToFile(tupleUISprite.first, ExportIconDir, formattedName, tupleUISprite.second);
                 this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
             }
             else
@@ -73,7 +92,8 @@ public class ExportUISprite : BaseExport
                     Sprite UISprite = tupleUISprite.first;
                     if (UISprite != null && UISprite != Assets.GetSprite("unknown"))
                     {
-                        AnimTool.WriteUISpriteToFile(UISprite, ExportIconDir, formattedName);
+                        if (!hasMeasuredRender)
+                            AnimTool.WriteUISpriteToFile(UISprite, ExportIconDir, formattedName);
                         this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
                     }
                 }
