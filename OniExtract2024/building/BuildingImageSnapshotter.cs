@@ -46,12 +46,17 @@ namespace OniExtract2024.building
             "channeling", "dispensing", "on_loop", "on", "idle_loop", "idle",
         };
 
-        public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null)
+        // cellW/cellH override the footprint derived from the Building component. Terrain
+        // features (geysers, vents, volcanoes) are not BuildingDefs and carry no Building,
+        // so the caller passes their KBoxCollider2D extents; pass -1 to derive as usual.
+        public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null,
+            int cellW = -1, int cellH = -1)
         {
-            StartCoroutine(DoExport(outputDir, rects));
+            StartCoroutine(DoExport(outputDir, rects, cellW, cellH));
         }
 
-        private IEnumerator DoExport(string outputDir, IDictionary<string, UiImageRect> rects)
+        private IEnumerator DoExport(string outputDir, IDictionary<string, UiImageRect> rects,
+            int cellW, int cellH)
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
@@ -63,7 +68,7 @@ namespace OniExtract2024.building
                 if (kpid != null && kbac != null)
                 {
                     PoseActive(kbac, kpid.PrefabTag.Name);
-                    RenderAndWrite(gameObject, outputDir, rects);
+                    RenderAndWrite(gameObject, outputDir, rects, cellW, cellH);
                 }
             }
             finally
@@ -78,8 +83,12 @@ namespace OniExtract2024.building
         // sweep (DoExport) and the inspector's single-image touch-up export, so both produce
         // pixel-identical output. Static so the inspector can reuse it without an attached
         // snapshotter component on the temp building.
+        //
+        // overrideCellW/H supply the footprint for objects with no Building component (terrain
+        // features); pass -1 to derive it from the Building as usual.
         public static void RenderAndWrite(GameObject go, string outputDir,
-            IDictionary<string, UiImageRect> rects = null)
+            IDictionary<string, UiImageRect> rects = null,
+            int overrideCellW = -1, int overrideCellH = -1)
         {
             var kpid = go.GetComponent<KPrefabID>();
             if (kpid == null) return;
@@ -87,8 +96,8 @@ namespace OniExtract2024.building
             SelectTool.Instance.Select(null);
 
             var building = go.GetComponent<Building>();
-            int cellW = building != null ? building.Def.WidthInCells : 1;
-            int cellH = building != null ? building.Def.HeightInCells : 1;
+            int cellW = overrideCellW > 0 ? overrideCellW : (building != null ? building.Def.WidthInCells : 1);
+            int cellH = overrideCellH > 0 ? overrideCellH : (building != null ? building.Def.HeightInCells : 1);
 
             var renderer = new BuildingKanimRenderer();
             renderer.Init(cellW, cellH, go.transform.GetPosition());

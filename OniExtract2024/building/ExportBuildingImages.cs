@@ -13,10 +13,11 @@ namespace OniExtract2024.building
     /// (see ConnectionExportPatches). Iterates Assets.BuildingDefs, spawns each
     /// building off-screen, renders it at 200 px/cell via BuildingImageSnapshotter,
     /// and writes ui_image/{prefabId}.png — overwriting the low-res atlas icons
-    /// produced by the main-menu pass.
+    /// produced by the main-menu pass. Also handles terrain features (geysers, vents,
+    /// volcanoes) which export their icons but need rects measured in-game.
     ///
     /// Run order: main-menu JSON+icon pass first (all icons), then this in-game
-    /// pass (overwrites building icons with hi-res kanim renders).
+    /// pass (overwrites building icons with hi-res kanim renders, adds terrain rects).
     /// </summary>
     public static class ExportBuildingImages
     {
@@ -24,6 +25,43 @@ namespace OniExtract2024.building
 
         public static string OutputDir =>
             Path.Combine(Util.RootFolder(), "export", "ui_image");
+
+        // Terrain features (geyser variants, vents, volcanoes, oil reservoir) to export rects for.
+        // These appear in geyser.json and entities.json but are not BuildingDefs.
+        private static readonly string[] TerrainFeaturePrefabNames = new[]
+        {
+            "GeyserGeneric_big_volcano",
+            "GeyserGeneric_chlorine_gas",
+            "GeyserGeneric_chlorine_gas_cool",
+            "GeyserGeneric_filthy_water",
+            "GeyserGeneric_hot_co2",
+            "GeyserGeneric_hot_hydrogen",
+            "GeyserGeneric_hot_po2",
+            "GeyserGeneric_hot_steam",
+            "GeyserGeneric_hot_water",
+            "GeyserGeneric_liquid_co2",
+            "GeyserGeneric_liquid_sulfur",
+            "GeyserGeneric_methane",
+            "GeyserGeneric_molten_aluminum",
+            "GeyserGeneric_molten_cobalt",
+            "GeyserGeneric_molten_copper",
+            "GeyserGeneric_molten_gold",
+            "GeyserGeneric_molten_iron",
+            "GeyserGeneric_molten_niobium",
+            "GeyserGeneric_molten_tungsten",
+            "GeyserGeneric_murky_brine",
+            "GeyserGeneric_oil_drip",
+            "GeyserGeneric_salt_water",
+            "GeyserGeneric_slimy_po2",
+            "GeyserGeneric_slush_salt_water",
+            "GeyserGeneric_slush_water",
+            "GeyserGeneric_small_volcano",
+            "GeyserGeneric_steam",
+            "NiobiumGeyser",
+            "OilWell",
+            "SmallReefGeyser",
+            "UnderwaterVent",
+        };
 
         // Per-building rendered-image rectangle (cells, footprint-relative), keyed by
         // prefab tag name (== building.json `name`). Filled during the sweep, then merged
@@ -97,7 +135,50 @@ namespace OniExtract2024.building
                     exported++;
                 }
 
+                // Terrain features (geysers, vents, volcanoes, oil reservoir). Not BuildingDefs,
+                // so the loop above never reaches them. Spawned through the same path the game
+                // uses — KInstantiate + SetActive — because ONI prefabs are stored inactive: a
+                // raw Object.Instantiate clone never runs Awake/OnSpawn, so its
+                // KBatchedAnimController never registers with KAnimBatchManager and
+                // BuildingKanimRenderer draws nothing. The snapshotter then poses and destroys
+                // it exactly as it does for buildings, so both paths share one measurement path.
+                int terrainExported = 0, terrainSkipped = 0;
+                foreach (string prefabName in TerrainFeaturePrefabNames)
+                {
+                    GameObject prefab = Assets.TryGetPrefab(prefabName);
+                    if (prefab == null)
+                    {
+                        Debug.LogWarning("OniExtract: terrain feature prefab not found: " + prefabName);
+                        terrainSkipped++;
+                        continue;
+                    }
+
+                    // Footprint comes from KBoxCollider2D, which EntityTemplates.ConfigPlacedEntity
+                    // sets to exactly (width, height) in cells — the same values geyser.json carries.
+                    if (!TryGetFootprint(prefab, out int cellW, out int cellH))
+                    {
+                        Debug.LogWarning("OniExtract: no KBoxCollider2D footprint on " + prefabName);
+                        terrainSkipped++;
+                        continue;
+                    }
+
+                    GameObject temp = Util.KInstantiate(prefab, spawnPos, Quaternion.identity);
+                    if (temp == null)
+                    {
+                        terrainSkipped++;
+                        continue;
+                    }
+                    temp.SetActive(true);
+
+                    var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
+                    snapshotter.StartExport(OutputDir, Rects, cellW, cellH);
+                    while (!temp.IsNullOrDestroyed())
+                        yield return null;
+                    terrainExported++;
+                }
+
                 Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
+                Debug.Log("OniExtract: terrain-feature export complete -> " + terrainExported + " exported, " + terrainSkipped + " skipped.");
 
                 PatchBuildingJsonRects(Rects);
                 VerifyRectsMatchPngs(Rects);
@@ -218,6 +299,21 @@ namespace OniExtract2024.building
             BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
             if (rects.Count > 0)
                 PatchBuildingJsonRects(rects);
+        }
+
+        // Footprint of a non-building placed entity, in cells. EntityTemplates.ConfigPlacedEntity
+        // sets KBoxCollider2D.size = new Vector2f(width, height) with the same width/height the
+        // config passes (and that geyser.json exports), so the collider is an exact integer
+        // footprint, not an approximation.
+        private static bool TryGetFootprint(GameObject go, out int cellW, out int cellH)
+        {
+            cellW = 0;
+            cellH = 0;
+            KBoxCollider2D collider = go.GetComponent<KBoxCollider2D>();
+            if (collider == null) return false;
+            cellW = Mathf.RoundToInt(collider.size.x);
+            cellH = Mathf.RoundToInt(collider.size.y);
+            return cellW > 0 && cellH > 0;
         }
 
         // Merge the measured uiImageRect for each rendered building into the building.json
