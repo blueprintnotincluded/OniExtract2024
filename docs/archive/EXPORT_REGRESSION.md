@@ -1,3 +1,7 @@
+> **Archived — resolved, kept for provenance.** This is not current state.
+> The durable conclusions now live in [../EXPORT_SCHEMA.md](../EXPORT_SCHEMA.md) and the "Export contract invariants" section of the root CLAUDE.md.
+> Index of archived diagnostics: [../../CLAUDE.md](../../CLAUDE.md) "Documentation layout".
+
 # Export Regressions — Electrical Data Addition
 
 Two regressions were introduced when electrical data was added to the export.
@@ -7,7 +11,7 @@ Two regressions were introduced when electrical data was added to the export.
 > the new power fields are kept alongside it). Regression 2: `viewMode` now emits the
 > game-native overlay string via an `OverlayModes.*.ID` lookup (`null` when there's no special
 > overlay). The fixes take effect in the next in-game export after the mod DLL is rebuilt and
-> the game is run. See `FRONTEND_INTEGRATION.md` §2/§2b and `EXPORT_SCHEMA.md`.
+> the game is run. See `docs/FRONTEND_INTEGRATION.md` §2/§2b and `docs/EXPORT_SCHEMA.md`.
 
 ---
 

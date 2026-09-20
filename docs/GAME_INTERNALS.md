@@ -5,7 +5,7 @@ documented anywhere and that we'd otherwise have to re-derive from scratch each 
 **Treat everything here as potentially stale after a game update.** Use the tooling in
 [Probing the assembly](#probing-the-assembly) to verify before acting on it.
 
-Reference for working, up-to-date mod code: `C:\Users\sinep\dev\Sgt_Imalas-Oni-Mods`
+Reference for working, up-to-date mod code: [Sgt_Imalas-Oni-Mods](https://github.com/Sgt-Imalas/Sgt_Imalas-Oni-Mods) (clone it locally to grep against).
 
 ---
 
