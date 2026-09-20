@@ -131,11 +131,22 @@ and the website renders the result wrong.
 
 ## Fix
 
-1. **The main-menu pass yields to a measured render.** `ExportUISprite` checks
-   `UiImageRectStore.TryGet(prefabName, ...)` and skips the `WriteUISpriteToFile` call
-   when a rect already exists — a stored rect is proof the in-game pass rendered this
-   prefab and measured against that render. `uiSpriteInfo` is still recorded either way,
-   so nothing else in the export changes.
+1. **The main-menu pass yields to a measured render.** `ExportUISprite` skips its
+   `WriteUISpriteToFile` call when the file it is about to write is already the measured
+   render. `uiSpriteInfo` is still recorded either way, so nothing else in the export
+   changes.
+
+   The test is deliberately *not* "does a rect exist for this prefab". Rects are keyed by
+   prefab tag, but the icon's filename comes from `GetFormatedUIImageFileName`, which the
+   `SaveUIFileName` option switches between the tag and the localised proper name — so key
+   and filename coincide only in `ID` mode. If the option changed between the sweep and a
+   later main-menu pass, the render lives under the *other* name and the file being written
+   is a stale icon or absent, so the write must proceed.
+
+   Instead `ExportBuildingImages.PngMatchesRect` checks the file actually at that path
+   against the rect's aspect. That is the contract itself (`w:h == pngAspect`), so a
+   measured render passes and an atlas icon or missing file fails, in both naming
+   directions and with no extra state to keep in sync.
 2. **The in-game pass asserts the contract.** `VerifyRectsMatchPngs` runs at the end of
    every sweep, comparing each rect's `w/h` against the PNG's real dimensions (read
    straight from the IHDR chunk — no texture decode) and logging any deviation over 2%:

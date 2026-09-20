@@ -57,8 +57,17 @@ public class ExportUISprite : BaseExport
             // leaves the rect describing an image that is no longer on disk. That is how 302 of
             // 342 building rects came to disagree with their PNG's aspect ratio. Keep the render;
             // uiSpriteInfo is still recorded below either way.
-            bool hasMeasuredRender = OniExtract2024.building.UiImageRectStore.TryGet(
-                prefab.PrefabTag.Name, out _);
+            //
+            // The rect is keyed by prefab tag, but the icon's filename follows the
+            // SaveUIFileName option, so the two only coincide in ID mode. Don't trust the key
+            // as a proxy: confirm the file actually sitting at formattedName IS the measured
+            // render by checking its aspect against the rect. If the option changed since the
+            // sweep, the render lives under the other name and this path holds a stale icon or
+            // nothing at all — in which case the write must go ahead.
+            bool hasMeasuredRender =
+                OniExtract2024.building.UiImageRectStore.TryGet(prefab.PrefabTag.Name, out var storedRect)
+                && OniExtract2024.building.ExportBuildingImages.PngMatchesRect(
+                    Path.Combine(ExportIconDir, formattedName + ".png"), storedRect);
             Element element = ElementLoader.GetElement(prefab.PrefabTag);
             if (element != null)
             {

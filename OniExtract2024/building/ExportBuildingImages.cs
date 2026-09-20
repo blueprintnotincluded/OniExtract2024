@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -107,6 +108,43 @@ namespace OniExtract2024.building
             }
         }
 
+        // Relative aspect deviation past which a PNG is considered not to be the crop its
+        // rect was measured from.
+        private const float AspectTolerance = 0.02f;
+
+        // The name of the icon file for a prefab, which is NOT always its tag name: the
+        // SaveUIFileName option switches between the tag and the localised proper name, and
+        // rects are always keyed by tag. Both export passes resolve the filename through
+        // ExportUISprite.GetFormatedUIImageFileName, so go through the prefab to get it and
+        // fall back to the tag name when the prefab can't be resolved.
+        public static string ResolveIconFileName(string prefabTagName)
+        {
+            try
+            {
+                GameObject prefab = Assets.TryGetPrefab(prefabTagName);
+                KPrefabID kpid = prefab != null ? prefab.GetComponent<KPrefabID>() : null;
+                if (kpid != null) return ExportUISprite.GetFormatedUIImageFileName(kpid);
+            }
+            catch (Exception)
+            {
+                // fall through
+            }
+            return prefabTagName;
+        }
+
+        // True when the PNG at pngPath is the render this rect was measured from. The contract
+        // says the PNG maps linearly onto the rect, so its pixel aspect must equal w:h; an atlas
+        // icon or a missing file fails that. Lets the main-menu pass tell "my write would
+        // destroy a measured render" from "my write would restore a missing icon" without
+        // trusting the rect key, which can name a different file than the one being written.
+        public static bool PngMatchesRect(string pngPath, UiImageRect rect)
+        {
+            if (rect.w == 0f || rect.h == 0f) return false;
+            if (!TryReadPngSize(pngPath, out int pxW, out int pxH) || pxH == 0) return false;
+            float pngAspect = (float)pxW / pxH;
+            return Mathf.Abs(pngAspect - rect.w / rect.h) / pngAspect <= AspectTolerance;
+        }
+
         // The rect maps its PNG linearly onto the footprint, so w:h must equal the PNG's pixel
         // aspect. Because w/h are derived from the same crop that produced the PNG, a mismatch
         // means the file on disk is no longer that crop — i.e. something overwrote the render
@@ -119,7 +157,7 @@ namespace OniExtract2024.building
             int checkedCount = 0, mismatched = 0, absent = 0;
             foreach (var kv in rects)
             {
-                string path = Path.Combine(OutputDir, kv.Key + ".png");
+                string path = Path.Combine(OutputDir, ResolveIconFileName(kv.Key) + ".png");
                 if (!TryReadPngSize(path, out int pxW, out int pxH))
                 {
                     absent++;
