@@ -27,7 +27,7 @@ namespace OniExtract2024.building
         // Per-building rendered-image rectangle (cells, footprint-relative), keyed by
         // prefab tag name (== building.json `name`). Filled during the sweep, then merged
         // into database/building.json so the website can place each tight-cropped icon
-        // without squishing its overhang. See WEBSITE_POSTPROCESSING.md "uiImageRect".
+        // without squishing its overhang. See docs/WEBSITE_POSTPROCESSING.md "uiImageRect".
         private static readonly Dictionary<string, UiImageRect> Rects =
             new Dictionary<string, UiImageRect>();
 
@@ -133,7 +133,7 @@ namespace OniExtract2024.building
             // Persist to the durable sidecar first, so the rects survive the next game
             // load even if the full sweep isn't re-run (the main-menu pass reads this).
             // The direct building.json patch below keeps the CURRENT export correct
-            // without waiting for a reload. See UIIMAGERECT_DURABILITY.md.
+            // without waiting for a reload. See docs/archive/UIIMAGERECT_DURABILITY.md.
             UiImageRectStore.SaveAll(rects);
 
             string dbDir = BaseExport.BuildExportPath(

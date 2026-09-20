@@ -15,7 +15,7 @@ namespace OniExtract2024
         // contract). Measured by the in-game building-image pass and carried here via the
         // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
         // have no measurement for this building — that means "image == footprint" to the
-        // website (do NOT emit null). See UIIMAGERECT_DURABILITY.md.
+        // website (do NOT emit null). See docs/archive/UIIMAGERECT_DURABILITY.md.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public UiImageRect? uiImageRect = null;
 
@@ -52,7 +52,7 @@ namespace OniExtract2024
         // each with its cell offset from the building's bottom-left corner (pre-rotation).
         // This is the authoritative port list the website uses for placement; the power
         // *Offset fields above are kept for backward compatibility. Built by
-        // ExportBuilding.BuildUtilityPorts(). See EXPORT_SCHEMA.md.
+        // ExportBuilding.BuildUtilityPorts(). See docs/EXPORT_SCHEMA.md.
         public List<OutUtilityPort> utilities = new List<OutUtilityPort>();
         public OutPlantablePlot plantablePlot;
         public List<OutElementConverter> elementConverters = new List<OutElementConverter>();

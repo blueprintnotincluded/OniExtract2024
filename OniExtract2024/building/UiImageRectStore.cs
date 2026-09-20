@@ -15,7 +15,7 @@ namespace OniExtract2024.building
     /// from scratch by the main-menu JSON pass on every game load. Without a durable
     /// store the rects get clobbered each load while the hi-res images persist, so the
     /// website stretches a tight-cropped image to the footprint and squishes it (see
-    /// UIIMAGERECT_DURABILITY.md). The in-game pass writes here; the main-menu pass
+    /// docs/archive/UIIMAGERECT_DURABILITY.md). The in-game pass writes here; the main-menu pass
     /// reads here, so building.json always carries the last-measured rects.
     /// </summary>
     public static class UiImageRectStore

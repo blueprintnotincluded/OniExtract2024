@@ -1,7 +1,7 @@
 # OniExtract2024 — Export Schema Reference
 
 Field-level reference for the 13 JSON files written by the main-menu export. For the overall
-output layout and the connection-sprite tool, see [README.md](README.md).
+output layout and the connection-sprite tool, see [README.md](../README.md).
 
 Documented against game version **U59-737790-SCA**, 4 active DLCs (includes `EXPANSION1_ID` —
 Spaced Out). Counts below reflect that version and shift as the game updates.

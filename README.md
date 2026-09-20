@@ -105,7 +105,7 @@ export
               ├─ 0.png ... 15.png  16 connection states per connectable
 ```
 
-Field-level schema for every JSON file: see [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md).
+Field-level schema for every JSON file: see [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md).
 
 ## Building images
 
@@ -148,7 +148,7 @@ carry the full detail:
 
 The render writes a per-building `uiImageRect` (cell-space, footprint-relative) into
 `building.json` so the website can place tight-cropped icons without squishing overhang — see
-[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md).
+[docs/WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md).
 
 **Open item:** spot-check `uiImageRect` placement on the website against the still-untested
 branches of the rect math — an even-width building (validates the +0.5 horizontal centring), a
@@ -183,7 +183,20 @@ that eat this export — lives in the consuming repo
 ([blueprintnotincluded/blueprintnotincluded](https://github.com/blueprintnotincluded/blueprintnotincluded),
 ingestion in [PR #90](https://github.com/blueprintnotincluded/blueprintnotincluded/pull/90)).
 
-[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md) records the export↔website contract — what
+[docs/WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md) records the export↔website contract — what
 the website reads, the framing rules, and what must not break. Its authoritative source is the
 consuming repo, so the two will drift over time; the copy here is a working snapshot kept beside
 the exporter so export-side changes can be checked against it without leaving this repo.
+
+## Documentation
+
+| Where | What |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | Canonical repository guide — architecture, build/deploy, game-assembly gotchas, export contract invariants. Written for coding agents, but the commands and constraints are the same for humans. |
+| [AGENTS.md](AGENTS.md) | Entry point for coding agents; defers to `CLAUDE.md`. |
+| [docs/](docs/) | Durable reference: [EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) (field-level JSON schema), [GAME_INTERNALS.md](docs/GAME_INTERNALS.md) (ONI assembly knowledge base), [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md), [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md). |
+| [docs/archive/](docs/archive/) | Resolved diagnostics, kept for provenance. Not current state. |
+| [agent/](agent/) | Dated working notes that go stale fast — session progress and the manual building-pose worklist. |
+| [OniExtract2024/building/CLAUDE.md](OniExtract2024/building/CLAUDE.md) | Design notes for the hi-res building-image render path, next to the code. |
+
+Local implementation plans belong in `specs/`, which is gitignored.

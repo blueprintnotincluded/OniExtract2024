@@ -78,4 +78,4 @@ export
               ├─ 0.png ... 15.png
 ```
 
-> 字段级 schema 见 [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md)（英文）。
+> 字段级 schema 见 [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md)（英文）。

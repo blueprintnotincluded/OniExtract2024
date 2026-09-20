@@ -1,4 +1,8 @@
-﻿# Building Pose Worklist
+﻿> **Working notes — dated, and they go stale fast.** Do not treat a status heading here
+> as current without checking the code. Durable reference lives in `docs/`; the canonical
+> repository guide is [../CLAUDE.md](../CLAUDE.md).
+
+# Building Pose Worklist
 
 Generated from export/database/building.json on 2026-06-22. 449 buildings total.
 
