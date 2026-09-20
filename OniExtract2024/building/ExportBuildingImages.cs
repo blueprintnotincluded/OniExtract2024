@@ -99,10 +99,72 @@ namespace OniExtract2024.building
                 Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
 
                 PatchBuildingJsonRects(Rects);
+                VerifyRectsMatchPngs(Rects);
             }
             finally
             {
                 IsRunning = false;
+            }
+        }
+
+        // The rect maps its PNG linearly onto the footprint, so w:h must equal the PNG's pixel
+        // aspect. Because w/h are derived from the same crop that produced the PNG, a mismatch
+        // means the file on disk is no longer that crop — i.e. something overwrote the render
+        // (historically the main-menu Def.GetUISprite pass, which put an atlas "ui" symbol there
+        // instead). Cheap header read, no texture decode. Logged, never fatal.
+        private static void VerifyRectsMatchPngs(IDictionary<string, UiImageRect> rects)
+        {
+            if (rects == null || rects.Count == 0) return;
+
+            int checkedCount = 0, mismatched = 0, absent = 0;
+            foreach (var kv in rects)
+            {
+                string path = Path.Combine(OutputDir, kv.Key + ".png");
+                if (!TryReadPngSize(path, out int pxW, out int pxH))
+                {
+                    absent++;
+                    continue;
+                }
+                UiImageRect r = kv.Value;
+                if (pxH == 0 || r.h == 0f) continue;
+                checkedCount++;
+
+                float pngAspect = (float)pxW / pxH;
+                float rectAspect = r.w / r.h;
+                float relative = Mathf.Abs(pngAspect - rectAspect) / pngAspect;
+                if (relative > 0.02f)
+                {
+                    mismatched++;
+                    Debug.LogWarning(string.Format(
+                        "OniExtract: uiImageRect aspect mismatch for {0} — png {1}x{2} ({3:F3}) vs rect ({4:F3}), {5:P0} off",
+                        kv.Key, pxW, pxH, pngAspect, rectAspect, relative));
+                }
+            }
+            Debug.Log("OniExtract: uiImageRect aspect check -> " + checkedCount + " checked, "
+                + mismatched + " mismatched, " + absent + " png missing.");
+        }
+
+        // Reads width/height from a PNG's IHDR chunk (bytes 16..23, big-endian) without
+        // decoding the image.
+        private static bool TryReadPngSize(string path, out int width, out int height)
+        {
+            width = 0;
+            height = 0;
+            try
+            {
+                if (!File.Exists(path)) return false;
+                var header = new byte[24];
+                using (var fs = File.OpenRead(path))
+                {
+                    if (fs.Read(header, 0, 24) < 24) return false;
+                }
+                width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+                height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+                return width > 0 && height > 0;
+            }
+            catch
+            {
+                return false;
             }
         }
 
