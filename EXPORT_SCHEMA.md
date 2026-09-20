@@ -108,6 +108,14 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "isKAnimTile": false,                  // true for animated tile buildings
   "isUtility": false,                    // true for pipe/wire utilities
   "dragBuild": false,
+  "deprecated": false,                  // BuildingDef.Deprecated - legacy content the game never
+                                        // offers in the build menu, in any mode. Independent of
+                                        // plan order: several deprecated buildings still appear in
+                                        // buildingAndSubcategoryDataPairs, so a consumer building a
+                                        // menu from that list must filter on this flag.
+  "debugOnly": false,                   // BuildingDef.DebugOnly - development-only content (the
+                                        // "Dev *" buildings). Unlike deprecated, these ARE offered
+                                        // in the build menu when the game runs in debug mode.
   "buildLocationRule": 1,               // BuildLocationRule enum as int
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int

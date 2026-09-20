@@ -40,6 +40,46 @@ namespace OniExtract2024.Tests
             Assert.Equal(4.24f, r["h"].Value<float>());
         }
 
+        // Mirrors BBuildingEntity's deprecated field. Plain bool, no NullValueHandling: it
+        // must be emitted on every building, including when false, because the website
+        // distinguishes "present and false" from "absent" -- an export taken before this
+        // field existed has to keep converting, and absent has to read as not-deprecated.
+        private class DeprecatedProbe
+        {
+            public bool deprecated;
+            public bool debugOnly;
+        }
+
+        [Fact]
+        public void Deprecated_IsEmittedEvenWhenFalse()
+        {
+            var json = JsonConvert.SerializeObject(new DeprecatedProbe(), BaseExport.BuildSerializerSettings());
+            var j = JObject.Parse(json);
+            Assert.NotNull(j["deprecated"]);
+            Assert.False(j["deprecated"].Value<bool>());
+        }
+
+        [Fact]
+        public void Deprecated_IsEmittedWhenTrue()
+        {
+            var probe = new DeprecatedProbe { deprecated = true };
+            var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
+            Assert.True(j["deprecated"].Value<bool>());
+        }
+
+        [Fact]
+        public void DebugOnly_IsEmittedAlongsideDeprecated()
+        {
+            // Separate flags on purpose: BuildingDef gates on
+            // `!Deprecated && (!DebugOnly || Game.Instance.DebugOnlyBuildingsAllowed)`, so a
+            // DebugOnly building is reachable in a debug build menu where a deprecated one
+            // never is. Collapsing them into one "hidden" bool would lose that.
+            var probe = new DeprecatedProbe { debugOnly = true };
+            var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
+            Assert.True(j["debugOnly"].Value<bool>());
+            Assert.False(j["deprecated"].Value<bool>());
+        }
+
         [Fact]
         public void BVector2_SerializesToXY()
         {
