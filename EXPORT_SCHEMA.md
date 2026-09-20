@@ -113,6 +113,9 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
                                         // plan order: several deprecated buildings still appear in
                                         // buildingAndSubcategoryDataPairs, so a consumer building a
                                         // menu from that list must filter on this flag.
+  "debugOnly": false,                   // BuildingDef.DebugOnly - development-only content (the
+                                        // "Dev *" buildings). Unlike deprecated, these ARE offered
+                                        // in the build menu when the game runs in debug mode.
   "buildLocationRule": 1,               // BuildLocationRule enum as int
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int

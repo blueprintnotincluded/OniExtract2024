@@ -42,6 +42,7 @@ public class ExportBuilding : BaseExport
         bBuild.isUtility = buildingDef.isUtility;
         bBuild.dragBuild = buildingDef.DragBuild;
         bBuild.deprecated = buildingDef.Deprecated;
+        bBuild.debugOnly = buildingDef.DebugOnly;
         bBuild.buildLocationRule = (int)buildingDef.BuildLocationRule;
         bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
         bBuild.sceneLayer = (int)buildingDef.SceneLayer;

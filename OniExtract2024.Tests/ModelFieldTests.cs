@@ -47,6 +47,7 @@ namespace OniExtract2024.Tests
         private class DeprecatedProbe
         {
             public bool deprecated;
+            public bool debugOnly;
         }
 
         [Fact]
@@ -64,6 +65,19 @@ namespace OniExtract2024.Tests
             var probe = new DeprecatedProbe { deprecated = true };
             var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
             Assert.True(j["deprecated"].Value<bool>());
+        }
+
+        [Fact]
+        public void DebugOnly_IsEmittedAlongsideDeprecated()
+        {
+            // Separate flags on purpose: BuildingDef gates on
+            // `!Deprecated && (!DebugOnly || Game.Instance.DebugOnlyBuildingsAllowed)`, so a
+            // DebugOnly building is reachable in a debug build menu where a deprecated one
+            // never is. Collapsing them into one "hidden" bool would lose that.
+            var probe = new DeprecatedProbe { debugOnly = true };
+            var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
+            Assert.True(j["debugOnly"].Value<bool>());
+            Assert.False(j["deprecated"].Value<bool>());
         }
 
         [Fact]

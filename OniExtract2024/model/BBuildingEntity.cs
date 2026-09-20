@@ -37,6 +37,13 @@ namespace OniExtract2024
         // TUNING/BUILDINGS.cs PLANORDER, so consumers building a menu from
         // buildingAndSubcategoryDataPairs need this flag to filter them out.
         public bool deprecated;
+
+        // BuildingDef.DebugOnly. Development-only content -- the "Dev *" buildings. Hidden
+        // from the build menu unless the game is in debug mode, which is the other half of
+        // the gate quoted above: a DebugOnly building IS reachable in a debug build menu,
+        // where a deprecated one never is. Exported separately for that reason -- a consumer
+        // may reasonably want to hide one and not the other.
+        public bool debugOnly;
         public int buildLocationRule;
         public int permittedRotations;
         public int sceneLayer;
