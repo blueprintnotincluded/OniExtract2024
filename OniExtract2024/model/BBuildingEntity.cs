@@ -28,6 +28,15 @@ namespace OniExtract2024
         public bool isKAnimTile;
         public bool isUtility;
         public bool dragBuild;
+
+        // BuildingDef.Deprecated. Legacy content the game keeps loadable but never offers:
+        // BuildingDef gates menu visibility on `!Deprecated && (!DebugOnly ||
+        // Game.Instance.DebugOnlyBuildingsAllowed)`, so a deprecated building is hidden in
+        // every mode, unlike a DebugOnly one which a debug build menu reveals. Note this is
+        // independent of plan order -- several deprecated buildings still hold a position in
+        // TUNING/BUILDINGS.cs PLANORDER, so consumers building a menu from
+        // buildingAndSubcategoryDataPairs need this flag to filter them out.
+        public bool deprecated;
         public int buildLocationRule;
         public int permittedRotations;
         public int sceneLayer;

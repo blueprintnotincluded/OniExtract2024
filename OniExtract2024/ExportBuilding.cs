@@ -41,6 +41,7 @@ public class ExportBuilding : BaseExport
         bBuild.isKAnimTile = buildingDef.isKAnimTile;
         bBuild.isUtility = buildingDef.isUtility;
         bBuild.dragBuild = buildingDef.DragBuild;
+        bBuild.deprecated = buildingDef.Deprecated;
         bBuild.buildLocationRule = (int)buildingDef.BuildLocationRule;
         bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
         bBuild.sceneLayer = (int)buildingDef.SceneLayer;
