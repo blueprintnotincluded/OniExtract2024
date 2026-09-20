@@ -9,7 +9,7 @@ namespace OniExtract2024.building
     /// in cells. Overhang is expressed by going outside the footprint — e.g. y &lt; 0 means
     /// the art hangs below the footprint (SteamTurbine2's exhaust). The PNG maps linearly
     /// onto this rectangle, so its pixel aspect equals w:h (true automatically for a
-    /// tight crop). See WEBSITE_POSTPROCESSING.md "The contract: uiImageRect".
+    /// tight crop). See docs/WEBSITE_POSTPROCESSING.md "The contract: uiImageRect".
     /// </summary>
     public struct UiImageRect
     {

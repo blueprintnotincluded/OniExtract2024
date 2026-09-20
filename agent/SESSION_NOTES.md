@@ -1,4 +1,8 @@
-# Work in Progress — Building Pose Inspector
+> **Working notes — dated, and they go stale fast.** Do not treat a status heading here
+> as current without checking the code. Durable reference lives in `docs/`; the canonical
+> repository guide is [../CLAUDE.md](../CLAUDE.md).
+
+# Session Notes — Building Pose Inspector
 
 ## What we are doing and why
 
@@ -25,7 +29,7 @@ inspector's chooser list.
 | `BuildingKanimRenderer.cs` | Reusable camera + RenderTexture pipeline for both export and inspector |
 | `BuildingPoseOverrides.cs` | `Overrides` dictionary (where you paste pose lines) + `PercentForFrame`/`FrameForPercent` helpers |
 | `BuildingPoseInspectorScreen.cs` | In-game pose-picker UI |
-| `BUILDING_POSE_WORKLIST.md` | 449-building checklist (sorted to match the tool's list order) for tracking progress |
+| `agent/BUILDING_POSE_WORKLIST.md` | 449-building checklist (sorted to match the tool's list order) for tracking progress |
 
 ---
 
@@ -187,7 +191,7 @@ new inactive markers only demote anims that are never a valid icon pose.
 **Still to do (needs the game):** open the inspector after these changes, sweep the
 worklist, and judge how many buildings still need a hand-picked override. If it's still most
 of them, the scorer needs data-driven tuning against the actual anim names — which requires
-seeing them in-game. `BUILDING_POSE_WORKLIST.md` remains an inherently manual, visual task.
+seeing them in-game. `agent/BUILDING_POSE_WORKLIST.md` remains an inherently manual, visual task.
 
 ---
 
@@ -208,7 +212,7 @@ them, layered OVER the hard-coded `BuildingPoseOverrides.Overrides`.
 5. **Copy line** / **Copy all (C#)** — put paste-ready C# on the system clipboard. Use
    *Copy all* when you're ready to bake the whole saved set back into
    `BuildingPoseOverrides.Overrides` and commit it (then `pose_overrides.json` is just a cache).
-6. Tick the building in `BUILDING_POSE_WORKLIST.md`.
+6. Tick the building in `agent/BUILDING_POSE_WORKLIST.md`.
 7. For a full regen, run **Export Building Images** — sweeps every renderable building,
    honouring saved poses, and rewrites `ui_image/` + the `uiImageRect` values in `building.json`.
 

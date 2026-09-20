@@ -33,7 +33,7 @@ namespace OniExtract2024.connection
     /// centre cell — the website's measuring stick — while disconnected caps bleed past
     /// the cell into the 0.25-cell margin. This restores the overhang dropped in the
     /// earlier "edge-to-edge" pass, which left bounded edges inset and gapping against
-    /// their neighbours (see WEBSITE_POSTPROCESSING.md: overhang on disconnected sides
+    /// their neighbours (see docs/WEBSITE_POSTPROCESSING.md: overhang on disconnected sides
     /// "bleeds past the cell on purpose").
     ///
     /// NOTE: the decor "tops" layer (DecorBlockTileInfo - top-surface highlights and

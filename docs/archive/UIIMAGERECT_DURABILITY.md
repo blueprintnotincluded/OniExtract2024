@@ -1,3 +1,7 @@
+> **Archived — resolved, kept for provenance.** This is not current state.
+> The durable conclusions now live in [../../OniExtract2024/building/CLAUDE.md](../../OniExtract2024/building/CLAUDE.md).
+> Index of archived diagnostics: [../../CLAUDE.md](../../CLAUDE.md) "Documentation layout".
+
 # uiImageRect durability — the "turbine squished to 5×3" regression
 
 Diagnostic + fix notes from the 2026-06-22 session. Read before touching how
