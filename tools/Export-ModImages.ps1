@@ -20,7 +20,7 @@ Add-Type -AssemblyName System.Drawing
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $modsRoot = Join-Path $repoRoot 'mods'
-$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw | ConvertFrom-Json
+$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $steamRoot = $manifest._meta.steamModsRoot
 $outDir = Join-Path $modsRoot 'images'
 New-Item -ItemType Directory -Force $outDir | Out-Null
@@ -117,7 +117,7 @@ function Parse-Bild([string]$buildFile, [int]$atlasW, [int]$atlasH) {
 $ok = 0; $failed = 0
 
 foreach ($mod in $manifest.mods) {
-    $data = Get-Content (Join-Path (Join-Path $modsRoot $mod.dir) 'buildings.json') -Raw | ConvertFrom-Json
+    $data = Get-Content (Join-Path (Join-Path $modsRoot $mod.dir) 'buildings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $assetsRoot = Join-Path (Join-Path $steamRoot $mod.workshopId) 'anim\assets'
 
     foreach ($b in $data.buildings) {
@@ -133,6 +133,17 @@ foreach ($mod in $manifest.mods) {
         $pngFile = Join-Path $folder.FullName "$base.png"
         if (-not (Test-Path $buildFile)) { $buildFile = (Get-ChildItem $folder.FullName -Filter *_build.bytes | Select-Object -First 1).FullName }
         if (-not (Test-Path $pngFile)) { $pngFile = (Get-ChildItem $folder.FullName -Filter *.png | Select-Object -First 1).FullName }
+        # The fallbacks yield $null when the folder holds no match, and FromFile($null) throws
+        # an unhandled ArgumentNullException that aborts the whole run — so report and skip this
+        # building the same way a missing anim folder does.
+        if (-not $buildFile) {
+            Write-Warning "$($b.name): no *_build.bytes under $($folder.FullName)"
+            $failed++; continue
+        }
+        if (-not $pngFile) {
+            Write-Warning "$($b.name): no atlas *.png under $($folder.FullName)"
+            $failed++; continue
+        }
 
         $atlas = [System.Drawing.Bitmap]::FromFile($pngFile)
         try {

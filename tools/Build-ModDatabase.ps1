@@ -11,7 +11,7 @@ mods\mod_database.json used by the website for modded buildings.
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $modsRoot = Join-Path $repoRoot 'mods'
-$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw | ConvertFrom-Json
+$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
 $requiredFields = @('name', 'nameString', 'widthInCells', 'heightInCells', 'materialCategory',
     'materialMass', 'buildLocationRule', 'permittedRotations', 'viewMode', 'utilities',
@@ -32,11 +32,11 @@ foreach ($mod in $manifest.mods) {
         $errors++
         continue
     }
-    $data = Get-Content $buildingsPath -Raw | ConvertFrom-Json
+    $data = Get-Content $buildingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
     $state = $null
     if (Test-Path $statePath) {
-        $state = Get-Content $statePath -Raw | ConvertFrom-Json
+        $state = Get-Content $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
     } else {
         Write-Warning "$($mod.dir): source-state.json missing -- run tools\Refresh-ModSources.ps1 to record the DLL state"
     }

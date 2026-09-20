@@ -21,7 +21,7 @@ param(
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $modsRoot = Join-Path $repoRoot 'mods'
-$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw | ConvertFrom-Json
+$manifest = Get-Content (Join-Path $modsRoot 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $steamRoot = $manifest._meta.steamModsRoot
 
 $anyChanged = $false
@@ -42,7 +42,7 @@ foreach ($mod in $manifest.mods) {
 
     $state = $null
     if (Test-Path $statePath) {
-        $state = Get-Content $statePath -Raw | ConvertFrom-Json
+        $state = Get-Content $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
     }
 
     if ($state -and $state.dllSha256 -eq $hash -and -not $Force) {

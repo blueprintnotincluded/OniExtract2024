@@ -41,8 +41,8 @@ $imagesDir = Join-Path $modsRoot 'images'
 if (-not (Test-Path $buildingJsonPath)) { throw "No building.json at $buildingJsonPath -- wrong -ExportDir?" }
 if (-not (Test-Path $uiImageDir)) { throw "No ui_image folder at $uiImageDir -- wrong -ExportDir?" }
 
-$modDb = Get-Content (Join-Path $modsRoot 'mod_database.json') -Raw | ConvertFrom-Json
-$doc = Get-Content $buildingJsonPath -Raw | ConvertFrom-Json
+$modDb = Get-Content (Join-Path $modsRoot 'mod_database.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$doc = Get-Content $buildingJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
 # --- 1. strip only previously OFFLINE-merged entries ------------------------------
 # Markers: `offlineMerged` (stamped by this script on append) or `configClass` (an

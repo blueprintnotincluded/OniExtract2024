@@ -1,6 +1,6 @@
 ﻿{
     "ExportFileName":  "mod_database",
-    "generatedAt":  "2026-07-19 00:16:28",
+    "generatedAt":  "2026-09-20 13:50:46",
     "schema":  "see mods/README.md -- building.json bBuildingDefList subset + mod extensions",
     "mods":  [
                  {
@@ -236,7 +236,7 @@
                              {
                                  "name":  "Drain",
                                  "nameString":  "Drain",
-                                 "description":  "9 out of 10 plumbers recommend DrainÂ® for its uncloggability. Our new DrainÂ® companion product, Clog-Be-Goneâ„¢, will hit shelves soon. Now less likely to vaporize unexpectedly during normal operation!",
+                                 "description":  "9 out of 10 plumbers recommend Drain® for its uncloggability. Our new Drain® companion product, Clog-Be-Gone™, will hit shelves soon. Now less likely to vaporize unexpectedly during normal operation!",
                                  "effect":  "Slowly drains liquids into a pipe.",
                                  "widthInCells":  1,
                                  "heightInCells":  1,
