@@ -23,6 +23,10 @@ public class ExportBuilding : BaseExport
     // buildings have showInBuildMenu=false and appear in no buildingAndSubcategoryDataPairs
     // category, so this is the only menu source for them. Filled by ExportRocketModuleMenu().
     public List<string> rocketModuleMenu = new List<string>();
+    // PrefabIDs of the RocketModuleCluster buildings seen by AddNewBuildingEntity; input to
+    // ExportRocketModuleMenu. Not serialized.
+    [Newtonsoft.Json.JsonIgnore]
+    public List<string> clusterModuleIds = new List<string>();
 
     public ExportBuilding()
     {
@@ -203,7 +207,8 @@ public class ExportBuilding : BaseExport
             rosterEntry.buildings.Add(buildingDef.Tag.Name);
         }
         // Rocket-module stacking data and blueprint-setting ranges (both omit-when-absent).
-        RocketModuleBuilder.Apply(bBuild, buildingDef, go);
+        if (RocketModuleBuilder.Apply(bBuild, buildingDef, go))
+            this.clusterModuleIds.Add(buildingDef.PrefabID);
         BuildingSettingsBuilder.Apply(bBuild, go);
 
         this.bBuildingDefList.Add(bBuild);
@@ -496,19 +501,12 @@ public class ExportBuilding : BaseExport
     }
 
     // Builds rocketModuleMenu. Mirrors SelectModuleSideScreen.SpawnButtons, which walks the
-    // static moduleButtonSortOrder and looks each id up among the RocketModuleCluster prefabs;
-    // call after every AddNewBuildingEntity so modded modules are known.
+    // static moduleButtonSortOrder and looks each id up among the RocketModuleCluster prefabs.
+    // Call after every AddNewBuildingEntity so clusterModuleIds is complete (incl. modded modules).
     public void ExportRocketModuleMenu()
     {
-        var clusterModules = new List<string>();
-        foreach (BuildingDef def in Assets.BuildingDefs)
-        {
-            if (def != null && def.BuildingComplete != null
-                && def.BuildingComplete.GetComponent<RocketModuleCluster>() != null)
-                clusterModules.Add(def.PrefabID);
-        }
         this.rocketModuleMenu = RocketModuleBuilder.OrderModuleMenu(
-            SelectModuleSideScreen.moduleButtonSortOrder, clusterModules);
+            SelectModuleSideScreen.moduleButtonSortOrder, this.clusterModuleIds);
     }
 
     public void ExportBuildMenu()

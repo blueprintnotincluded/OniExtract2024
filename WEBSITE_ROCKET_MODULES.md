@@ -1,9 +1,12 @@
 # Website handoff: rocket-module stacking data and blueprint-setting ranges
 
 Direction: export → website. What `building.json` gained, why, and what the site can do with
-it. Written against the analysis in `blueprints-included-feature-gap.md` (2026-09-24): the
-Blueprints Included mod now places whole rocket stacks from a blueprint, and the site had no
-data to understand a module beyond its footprint. Every new key here is **additive** — nothing
+it. Motivation: the Blueprints Included mod (oni-mods PR #106, 2026-09-21) now places whole
+rocket stacks from a blueprint — each module validated against the hardpoint of the previewed
+module beneath it — while the site had no data to understand a module beyond its footprint, and
+its settings catalogue had no ranges for the `buildingData` a blueprint carries. The blueprint
+file format itself did not change (same `blueprintVersion` 3, no new keys), so everything the
+site needs is static building data, which is what this export adds. Every new key here is **additive** — nothing
 existing was renamed or reshaped — and every optional key is **omitted** when it does not apply
 (never `null`, never `false`), so an importer that ignores them keeps working unchanged.
 
@@ -26,7 +29,7 @@ Always present:
 
 | Key | Type | What |
 |---|---|---|
-| `showInBuildMenu` | `bool` | `BuildingDef.ShowInBuildMenu`. `false` for every rocket module and a few special parts. Sits beside `deprecated` / `debugOnly`. |
+| `showInBuildMenu` | `bool` | `BuildingDef.ShowInBuildMenu`. With Spaced Out active, `false` for every rocket module (`BuildingTemplates.ExtendBuildingToRocketModule` clears it when cluster space is enabled) and a few special parts. Sits beside `deprecated` / `debugOnly`. Without the DLC the base-game rocket parts (`CommandModule`, `SteamEngine`, ...) are `isRocketModule: true` **and** in the rocketry build-menu category with this `true`; they are not cluster modules and never appear in `rocketModuleMenu`. |
 
 Rocketry, present only when applicable:
 
@@ -66,8 +69,20 @@ contained these keys**; they are simply gone from the C# now. Nothing to change 
 
 ## 2. Worked example: a three-module rocket
 
-Values as exported by the game (U59, Spaced Out). Offsets are cells from each building's
-origin (bottom-left of footprint, pre-rotation), the same convention as `utilities[].offset`.
+Values taken from the U59 building configs (`ArtifactCargoBayConfig`,
+`KeroseneEngineClusterConfig`, `NoseconeBasicConfig`, `LaunchPad`); confirm against the next
+export with the checks in §5.
+
+**Offset convention.** Every offset here (`attachPoints[].offset`, `attachablePosition`) is a
+`CellOffset` from the building's **origin cell**, pre-rotation — the same convention as
+`utilities[].offset`, `areasOfEffect[].origin` and the `offset` the blueprint file records per
+building. The origin cell is the one `Grid.PosToCell(building)` returns: the **bottom row**, at
+column `floor(widthInCells / 2)` counted from the left (`EntityTemplates.GenerateOffsets`
+spans `x = width/2 - width + 1 .. width/2`). So it is the bottom-left cell for widths 1 and 2,
+and the **bottom-centre** cell for odd widths — which every rocket module is (3, 5 or 7 wide).
+A 7-wide engine at origin `(0,2)` above a 7-wide pad at `(0,0)` is centred on it; its
+footprint spans `x = -3..3`. Do not treat the origin as the bottom-left corner: for the
+LaunchPad that would put the whole stack three cells to the right.
 
 | Prefab | w×h | `attachableTo` | `attachPoints` | `moduleBuildConditions` (beyond the three common ones) |
 |---|---|---|---|---|
@@ -157,7 +172,10 @@ the example above uses 8 of 35).
 
 ## 5. Verifying a fresh export
 
-Spot checks after the next main-menu export (`export/database/building.json`):
+**Status: not yet run in-game.** Every value in this document comes from the game's source
+(U59 decompile) and the unit tests, not from an export produced by this code; the on-disk
+`building.json` predates it. Treat the numbers as expected values until these spot checks pass
+on a fresh main-menu export (`export/database/building.json`):
 
 - `rocketModuleMenu` starts `CO2Engine, SugarEngine, SteamEngineCluster, ...` and ends
   `..., ArtifactCargoBay, ScannerModule` (32 entries when every id in the game's list is

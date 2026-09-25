@@ -21,7 +21,9 @@ namespace OniExtract2024
         // initialiser in LaunchPad (`private CellOffset baseModulePosition = new CellOffset(0, 2)`).
         public static readonly CellOffset DefaultLaunchPadBasePosition = new CellOffset(0, 2);
 
-        public static void Apply(BBuildingEntity b, BuildingDef def, GameObject go)
+        // Returns true when the building is a Spaced Out cluster module (has RocketModuleCluster),
+        // which is the set the game's module screen offers and rocketModuleMenu lists.
+        public static bool Apply(BBuildingEntity b, BuildingDef def, GameObject go)
         {
             // RocketModuleCluster derives from RocketModule, so this covers both the Spaced Out
             // cluster modules and the base-game (non-cluster) rocket parts.
@@ -52,6 +54,8 @@ namespace OniExtract2024
             ReorderableBuilding reorderable = go.GetComponent<ReorderableBuilding>();
             if (reorderable != null && reorderable.buildConditions != null && reorderable.buildConditions.Count > 0)
                 b.moduleBuildConditions = ConditionNames(reorderable.buildConditions);
+
+            return cluster != null;
         }
 
         // BuildingAttachPoint.HardPoint[] -> attachPoints entries. attachedBuilding is runtime

@@ -12,6 +12,11 @@ namespace OniExtract2024
     {
         public static void Apply(BBuildingEntity b, GameObject go)
         {
+            // Prioritizable lands on the BuildingComplete prefab only through the config's
+            // Prioritizable.AddRef(go) (DoPostConfigureComplete); BuildingLoader adds one to the
+            // under-construction template, never to the complete building. Runtime AddRef calls
+            // (e.g. Deconstructable while a deconstruct is queued) are transient and not what a
+            // blueprint's buildingData.Prioritizable describes.
             b.prioritizable = go.GetComponent<Prioritizable>() != null;
             b.userNameable = go.GetComponent<UserNameable>() != null;
 
@@ -30,30 +35,56 @@ namespace OniExtract2024
         // First component implementing IUserControlledCapacity wins (StorageLocker,
         // Refrigerator, RationBox, FuelTank, OxidizerTank, CargoBayCluster, ...). Storage Tiles
         // implement it on a state-machine Instance that does not exist on the prefab, so they
-        // are read from StorageTile.Def instead. Property getters can touch runtime state, so
-        // each read is guarded: a failure skips that component rather than the export.
+        // are read from StorageTile.Def instead.
+        //
+        // The getters are runtime code. Several (Refrigerator, RationBox, CargoBayCluster,
+        // Bottler) implement MaxCapacity as `storage.capacityKg` through a [MyCmpReq] field that
+        // is only bound in OnPrefabInit, so on the inactive BuildingComplete prefab they throw
+        // NullReferenceException; StorageLocker/ObjectDispenser use GetComponent<Storage>() and
+        // FuelTank/OxidizerTank plain fields, which work. Each property is therefore read on its
+        // own, and a failed MaxCapacity falls back to the prefab's Storage.capacityKg -- the
+        // value those implementations would have returned. Only when that is unavailable too is
+        // the component skipped (one warning per building).
         public static OutUserControlledCapacity BuildCapacity(GameObject go)
         {
             foreach (Component comp in go.GetComponents<Component>())
             {
                 var cap = comp as IUserControlledCapacity;
                 if (cap == null) continue;
-                try
+
+                float maxCapacity;
+                bool haveMax = TryRead(() => cap.MaxCapacity, out maxCapacity);
+                if (!haveMax)
                 {
-                    return new OutUserControlledCapacity
+                    Storage storage = go.GetComponent<Storage>();
+                    if (storage != null)
                     {
-                        minCapacity = cap.MinCapacity,
-                        maxCapacity = cap.MaxCapacity,
-                        wholeValues = cap.WholeValues,
-                        units = LocStringToString(cap.CapacityUnits),
-                        source = comp.GetType().Name,
-                    };
+                        maxCapacity = storage.capacityKg;
+                        haveMax = true;
+                    }
                 }
-                catch (Exception e)
+                if (!haveMax)
                 {
-                    Debug.LogWarning("OniExtract: IUserControlledCapacity read failed on " + go.name
-                        + " (" + comp.GetType().Name + "): " + e.Message);
+                    Debug.LogWarning("OniExtract: IUserControlledCapacity.MaxCapacity unreadable on "
+                        + go.name + " (" + comp.GetType().Name + "); skipped");
+                    continue;
                 }
+
+                float minCapacity;
+                if (!TryRead(() => cap.MinCapacity, out minCapacity)) minCapacity = 0f;
+                bool wholeValues;
+                if (!TryRead(() => cap.WholeValues, out wholeValues)) wholeValues = false;
+                string units;
+                if (!TryRead(() => LocStringToString(cap.CapacityUnits), out units)) units = null;
+
+                return new OutUserControlledCapacity
+                {
+                    minCapacity = minCapacity,
+                    maxCapacity = maxCapacity,
+                    wholeValues = wholeValues,
+                    units = units,
+                    source = comp.GetType().Name,
+                };
             }
 
             StorageTile.Def storageTile = go.GetDef<StorageTile.Def>();
@@ -77,6 +108,21 @@ namespace OniExtract2024
         private static string LocStringToString(LocString s)
         {
             return s == null ? null : s.ToString();
+        }
+
+        // Evaluates a prefab-time getter that may dereference unbound runtime fields.
+        private static bool TryRead<T>(Func<T> read, out T value)
+        {
+            try
+            {
+                value = read();
+                return true;
+            }
+            catch (Exception)
+            {
+                value = default(T);
+                return false;
+            }
         }
     }
 }
