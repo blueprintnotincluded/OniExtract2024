@@ -101,6 +101,14 @@
     <Compile Include="ExportElement.cs" />
     <Compile Include="ExportDb.cs" />
     <Compile Include="ExportBuilding.cs" />
+    <Compile Include="RocketModuleBuilder.cs" />
+    <Compile Include="BuildingSettingsBuilder.cs" />
+    <Compile Include="model\OutAttachPoint.cs" />
+    <Compile Include="model\OutRocketModulePerformance.cs" />
+    <Compile Include="model\OutDoor.cs" />
+    <Compile Include="model\OutValve.cs" />
+    <Compile Include="model\OutLimitValve.cs" />
+    <Compile Include="model\OutUserControlledCapacity.cs" />
     <Compile Include="ExportEntity.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />

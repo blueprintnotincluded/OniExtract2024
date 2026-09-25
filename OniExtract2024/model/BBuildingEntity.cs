@@ -44,6 +44,13 @@ namespace OniExtract2024
         // where a deprecated one never is. Exported separately for that reason -- a consumer
         // may reasonably want to hide one and not the other.
         public bool debugOnly;
+
+        // BuildingDef.ShowInBuildMenu. false for content the game offers through some other UI
+        // instead of the build menu: every Spaced Out rocket module (placed from the rocket
+        // platform's module screen) and a handful of special-cased parts. Always emitted, like
+        // deprecated/debugOnly, so a consumer building a menu can read the three flags together.
+        // A module with showInBuildMenu=false is still buildable -- see rocketModuleMenu.
+        public bool showInBuildMenu;
         public int buildLocationRule;
         public int permittedRotations;
         public int sceneLayer;
@@ -75,23 +82,69 @@ namespace OniExtract2024
         public List<OutElementConsumer> elementConsumers = new List<OutElementConsumer>();
         public List<OutPassiveElementConsumer> passiveElementConsumers = new List<OutPassiveElementConsumer>();
         public OutStorage storage = null;
-        public AttachableBuilding attachableBuilding = null;
-        public BuildingAttachPoint buildingAttachPoint = null;
-        public RocketModule rocketModule = null;
-        public ReorderableBuilding reorderableBuilding = null;
         public OutRocketEngineCluster rocketEngineCluster = null;
-        public RocketModuleCluster rocketModuleCluster = null;
         public OutRocketEngine rocketEngine = null;
-        public PassengerRocketModule passengerRocketModule = null;
         public OutCargoBay cargoBay = null;
-        public CargoBayConduit cargoBayConduit = null;
         public OutCargoBayCluster cargoBayCluster = null;
         public OutTreeFilterable treeFilterable = null;
-        public Deconstructable deconstructable = null;
-        public Demolishable demolishable = null;
         public OutBattery battery = null;
-        public RoomTracker roomTracker = null;
         public RocketUsageRestriction.Def rocketUsageRestrictionDef = null;
+
+        // ── Rocketry (Spaced Out module stacking) ─────────────────────────────────────────
+        // All optional: omitted (never null/false) when they do not apply. Filled by
+        // RocketModuleBuilder; website-side semantics in WEBSITE_ROCKET_MODULES.md.
+
+        // true when the BuildingComplete prefab carries a RocketModule (or RocketModuleCluster)
+        // component: engines, tanks, cargo bays, habitats, nosecones, ... Omitted when false.
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public bool isRocketModule;
+
+        // BuildingDef.AttachmentSlotTag: the hardpoint type this building must sit on ("Rocket"
+        // for every module). attachablePosition (BuildingDef.attachablePosition) is the cell of
+        // THIS building that must land on the hardpoint, as an offset from its origin cell --
+        // (0,0) for all vanilla modules. Both omitted for ordinary buildings.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string attachableTo = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public BVector2 attachablePosition = null;
+
+        // Hardpoints this building offers, offsets from its origin cell (utilities[].offset
+        // convention). Modules that can carry another module above them have one Rocket
+        // hardpoint at (0, heightInCells); nosecones have none. The LaunchPad's entry is the
+        // cell its bottom module is placed at. Omitted when the building offers none.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<OutAttachPoint> attachPoints = null;
+
+        // RocketModuleCluster.performanceStats (burden / enginePower / fuelKilogramPerDistance).
+        // Omitted for non-cluster buildings.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public OutRocketModulePerformance rocketModulePerformance = null;
+
+        // ReorderableBuilding.buildConditions type names, the constraints the game's module
+        // screen checks before offering this module at a position: e.g. "TopOnly" (nothing may
+        // go above it), "EngineOnBottom", "LimitOneEngine", "LimitOneCommandModule",
+        // "RocketHeightLimit". Omitted when the building has no ReorderableBuilding.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> moduleBuildConditions = null;
+
+        // ── Settings ranges (blueprint buildingData) ──────────────────────────────────────
+        // Static facts behind per-building settings a blueprint may carry. Filled by
+        // BuildingSettingsBuilder; all omitted when the component is absent.
+
+        // Has a Prioritizable component: accepts a work priority (buildingData.Prioritizable).
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public bool prioritizable;
+        // Has a UserNameable component: the player can rename it (buildingData.UserNameable).
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public bool userNameable;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public OutDoor door = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public OutValve valve = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public OutLimitValve limitValve = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public OutUserControlledCapacity userControlledCapacity = null;
 
         public BBuildingEntity(string name, KPrefabID kPrefabID)
         {
