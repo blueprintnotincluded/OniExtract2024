@@ -14,6 +14,12 @@ public class ExportBuilding : BaseExport
     public Dictionary<string, List<KeyValuePair<string, string>>> buildingAndSubcategoryDataPairs = new Dictionary<string, List<KeyValuePair<string, string>>>();
     public List<Tag> roomConstraintTags= new List<Tag>();
     public Dictionary<string, string> requiredSkillPerkMap = new Dictionary<string, string>();
+    // Spaced Out rocket modules in the order the game's rocket-platform module screen lists
+    // them (SelectModuleSideScreen.moduleButtonSortOrder), restricted to modules present in
+    // this export, then any other RocketModuleCluster buildings (modded) in name order. These
+    // buildings have showInBuildMenu=false and appear in no buildingAndSubcategoryDataPairs
+    // category, so this is the only menu source for them. Filled by ExportRocketModuleMenu().
+    public List<string> rocketModuleMenu = new List<string>();
 
     public ExportBuilding()
     {
@@ -43,6 +49,7 @@ public class ExportBuilding : BaseExport
         bBuild.dragBuild = buildingDef.DragBuild;
         bBuild.deprecated = buildingDef.Deprecated;
         bBuild.debugOnly = buildingDef.DebugOnly;
+        bBuild.showInBuildMenu = buildingDef.ShowInBuildMenu;
         bBuild.buildLocationRule = (int)buildingDef.BuildLocationRule;
         bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
         bBuild.sceneLayer = (int)buildingDef.SceneLayer;
@@ -129,55 +136,20 @@ public class ExportBuilding : BaseExport
         {
             bBuild.storage = new OutStorage(storage);
         }
-        AttachableBuilding attachableBuilding = go.GetComponent<AttachableBuilding>();
-        if (attachableBuilding != null)
-        {
-            bBuild.attachableBuilding = attachableBuilding;
-        }
-        BuildingAttachPoint buildingAttachPoint = go.GetComponent<BuildingAttachPoint>();
-        if (buildingAttachPoint != null)
-        {
-            bBuild.buildingAttachPoint = buildingAttachPoint;
-        }
-        RocketModule rocketModule = go.GetComponent<RocketModule>();
-        if (rocketModule != null)
-        {
-            bBuild.rocketModule = rocketModule;
-        }
-        ReorderableBuilding reorderableBuilding = go.GetComponent<ReorderableBuilding>();
-        if (reorderableBuilding != null)
-        {
-            bBuild.reorderableBuilding = reorderableBuilding;
-        }
         RocketEngineCluster rocketEngineCluster = go.GetComponent<RocketEngineCluster>();
         if (rocketEngineCluster != null)
         {
             bBuild.rocketEngineCluster = new OutRocketEngineCluster(rocketEngineCluster);
-        }
-        RocketModuleCluster rocketModuleCluster = go.GetComponent<RocketModuleCluster>();
-        if (rocketModuleCluster != null)
-        {
-            bBuild.rocketModuleCluster = rocketModuleCluster;
         }
         RocketEngine rocketEngine = go.GetComponent<RocketEngine>();
         if (rocketEngine != null)
         {
             bBuild.rocketEngine = new OutRocketEngine(rocketEngine);
         }
-        PassengerRocketModule passengerRocketModule = go.GetComponent<PassengerRocketModule>();
-        if (passengerRocketModule != null)
-        {
-            bBuild.passengerRocketModule = passengerRocketModule;
-        }
         CargoBay cargoBay = go.GetComponent<CargoBay>();
         if (cargoBay != null)
         {
             bBuild.cargoBay = new OutCargoBay(cargoBay);
-        }
-        CargoBayConduit cargoBayConduit = go.GetComponent<CargoBayConduit>();
-        if (cargoBayConduit != null)
-        {
-            bBuild.cargoBayConduit = cargoBayConduit;
         }
         CargoBayCluster cargoBayCluster = go.GetComponent<CargoBayCluster>();
         if (cargoBayCluster != null)
@@ -189,16 +161,6 @@ public class ExportBuilding : BaseExport
         {
             bBuild.treeFilterable = new OutTreeFilterable(treeFilterable);
         }
-        Deconstructable deconstructable = go.GetComponent<Deconstructable>();
-        if (deconstructable != null)
-        {
-            bBuild.deconstructable = deconstructable;
-        }
-        Demolishable demolishable = go.GetComponent<Demolishable>();
-        if (demolishable != null)
-        {
-            bBuild.demolishable = demolishable;
-        }   
         Workable[] workableComponents = go.GetComponents<Workable>();
         var derivedWorkables = workableComponents.Where(component => component.GetType() != typeof(Workable) && component.GetType().IsSubclassOf(typeof(Workable)));
         foreach (var workable in derivedWorkables)
@@ -213,11 +175,6 @@ public class ExportBuilding : BaseExport
         {
             bBuild.battery = new OutBattery(battery);
         }
-        RoomTracker roomTracker = go.GetComponent<RoomTracker>();
-        if (roomTracker != null)
-        {
-            bBuild.roomTracker = roomTracker;
-        }
         RocketUsageRestriction.Def rocketUsage = go.GetDef<RocketUsageRestriction.Def>();
         if (rocketUsage != null)
         {
@@ -225,6 +182,10 @@ public class ExportBuilding : BaseExport
         }
 
         bBuild.utilities = BuildUtilityPorts(buildingDef, go);
+
+        // Rocket-module stacking data and blueprint-setting ranges (both omit-when-absent).
+        RocketModuleBuilder.Apply(bBuild, buildingDef, go);
+        BuildingSettingsBuilder.Apply(bBuild, go);
 
         this.bBuildingDefList.Add(bBuild);
     }
@@ -458,6 +419,22 @@ public class ExportBuilding : BaseExport
             catch { }
         }
         return new CellOffset(0, 0);
+    }
+
+    // Builds rocketModuleMenu. Mirrors SelectModuleSideScreen.SpawnButtons, which walks the
+    // static moduleButtonSortOrder and looks each id up among the RocketModuleCluster prefabs;
+    // call after every AddNewBuildingEntity so modded modules are known.
+    public void ExportRocketModuleMenu()
+    {
+        var clusterModules = new List<string>();
+        foreach (BuildingDef def in Assets.BuildingDefs)
+        {
+            if (def != null && def.BuildingComplete != null
+                && def.BuildingComplete.GetComponent<RocketModuleCluster>() != null)
+                clusterModules.Add(def.PrefabID);
+        }
+        this.rocketModuleMenu = RocketModuleBuilder.OrderModuleMenu(
+            SelectModuleSideScreen.moduleButtonSortOrder, clusterModules);
     }
 
     public void ExportBuildMenu()

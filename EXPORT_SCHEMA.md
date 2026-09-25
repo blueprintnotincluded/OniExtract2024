@@ -77,6 +77,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 | `buildingAndSubcategoryDataPairs` | dict | 15 keys | Keyed by category name |
 | `roomConstraintTags` | array | 33 non-null | Tag objects |
 | `requiredSkillPerkMap` | dict | 28 keys | Keyed by skill perk Tag object |
+| `rocketModuleMenu` | string[] | 32 (Spaced Out) | Prefab ids of every Spaced Out rocket module (`RocketModuleCluster` buildings) in the order the game's rocket-platform module screen lists them (`SelectModuleSideScreen.moduleButtonSortOrder`), then any modded modules the game list does not know, in name order. These buildings have `showInBuildMenu: false` and appear in no `buildingAndSubcategoryDataPairs` category, so this is the only menu source for them. Empty without the DLC. See WEBSITE_ROCKET_MODULES.md. |
 
 ### bBuildingDefList entry
 
@@ -116,6 +117,10 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "debugOnly": false,                   // BuildingDef.DebugOnly - development-only content (the
                                         // "Dev *" buildings). Unlike deprecated, these ARE offered
                                         // in the build menu when the game runs in debug mode.
+  "showInBuildMenu": true,              // BuildingDef.ShowInBuildMenu - false for buildings the game
+                                        // offers through another UI: every Spaced Out rocket module
+                                        // (rocket-platform module screen; see rocketModuleMenu) and a
+                                        // few special parts. Always emitted, like the two flags above.
   "buildLocationRule": 1,               // BuildLocationRule enum as int
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int
@@ -143,9 +148,67 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "cargoBayCluster": null,
   "treeFilterable": null,
   "battery": null,
-  "rocketUsageRestrictionDef": null
+  "rocketUsageRestrictionDef": null,
+
+  // Rocketry (Spaced Out module stacking) — ALL OMITTED when they do not apply (never null,
+  // never false). Full semantics and website guidance: WEBSITE_ROCKET_MODULES.md.
+  "isRocketModule": true,               // prefab has a RocketModule / RocketModuleCluster component
+  "attachableTo": "Rocket",             // BuildingDef.AttachmentSlotTag: hardpoint type this must sit on
+  "attachablePosition": { "x": 0, "y": 0 }, // cell of THIS building that lands on the hardpoint
+  "attachPoints": [ /* OutAttachPoint[] — hardpoints this building offers; see below */ ],
+  "rocketModulePerformance": { "burden": 8.0, "enginePower": 96.0, "fuelKilogramPerDistance": 1.6 },
+  "moduleBuildConditions": ["ResearchCompleted", "MaterialsAvailable", "PlaceSpaceAvailable",
+                            "RocketHeightLimit", "LimitOneEngine", "EngineOnBottom"],
+
+  // Settings ranges (blueprint buildingData) — ALL OMITTED when the component is absent.
+  "prioritizable": true,                // has Prioritizable: accepts a work priority
+  "userNameable": true,                 // has UserNameable: player can rename it
+  "door": { "doorType": "Pressure", "hasComplexUserControls": true, "allowAutoControl": true },
+  "valve": { "conduitType": "Liquid", "maxFlow": 10.0 },
+  "limitValve": { "conduitType": "Liquid", "maxLimitKg": 500.0, "displayUnitsInsteadOfMass": false },
+  "userControlledCapacity": { "minCapacity": 0.0, "maxCapacity": 20000.0, "wholeValues": false,
+                              "units": "kg", "source": "StorageLocker" }
 }
 ```
+
+**OutAttachPoint shape** (entries of the optional `attachPoints` array):
+
+```jsonc
+{
+  "offset": { "x": 0, "y": 5 },   // cell offset from the building's origin cell, pre-rotation —
+                                  // same convention as utilities[].offset
+  "tag": "Rocket"                 // attachable type accepted here (GameTags name)
+}
+```
+
+A building B may sit on building A when `B.attachableTo == point.tag` and B's origin cell +
+`B.attachablePosition` equals A's origin cell + `point.offset`. Rocket modules that can carry
+another module have exactly one `Rocket` hardpoint at `(0, heightInCells)`; nosecones and other
+`TopOnly` modules have none. The `LaunchPad` entry is `(0, 2)`: the pad has no
+`BuildingAttachPoint` component, but `LaunchPad.AddBaseModule` places a rocket's bottom module
+at pad-origin + `baseModulePosition`, which is the same relationship, so it is emitted in the
+same shape.
+
+**OutRocketModulePerformance shape** (`RocketModuleCluster.performanceStats`): `burden` is the
+module's weight against the engine (`TUNING.ROCKETRY.BURDEN.*`), `enginePower` the lift an engine
+provides (0 for non-engines), `fuelKilogramPerDistance` the engine's fuel cost per cluster hex (0
+for non-engines). In game, `Clustercraft.Speed = Σ enginePower / Σ burden` over the stack.
+
+**moduleBuildConditions** are the type names of the module's `ReorderableBuilding.buildConditions`
+(`SelectModuleCondition` subclasses) — the checks the game's module screen runs before offering a
+module at a position. Values seen: `ResearchCompleted`, `MaterialsAvailable`,
+`PlaceSpaceAvailable`, `RocketHeightLimit` (every cluster module), `LimitOneEngine` +
+`EngineOnBottom` (engines), `TopOnly` (nosecones, habitats — nothing may go above),
+`LimitOneCommandModule` (habitats), `NoFreeRocketInterior` (passenger modules),
+`LimitOneRoboPilotModule`. The `LaunchPad` has none.
+
+**Settings shapes**: `door.doorType` is a `Door.DoorType` name (`Pressure`, `ManualPressure`,
+`Internal`, `Sealed`); `valve.conduitType` / `limitValve.conduitType` are `ConduitType` names
+(`Gas`, `Liquid`, `Solid`). `valve.maxFlow` bounds `buildingData.Valve.DesiredFlow` (kg/s);
+`limitValve.maxLimitKg` bounds `buildingData.LimitValve.Limit`; `userControlledCapacity`
+bounds `buildingData.IUserControlledCapacity.UserMaxCapacity` (and `StorageTile` on Storage
+Tiles). `userControlledCapacity.source` names the game component the range came from
+(`StorageLocker`, `Refrigerator`, `FuelTank`, `CargoBayCluster`, ..., or `StorageTile.Def`).
 
 **OutEnergyConsumer shape** (when present — buildings that draw from the power network):
 
