@@ -177,8 +177,8 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 {
   "offset": { "x": 0, "y": 5 },   // cell offset from the building's ORIGIN cell, pre-rotation —
                                   // same convention as utilities[].offset. The origin is the
-                                  // bottom row at column floor(width/2) from the left (bottom-
-                                  // centre for odd widths), NOT the bottom-left corner.
+                                  // bottom row at column floor((width-1)/2) from the left
+                                  // (bottom-centre for odd widths), NOT the bottom-left corner.
   "tag": "Rocket"                 // attachable type accepted here (GameTags name)
 }
 ```

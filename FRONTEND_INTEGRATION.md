@@ -29,7 +29,7 @@ that transport but don't connect (e.g. `Wire`, `GasConduit`) have an **empty** a
 
 | Field | Type | Meaning |
 |---|---|---|
-| `offset` | `{ x, y }` numbers | Cell offset from the building's **origin cell** (bottom row, column `floor(width/2)` from the left — bottom-centre for odd widths, not the bottom-left corner; see GAME_INTERNALS.md "Offset conventions"), **pre-rotation**. Values are JSON numbers and may be negative or have a `.0` (treat as numeric, not int-only). |
+| `offset` | `{ x, y }` numbers | Cell offset from the building's **origin cell** (bottom row, column `floor((width-1)/2)` from the left — bottom-centre for odd widths, not the bottom-left corner; see GAME_INTERNALS.md "Offset conventions"), **pre-rotation**. Values are JSON numbers and may be negative or have a `.0` (treat as numeric, not int-only). |
 | `type` | string enum | Which network + direction the port belongs to (table below). |
 | `isSecondary` | bool | `true` for a building's *second* port of the same network type — e.g. a filter's filtered-element output. Each non-secondary port has a distinct role; use this to disambiguate two ports of the same `type`. |
 
