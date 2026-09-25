@@ -1,0 +1,1257 @@
+﻿{
+    "ExportFileName":  "mod_database",
+    "generatedAt":  "2026-09-20 13:50:46",
+    "schema":  "see mods/README.md -- building.json bBuildingDefList subset + mod extensions",
+    "mods":  [
+                 {
+                     "workshopId":  "2094698134",
+                     "title":  "Airlock Door",
+                     "dir":  "2094698134-airlock-door",
+                     "dll":  "AirlockDoor.dll",
+                     "dllSha256":  "8786A13DF5EBC60FB53C587BE97F4DBF5E2F20DA37EAA2A477DADCBDEEB902D9",
+                     "dllDate":  "2026-07-17 08:12:11",
+                     "buildingCount":  2,
+                     "buildings":  [
+                                       "PAirlockDoor",
+                                       "PAirlockDoorInsulated"
+                                   ]
+                 },
+                 {
+                     "workshopId":  "1866754178",
+                     "title":  "Drains",
+                     "dir":  "1866754178-drains",
+                     "dll":  "Drains.dll",
+                     "dllSha256":  "25A51C7325C8AE885B9CDF6506EAF7D0B2D25636EE91262377096EC588A90326",
+                     "dllDate":  "2026-07-17 08:12:11",
+                     "buildingCount":  1,
+                     "buildings":  [
+                                       "Drain"
+                                   ]
+                 },
+                 {
+                     "workshopId":  "1840755803",
+                     "title":  "Buildable Natural Tile",
+                     "dir":  "1840755803-buildable-natural-tile",
+                     "dll":  "BuildableNaturalTile-merged.dll",
+                     "dllSha256":  "0899A8B45DC41B21875659423BCE0F31870BED493530660EECB05B134F4AACC0",
+                     "dllDate":  "2026-07-17 08:12:12",
+                     "buildingCount":  1,
+                     "buildings":  [
+                                       "NaturalTile"
+                                   ]
+                 },
+                 {
+                     "workshopId":  "2806200110",
+                     "title":  "High Pressure Applications",
+                     "dir":  "2806200110-high-pressure-applications",
+                     "dll":  "High Pressure Applications.dll",
+                     "dllSha256":  "D81E2A20C5DA95FDD402CC18E74ED8E8358237B0495B25164EF3D969674684DE",
+                     "dllDate":  "2026-07-17 08:12:12",
+                     "buildingCount":  8,
+                     "buildings":  [
+                                       "PressureGasPump",
+                                       "PressureLiquidPump",
+                                       "HighPressureGasConduit",
+                                       "HighPressureGasConduitBridge",
+                                       "HighPressureLiquidConduit",
+                                       "HighPressureLiquidConduitBridge",
+                                       "DecompressionGasValve",
+                                       "DecompressionLiquidValve"
+                                   ]
+                 },
+                 {
+                     "workshopId":  "3544371748",
+                     "title":  "Splitters MK II",
+                     "dir":  "3544371748-splitters-mkii",
+                     "dll":  "MJSplittersMKII.dll",
+                     "dllSha256":  "CDC35B9E9263BF3E9AE5F606B9A1F1FE5D008655BBA64E63FE1B6DB5E8470BF8",
+                     "dllDate":  "2026-07-17 08:12:12",
+                     "buildingCount":  3,
+                     "buildings":  [
+                                       "MJSplitterMKIIGas",
+                                       "MJSplitterMKIILiquid",
+                                       "MJSplitterMKIISolid"
+                                   ]
+                 }
+             ],
+    "bBuildingDefList":  [
+                             {
+                                 "name":  "PAirlockDoor",
+                                 "nameString":  "Airlock Door",
+                                 "description":  "Sucking Duplicants that have nowhere to go into space through Mechanized Airlocks is poor taste. Airlock Doors now allow Duplicants safe passage without the loss of any of their mysterious fluids.",
+                                 "effect":  "Blocks Liquid and Gas flow, even while Duplicants are passing.\n\nWill not allow passage when no Power is available.\n\nCritters can never pass through this door.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  2,
+                                 "hitpoints":  30,
+                                 "constructionTime":  60.0,
+                                 "materialCategory":  [
+                                                          "RefinedMetal"
+                                                      ],
+                                 "materialMass":  [
+                                                      400.0
+                                                  ],
+                                 "meltingPoint":  2400.0,
+                                 "isFoundation":  true,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  6,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  16,
+                                 "objectLayer":  1,
+                                 "viewMode":  null,
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  "closed",
+                                 "kanim":  "airlock_door_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.2,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  120.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  0
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LogicInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "Base",
+                                 "planSubCategory":  "doors",
+                                 "addAfter":  "PressureDoor",
+                                 "tech":  "ImprovedGasPiping",
+                                 "configClass":  "PeterHan.AirlockDoor.AirlockDoorConfig",
+                                 "notes":  "PLib PBuilding. Stores 10000 J internally, 1500 J per use (AirlockDoor component). Logic port: Unlock/Lock at (0,0).",
+                                 "mod":  "2094698134"
+                             },
+                             {
+                                 "name":  "PAirlockDoorInsulated",
+                                 "nameString":  "Insulated Airlock Door",
+                                 "description":  "Sucking Duplicants that have nowhere to go into space through Insulated Doors is poor taste. Insulated Airlock Doors now allow Duplicants safe passage without the loss of any of their mysterious fluids.",
+                                 "effect":  "Blocks Liquid and Gas flow, even while Duplicants are passing.\n\nWill not allow passage when no Power is available.\n\nCritters can never pass through this door.\n\nHeat flow through this door is greatly reduced.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  2,
+                                 "hitpoints":  40,
+                                 "constructionTime":  90.0,
+                                 "materialCategory":  [
+                                                          "Insulator",
+                                                          "RefinedMetal"
+                                                      ],
+                                 "materialMass":  [
+                                                      400.0,
+                                                      100.0
+                                                  ],
+                                 "meltingPoint":  2400.0,
+                                 "isFoundation":  true,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  6,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  16,
+                                 "objectLayer":  1,
+                                 "viewMode":  null,
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  "closed",
+                                 "kanim":  "airlock_door_insulated_kanim",
+                                 "decor":  {
+                                               "amount":  -15,
+                                               "radius":  3
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.02,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  120.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  0
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LogicInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "Base",
+                                 "planSubCategory":  "doors",
+                                 "addAfter":  "InsulatedDoor",
+                                 "tech":  "Catalytics",
+                                 "configClass":  "PeterHan.AirlockDoor.AirlockDoorInsulatedConfig",
+                                 "notes":  "Same behavior as PAirlockDoor; insulated variant. Ingredient tiers: Insulator TIER4 (400 kg), RefinedMetal TIER2 (100 kg).",
+                                 "mod":  "2094698134"
+                             },
+                             {
+                                 "name":  "Drain",
+                                 "nameString":  "Drain",
+                                 "description":  "9 out of 10 plumbers recommend Drain® for its uncloggability. Our new Drain® companion product, Clog-Be-Gone™, will hit shelves soon. Now less likely to vaporize unexpectedly during normal operation!",
+                                 "effect":  "Slowly drains liquids into a pipe.",
+                                 "widthInCells":  1,
+                                 "heightInCells":  1,
+                                 "hitpoints":  100,
+                                 "constructionTime":  30.0,
+                                 "materialCategory":  [
+                                                          "Metal"
+                                                      ],
+                                 "materialMass":  [
+                                                      100.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  true,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  6,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  30,
+                                 "objectLayer":  1,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  "built",
+                                 "kanim":  "drain_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  1.0,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+                                                          {
+                                                              "configuration":  "AllLiquid",
+                                                              "consumptionRate":  0.1,
+                                                              "consumptionRadius":  1,
+                                                              "storeOnConsume":  true
+                                                          }
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  1.0
+                                             },
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "SanitationSciences",
+                                 "configClass":  "Drains.DrainConfig",
+                                 "notes":  "Option-dependent (PLib options, defaults used here): UseSolidDrain=false selects drain_kanim / non-solid tile; true selects solidDrain_kanim, isSolidTile=true, and samples the cell above. FlowRate (default 0.1 kg/s, range 0.1-1.0) sets ElementConsumer.consumptionRate. Foundation tile that passively drinks the liquid in its cell into a liquid pipe.",
+                                 "mod":  "1866754178"
+                             },
+                             {
+                                 "name":  "NaturalTile",
+                                 "nameString":  "Natural Tile",
+                                 "description":  "Fill that hole you dug out back in with any solid element.",
+                                 "effect":  "Fills a block in the world with Solids.",
+                                 "widthInCells":  1,
+                                 "heightInCells":  1,
+                                 "hitpoints":  100,
+                                 "constructionTime":  3.0,
+                                 "materialCategory":  [
+                                                          "Solid"
+                                                      ],
+                                 "materialMass":  [
+                                                      50.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  null,
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "natural_tile_kanim",
+                                 "decor":  {
+                                               "amount":  5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  true,
+                                 "floodable":  true,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "Base",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "FarmingTech",
+                                 "configClass":  "NaturalTileConfig",
+                                 "notes":  "Buildable from any Solid element. On construction complete, the building deletes itself and places a natural block of the chosen element (mass = BlockMass) in the cell, displacing pickupables. Option-dependent (config.json next to DLL, defaults used here): BuildMass=50 -\u003e materialMass, BuildSpeed=3 -\u003e constructionTime, BlockMass=50 -\u003e placed block mass. Registered to tech via the tech containing RationBox (FarmingTech in current build); appended to the end of the Base plan menu.",
+                                 "mod":  "1840755803"
+                             },
+                             {
+                                 "name":  "PressureGasPump",
+                                 "nameString":  "High Pressure Gas Pump",
+                                 "description":  "An advanced pump that perform mechanical work to compress and move gases. More powerful than the standard pump, this one is capable of moving large amounts of gases, although this is only archived through the High Pressure Gas Pipe.",
+                                 "effect":  "Draws in Gas and runs it through High Pressure Gas Pipe.\n\nMust be submerged in Gas.",
+                                 "widthInCells":  2,
+                                 "heightInCells":  3,
+                                 "hitpoints":  30,
+                                 "constructionTime":  30.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Polypropylene"
+                                                      ],
+                                 "materialMass":  [
+                                                      400.0,
+                                                      200.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  1,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "GasConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_gas_pump_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  65,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  true,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  2400.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  1
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  2
+                                                                  },
+                                                       "type":  "GasOutput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  1
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  1
+                                                                  },
+                                                       "type":  "LogicInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+                                                          {
+                                                              "configuration":  "AllGas",
+                                                              "consumptionRate":  10.0,
+                                                              "consumptionRadius":  12,
+                                                              "storeOnConsume":  true
+                                                          }
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  10.0
+                                             },
+                                 "planCategory":  "HVAC",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "ValveMiniaturization",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.PressureGasPumpConfig",
+                                 "notes":  "Option-dependent (PLib options, defaults used here): HPGas (default 10, range 2-10) sets pump rate (kg/s), storage capacity, and wattage = HPGas * 240 (default 2400 W).",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "PressureLiquidPump",
+                                 "nameString":  "High Pressure Liquid Pump",
+                                 "description":  "An advanced pump that perform mechanical work to compress and move fluids. More powerful than the standard pump, this one is capable of moving large amounts of liquids, although this is only archived through the High Pressure Liquid Pipe.",
+                                 "effect":  "Draws in Liquid and runs it through High Pressure Liquid Pipe.\n\nMust be submerged in Liquid.",
+                                 "widthInCells":  2,
+                                 "heightInCells":  3,
+                                 "hitpoints":  240,
+                                 "constructionTime":  120.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Polypropylene"
+                                                      ],
+                                 "materialMass":  [
+                                                      400.0,
+                                                      200.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  1,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_liquid_pump_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "selfHeatKilowattsWhenActive":  2.0,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  960.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  1
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  2
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  1
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  1
+                                                                  },
+                                                       "type":  "LogicInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+                                                          {
+                                                              "configuration":  "AllLiquid",
+                                                              "consumptionRate":  40.0,
+                                                              "consumptionRadius":  8,
+                                                              "storeOnConsume":  true
+                                                          }
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  40.0
+                                             },
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "ValveMiniaturization",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.PressureLiquidPumpConfig",
+                                 "notes":  "Option-dependent (PLib options, defaults used here): HPLiquid (default 40, range 11-100) sets pump rate (kg/s), storage capacity, and wattage = HPLiquid * 24 (default 960 W).",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "HighPressureGasConduit",
+                                 "nameString":  "High Pressure Gas Conduit",
+                                 "description":  "A reinforced gas pipe capable of handling high pressure flow. Composite nature of the pipe prevents gas contents from significantly changing temperature in transit.",
+                                 "effect":  "Carries a maximum of 10kg of Gas with minimal change in Temperature.\n\nCan be run through wall and floor tile.",
+                                 "widthInCells":  1,
+                                 "heightInCells":  1,
+                                 "hitpoints":  10,
+                                 "constructionTime":  30.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Plastic"
+                                                      ],
+                                 "materialMass":  [
+                                                      10.0,
+                                                      5.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  true,
+                                 "isUtility":  true,
+                                 "dragBuild":  true,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  3,
+                                 "objectLayer":  12,
+                                 "viewMode":  "GasConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_gas_pipe_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.00001,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "HVAC",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "HVAC",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitConfig",
+                                 "notes":  "Transport segment (utilities[] empty by convention, like vanilla GasConduit). Capacity = HPGas option (default 10 kg). Connects to the standard gas-conduit network; capacity is enforced by Harmony transpilers on ConduitFlow.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "HighPressureGasConduitBridge",
+                                 "nameString":  "High Pressure Gas Conduit Bridge",
+                                 "description":  "A reinforced gas pipe bridge capable of handling high pressure flow. Composite nature of the pipe prevents gas contents from significantly changing temperature in transit.",
+                                 "effect":  "Runs one High Pressure Gas Pipe section over another without joining them.\n\nCan be run through wall and floor tile.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  1,
+                                 "hitpoints":  10,
+                                 "constructionTime":  45.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Plastic"
+                                                      ],
+                                 "materialMass":  [
+                                                      10.0,
+                                                      5.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  8,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  4,
+                                 "objectLayer":  15,
+                                 "viewMode":  "GasConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_gas_bridge_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.00001,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  -1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasOutput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "HVAC",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "HVAC",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig",
+                                 "notes":  "Bridge: input/output ports are the two ends; flow is bidirectional.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "HighPressureLiquidConduit",
+                                 "nameString":  "High Pressure Liquid Pipe",
+                                 "description":  "A reinforced liquid pipe capable of handling high pressure flow. Composite nature of the pipe prevents liquid contents from significantly changing temperature in transit.",
+                                 "effect":  "Carries a maximum of 40kg of Liquid with minimal change in Temperature.\n\nCan be run through wall and floor tile.",
+                                 "widthInCells":  1,
+                                 "heightInCells":  1,
+                                 "hitpoints":  10,
+                                 "constructionTime":  30.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Plastic"
+                                                      ],
+                                 "materialMass":  [
+                                                      10.0,
+                                                      5.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  true,
+                                 "isUtility":  true,
+                                 "dragBuild":  true,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  0,
+                                 "sceneLayer":  5,
+                                 "objectLayer":  16,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_liquid_pipe_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.00001,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "LiquidTemperature",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitConfig",
+                                 "notes":  "Transport segment (utilities[] empty by convention). Capacity = HPLiquid option (default 40 kg). Config sets ThermalConductivity twice (1.3 then 1e-05); the final value 1e-05 wins.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "HighPressureLiquidConduitBridge",
+                                 "nameString":  "High Pressure Liquid Conduit Bridge",
+                                 "description":  "A reinforced liquid pipe bridge capable of handling high pressure flow. Composite nature of the pipe prevents liquid contents from significantly changing temperature in transit.",
+                                 "effect":  "Runs one High Pressure Liquid Pipe section over another without joining them.\n\nCan be run through wall and floor tile.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  1,
+                                 "hitpoints":  10,
+                                 "constructionTime":  45.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Plastic"
+                                                      ],
+                                 "materialMass":  [
+                                                      10.0,
+                                                      5.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  8,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  6,
+                                 "objectLayer":  19,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "pressure_liquid_bridge_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  0,
+                                               "radius":  0
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  false,
+                                 "thermalConductivity":  0.00001,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  -1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  null,
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "LiquidTemperature",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig",
+                                 "notes":  "Bridge: input/output ports are the two ends; flow is bidirectional.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "DecompressionGasValve",
+                                 "nameString":  "Decompression Gas Valve",
+                                 "description":  "A mechanical valve capable of reducing the flow of gas from a pressurized pipe to a normal pipe, avoid it to break.",
+                                 "effect":  "Allows Gases to be transfered from High Pressure Gas Pipe to normal Pipes.",
+                                 "widthInCells":  2,
+                                 "heightInCells":  1,
+                                 "hitpoints":  100,
+                                 "constructionTime":  50.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Polypropylene"
+                                                      ],
+                                 "materialMass":  [
+                                                      50.0,
+                                                      20.0
+                                                  ],
+                                 "meltingPoint":  800.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "GasConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "deco_gas_valve_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  45,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasOutput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  10.0
+                                             },
+                                 "planCategory":  "HVAC",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "HVAC",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.DecompressionGasValveConfig",
+                                 "notes":  "Reservoir-style step-down valve: buffers up to 10 kg of gas and dispenses into a normal pipe at normal rates.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "DecompressionLiquidValve",
+                                 "nameString":  "Decompression Liquid Valve",
+                                 "description":  "A mechanical valve capable of reducing the flow of liquid from a pressurized pipe to a normal pipe, avoid it to break.",
+                                 "effect":  "Allows Liquid to be transfered from High Pressure Liquid Pipe to normal Pipes.",
+                                 "widthInCells":  2,
+                                 "heightInCells":  1,
+                                 "hitpoints":  100,
+                                 "constructionTime":  50.0,
+                                 "materialCategory":  [
+                                                          "Steel",
+                                                          "Polypropylene"
+                                                      ],
+                                 "materialMass":  [
+                                                      50.0,
+                                                      20.0
+                                                  ],
+                                 "meltingPoint":  800.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "deco_liquid_valve_kanim",
+                                 "decor":  {
+                                               "amount":  -10,
+                                               "radius":  2
+                                           },
+                                 "noise":  {
+                                               "amount":  45,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  false,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "energyConsumer":  null,
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  40.0
+                                             },
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "LiquidTemperature",
+                                 "configClass":  "High_Pressure_Applications.BuildingConfigs.DecompressionLiquidValveConfig",
+                                 "notes":  "Reservoir-style step-down valve: buffers up to 40 kg of liquid and dispenses into a normal pipe at normal rates.",
+                                 "mod":  "2806200110"
+                             },
+                             {
+                                 "name":  "MJSplitterMKIIGas",
+                                 "nameString":  "AeroSplitter Mk.II",
+                                 "description":  "All elements are sent into the building\u0027s output, except the elements chosen for filtering.",
+                                 "effect":  "Allows you to select multiple filter elements simultaneously.\n\nUnfiltered items will remain in the output.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  1,
+                                 "hitpoints":  30,
+                                 "constructionTime":  10.0,
+                                 "materialCategory":  [
+                                                          "RefinedMetal"
+                                                      ],
+                                 "materialMass":  [
+                                                      200.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "GasConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "mjsplittermkiigas_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  55,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  true,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "selfHeatKilowattsWhenActive":  6.0,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  240.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  0
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  -1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasOutput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "GasOutput",
+                                                       "isSecondary":  true
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  0.0
+                                             },
+                                 "planCategory":  "HVAC",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "AdvancedFiltration",
+                                 "configClass":  "MJSplittersMKII.Filters.MJGasFilterConfig",
+                                 "notes":  "Multi-element filter (like vanilla GasFilter but with multi-select via TreeFilterable). Filtered elements exit the secondary port at (0,0); everything else passes through to (1,0).",
+                                 "mod":  "3544371748"
+                             },
+                             {
+                                 "name":  "MJSplitterMKIILiquid",
+                                 "nameString":  "AquaSplitter Mk.II",
+                                 "description":  "All elements are sent into the building\u0027s output, except the elements chosen for filtering.",
+                                 "effect":  "Allows you to select multiple filter elements simultaneously.\n\nUnfiltered items will remain in the output.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  1,
+                                 "hitpoints":  30,
+                                 "constructionTime":  10.0,
+                                 "materialCategory":  [
+                                                          "RefinedMetal"
+                                                      ],
+                                 "materialMass":  [
+                                                      200.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "LiquidConduit",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "mjsplittermkiiliquid_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  55,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  true,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "selfHeatKilowattsWhenActive":  6.0,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  240.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  0
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  -1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "LiquidOutput",
+                                                       "isSecondary":  true
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  0.0
+                                             },
+                                 "planCategory":  "Plumbing",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "AdvancedFiltration",
+                                 "configClass":  "MJSplittersMKII.Filters.MJLiquidFilterConfig",
+                                 "notes":  "Multi-element filter (like vanilla LiquidFilter but with multi-select via TreeFilterable). Filtered elements exit the secondary port at (0,0); everything else passes through to (1,0).",
+                                 "mod":  "3544371748"
+                             },
+                             {
+                                 "name":  "MJSplitterMKIISolid",
+                                 "nameString":  "SolidSplitter Mk.II",
+                                 "description":  "All elements are sent into the building\u0027s output, except the elements chosen for filtering.",
+                                 "effect":  "Allows you to select multiple filter elements simultaneously.\n\nUnfiltered items will remain in the output.",
+                                 "widthInCells":  3,
+                                 "heightInCells":  1,
+                                 "hitpoints":  30,
+                                 "constructionTime":  10.0,
+                                 "materialCategory":  [
+                                                          "RefinedMetal"
+                                                      ],
+                                 "materialMass":  [
+                                                      200.0
+                                                  ],
+                                 "meltingPoint":  1600.0,
+                                 "isFoundation":  false,
+                                 "isKAnimTile":  false,
+                                 "isUtility":  false,
+                                 "dragBuild":  false,
+                                 "buildLocationRule":  0,
+                                 "permittedRotations":  2,
+                                 "sceneLayer":  19,
+                                 "objectLayer":  1,
+                                 "viewMode":  "SolidConveyor",
+                                 "defaultAnimState":  "off",
+                                 "initialAnim":  null,
+                                 "kanim":  "mjsplittermkiisolid_kanim",
+                                 "decor":  {
+                                               "amount":  -5,
+                                               "radius":  1
+                                           },
+                                 "noise":  {
+                                               "amount":  55,
+                                               "radius":  10
+                                           },
+                                 "overheatable":  true,
+                                 "floodable":  false,
+                                 "entombable":  true,
+                                 "thermalConductivity":  1.0,
+                                 "selfHeatKilowattsWhenActive":  6.0,
+                                 "energyConsumer":  {
+                                                        "baseWattageRating":  240.0,
+                                                        "powerSortOrder":  0
+                                                    },
+                                 "powerInputOffset":  {
+                                                          "x":  0,
+                                                          "y":  0
+                                                      },
+                                 "utilities":  [
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  -1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "SolidInput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  1,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "SolidOutput",
+                                                       "isSecondary":  false
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "SolidOutput",
+                                                       "isSecondary":  true
+                                                   },
+                                                   {
+                                                       "offset":  {
+                                                                      "x":  0,
+                                                                      "y":  0
+                                                                  },
+                                                       "type":  "PowerInput",
+                                                       "isSecondary":  false
+                                                   }
+                                               ],
+                                 "elementConsumers":  [
+
+                                                      ],
+                                 "storage":  {
+                                                 "capacityKg":  0.0
+                                             },
+                                 "planCategory":  "Conveyance",
+                                 "planSubCategory":  "uncategorized",
+                                 "addAfter":  null,
+                                 "tech":  "SolidManagement",
+                                 "configClass":  "MJSplittersMKII.Filters.MJSolidFilterConfig",
+                                 "notes":  "Multi-item conveyor filter (like vanilla SolidFilter but with multi-select via TreeFilterable). Filtered items exit the secondary port at (0,0); everything else passes through to (1,0).",
+                                 "mod":  "3544371748"
+                             }
+                         ]
+}

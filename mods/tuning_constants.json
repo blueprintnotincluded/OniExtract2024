@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "description": "Lookup table for game TUNING constants and enums referenced by decompiled mod building configs. Regenerate with: ilspycmd Assembly-CSharp.dll -t <TypeName> (see mods/README.md).",
+    "extractedAt": "2026-07-18",
+    "gameAssembly": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\OxygenNotIncluded\\OxygenNotIncluded_Data\\Managed\\Assembly-CSharp.dll",
+    "sourceTypes": [
+      "TUNING.BUILDINGS",
+      "TUNING.NOISE_POLLUTION",
+      "TUNING.MATERIALS",
+      "BuildLocationRule",
+      "PermittedRotations",
+      "ObjectLayer",
+      "Grid (SceneLayer enum)",
+      "BuildingDef (field defaults)",
+      "BuildingTemplates (CreateBuildingDef defaults)"
+    ]
+  },
+  "CONSTRUCTION_MASS_KG": {
+    "TIER_TINY": [5.0],
+    "TIER_SMALL": [10.0],
+    "TIER0": [25.0],
+    "TIER1": [50.0],
+    "TIER2": [100.0],
+    "TIER3": [200.0],
+    "TIER4": [400.0],
+    "TIER5": [800.0],
+    "TIER6": [1200.0],
+    "TIER7": [2000.0]
+  },
+  "DECOR": {
+    "NONE": { "amount": 0, "radius": 1 },
+    "BONUS": {
+      "TIER0": { "amount": 5, "radius": 1 },
+      "TIER1": { "amount": 10, "radius": 2 },
+      "TIER2": { "amount": 15, "radius": 3 },
+      "TIER3": { "amount": 20, "radius": 4 },
+      "TIER4": { "amount": 25, "radius": 5 },
+      "TIER5": { "amount": 30, "radius": 6 }
+    },
+    "PENALTY": {
+      "TIER0": { "amount": -5, "radius": 1 },
+      "TIER1": { "amount": -10, "radius": 2 },
+      "TIER2": { "amount": -15, "radius": 3 },
+      "TIER3": { "amount": -20, "radius": 4 },
+      "TIER4": { "amount": -20, "radius": 5 },
+      "TIER5": { "amount": -25, "radius": 6 }
+    }
+  },
+  "NOISE_POLLUTION": {
+    "NONE": { "amount": 0, "radius": 0 },
+    "NOISY": {
+      "TIER0": { "amount": 45, "radius": 10 },
+      "TIER1": { "amount": 55, "radius": 10 },
+      "TIER2": { "amount": 65, "radius": 10 },
+      "TIER3": { "amount": 75, "radius": 15 },
+      "TIER4": { "amount": 90, "radius": 15 },
+      "TIER5": { "amount": 105, "radius": 20 },
+      "TIER6": { "amount": 125, "radius": 20 }
+    }
+  },
+  "MELTING_POINT_KELVIN": { "TIER0": 800.0, "TIER1": 1600.0, "TIER2": 2400.0, "TIER3": 3200.0, "TIER4": 9999.0 },
+  "MATERIALS": {
+    "ALL_METALS": ["Metal"],
+    "RAW_METALS": ["Metal"],
+    "REFINED_METALS": ["RefinedMetal"],
+    "ALLOYS": ["Alloy"],
+    "ALL_MINERALS": ["BuildableRaw"]
+  },
+  "BuildLocationRule": {
+    "Anywhere": 0, "OnFloor": 1, "OnFloorOverSpace": 2, "OnCeiling": 3, "OnWall": 4,
+    "InCorner": 5, "Tile": 6, "NotInTiles": 7, "Conduit": 8, "LogicBridge": 9,
+    "WireBridge": 10, "HighWattBridgeTile": 11, "BuildingAttachPoint": 12,
+    "OnFloorOrBuildingAttachPoint": 13, "OnFoundationRotatable": 14, "BelowRocketCeiling": 15,
+    "OnRocketEnvelope": 16, "WallFloor": 17, "NoLiquidConduitAtOrigin": 18, "OnBackWall": 19
+  },
+  "PermittedRotations": { "Unrotatable": 0, "R90": 1, "R360": 2, "FlipH": 3, "FlipV": 4 },
+  "SceneLayer": {
+    "Backwall": 1, "Gas": 2, "GasConduits": 3, "GasConduitBridges": 4, "LiquidConduits": 5,
+    "LiquidConduitBridges": 6, "SolidConduits": 7, "SolidConduitContents": 8,
+    "SolidConduitBridges": 9, "Wires": 10, "WireBridges": 11, "WireBridgesFront": 12,
+    "LogicWires": 13, "LogicGates": 14, "LogicGatesFront": 15, "InteriorWall": 16,
+    "GasFront": 17, "BuildingBack": 18, "Building": 19, "BuildingUse": 20,
+    "BuildingFront": 21, "TileMain": 30, "TileFront": 31
+  },
+  "ObjectLayer": {
+    "Building": 1, "FoundationTile": 9, "PlasticTile": 10, "ReplacementTile": 11,
+    "GasConduit": 12, "GasConduitTile": 13, "ReplacementGasConduit": 14, "GasConduitConnection": 15,
+    "LiquidConduit": 16, "LiquidConduitTile": 17, "ReplacementLiquidConduit": 18, "LiquidConduitConnection": 19,
+    "SolidConduit": 20, "SolidConduitTile": 21, "ReplacementSolidConduit": 22, "SolidConduitConnection": 23,
+    "Wire": 26, "LogicGate": 30, "LogicWire": 31
+  },
+  "OverlayModesToViewMode": {
+    "_comment": "BuildingDef.ViewMode (OverlayModes.*.ID) -> building.json viewMode string, matching the in-game exporter. OverlayModes.None.ID -> null.",
+    "None": null,
+    "Power": "Power",
+    "GasConduits": "GasConduit",
+    "LiquidConduits": "LiquidConduit",
+    "SolidConveyor": "SolidConveyor",
+    "Logic": "Logic",
+    "Oxygen": "Oxygen",
+    "Decor": "Decor",
+    "Light": "Light",
+    "Temperature": "Temperature",
+    "Rooms": "Rooms",
+    "Radiation": "Radiation",
+    "Disease": "Disease",
+    "Crop": "Crop"
+  },
+  "BuildingDefDefaults": {
+    "_comment": "Field defaults for anything a mod config does not set. From BuildingDef field initializers + BuildingTemplates.CreateBuildingDef.",
+    "Floodable": true,
+    "Entombable": true,
+    "Overheatable": true,
+    "ThermalConductivity": 1.0,
+    "DefaultAnimState": "off",
+    "PermittedRotations": 0,
+    "SceneLayer": 19,
+    "ObjectLayer": 1,
+    "ViewMode": null,
+    "PowerInputOffset": { "x": 0, "y": 0 }
+  },
+  "PLibDefaults": {
+    "_comment": "PBuilding defaults (PeterHan PLib). CreateDef() always passes melting_point 2400. Ingredient tier N -> CONSTRUCTION_MASS_KG.TIER<N>[0]. Overheatable=false unless OverheatTemperature set. ViewMode=OverlayModes.None unless set (PowerInput does NOT set it).",
+    "meltingPoint": 2400.0,
+    "constructionTime": 10.0,
+    "hitpoints": 100,
+    "decor": { "amount": 0, "radius": 1 },
+    "noise": { "amount": 0, "radius": 0 },
+    "placement": "OnFloor",
+    "subCategory": "default"
+  }
+}

@@ -72,11 +72,12 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 
 | Field | Type | Count | Notes |
 |---|---|---|---|
-| `bBuildingDefList` | array | 449 non-null | Building definitions (no leading nulls) |
+| `bBuildingDefList` | array | 449 non-null | Building definitions (no leading nulls); + any enabled content mods' buildings |
 | `buildMenuCategories` | array | 15 non-null | Top-level build menu tabs |
 | `buildingAndSubcategoryDataPairs` | dict | 15 keys | Keyed by category name |
 | `roomConstraintTags` | array | 33 non-null | Tag objects |
 | `requiredSkillPerkMap` | dict | 28 keys | Keyed by skill perk Tag object |
+| `mods` | array | 0+ | Source-mod roster: `{ id, title, buildings[] }` per enabled mod that contributed buildings; `id` = Steam workshop id (or local-mod folder name), matching each entry's `mod` field. Empty for a vanilla-only export. |
 
 ### bBuildingDefList entry
 
@@ -85,6 +86,13 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   // Identity
   "name": "ManualGenerator",             // prefab/code ID (was "prefabId" in 2023)
   "nameString": "<link=\"MANUALGENERATOR\">Manual Generator</link>",
+
+  // Source-mod attribution — PRESENT ONLY on modded buildings (omitted for base game).
+  // Tracked via a BuildingConfigManager.RegisterBuilding patch: the registering
+  // IBuildingConfig's assembly is resolved to a KMod label. Website: filter/group modded
+  // buildings, warn when a blueprint requires a mod. See also the root `mods` roster.
+  "mod": "2094698134",                   // Steam workshop id (or local-mod folder name)
+  "modTitle": "Airlock Door",
   "kPrefabID": {
     "name": "ManualGenerator",
     "nameString": "<link=\"...\">...</link>",
@@ -130,6 +138,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "powerInputOffset": null,     // CellOffset {x,y} — where a wire connects as INPUT; omitted when absent
   "powerOutputOffset": null,    // CellOffset {x,y} — where a wire connects as OUTPUT (generators); omitted when absent
   "utilities": [ /* OutUtilityPort[] — every connection port; see below */ ],
+  "areasOfEffect": [ /* OutAreaOfEffect[] — light/intake/range/radiation/sky areas; see below. OMITTED (not null) when the building projects none */ ],
   "conduitConsumer": null,
   "conduitDispenser": null,
   "plantablePlot": null,
@@ -173,6 +182,45 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 `utilities` is the authoritative port list for placement and covers all connection types.
 The top-level `powerInputOffset` / `powerOutputOffset` fields are kept for backward
 compatibility and duplicate the `PowerInput` / `PowerOutput` entries here.
+
+**OutAreaOfEffect shape** (entries of the optional `areasOfEffect` array — omitted
+entirely when the building projects no area of effect; see AREA_OF_EFFECT.md for full
+per-kind semantics and worked examples):
+
+```jsonc
+{
+  "kind": "light",                 // "light" | "elementIntake" | "operationRange" | "radiation" | "skyScan"
+  "source": "Light2D",             // game component the entry came from
+  "shape": "cone",                 // "circle" | "cone" | "quad" | "diamond" | "rect" | "ellipse" | "ellipseArc" | "skyColumns"
+  "origin": { "x": 0, "y": 0 },    // cell the effect emanates from — same offset convention as utilities[].offset
+  "blockedBySolids": true,         // solid tiles occlude/shrink the area at runtime
+  "cells": [[0,0],[-1,-1],[0,-1]], // nominal (unobstructed) affected cells, [x,y] pairs relative to the
+                                   // BUILDING origin cell (origin already applied), pre-rotation.
+                                   // OMITTED for "ellipse"/"ellipseArc"/"skyColumns" (derive from params)
+                                   // and for lists over 1024 cells (safety cap).
+
+  // kind "light" extras:
+  "range": 8.0, "lux": 1800, "falloffRate": 0.5,
+  "lightColor": { "r": 1, "g": 1, "b": 1, "a": 1 },
+  "width": 3, "direction": "South",         // quad lights only
+
+  // kind "elementIntake" extras (raw game consumptionRadius; cells span |dx|+|dy| <= radius-1):
+  "radius": 3, "element": "ContaminatedOxygen", "consumptionRate": 0.13333334,
+
+  // kind "operationRange" extras (inclusive rect relative to `origin`):
+  "rectMin": { "x": -7, "y": -1 }, "rectMax": { "x": 8, "y": 7 },
+
+  // kind "radiation" extras (ellipse (dx/radiusX)^2 + (dy/radiusY)^2 <= 1 around origin):
+  "radiusX": 25, "radiusY": 25, "rads": 120.0, "emitType": "Constant",
+  "arcAngle": 90.0, "arcDirection": 0.0,    // only when a partial arc (< 360°)
+  "radiusScalesWithRads": true,             // only when radius is dynamic at runtime
+
+  // kind "skyScan" extras (columns origin.x+scanMinX .. origin.x+scanMaxX, upward to the sky):
+  "scanMinX": -15, "scanMaxX": 15, "verticalStep": 0
+}
+```
+
+All extras are omitted (never `null`) when they don't apply to the entry's kind.
 
 **OutStorage shape** (when present):
 
@@ -314,6 +362,9 @@ Dict key is the element's SimHash as a **signed decimal integer string** (matche
   "hardness": 10.0,
   "lowTemp": 0.0,                                      // Kelvin — phase transition lower bound
   "highTemp": 272.5,                                   // Kelvin — phase transition upper bound
+  "maxMass": 1100.0,                                   // kg — sim cell capacity; gases are always 1.8
+  "defaultMass": 1000.0,                               // kg — gases are always 1.0
+  "defaultTemperature": 232.15,                        // Kelvin
   "lowTempTransitionTarget": "0",                      // element ID or "0" for none
   "highTempTransitionTarget": "Water",                 // element ID or "0" for none
   "sublimateRate": 0.0,

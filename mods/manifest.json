@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "description": "Drives tools/Refresh-ModSources.ps1 and tools/Build-ModDatabase.ps1. One entry per supported mod. trackedTypes are the decompiled types the extraction data was derived from; the refresh script re-decompiles them and flags diffs when the mod DLL changes.",
+    "steamModsRoot": "C:\\Users\\sinep\\Documents\\Klei\\OxygenNotIncluded\\mods\\Steam"
+  },
+  "mods": [
+    {
+      "workshopId": "2094698134",
+      "dir": "2094698134-airlock-door",
+      "title": "Airlock Door",
+      "dll": "AirlockDoor.dll",
+      "trackedTypes": [
+        "PeterHan.AirlockDoor.AirlockDoorConfig",
+        "PeterHan.AirlockDoor.AirlockDoorInsulatedConfig",
+        "PeterHan.AirlockDoor.AirlockDoorStrings",
+        "PeterHan.PLib.Buildings.PBuilding",
+        "PeterHan.PLib.Buildings.BuildIngredient"
+      ]
+    },
+    {
+      "workshopId": "1866754178",
+      "dir": "1866754178-drains",
+      "title": "Drains",
+      "dll": "Drains.dll",
+      "trackedTypes": [
+        "Drains.DrainConfig",
+        "Drains.DrainOptions",
+        "Drains.DrainPatch",
+        "SkyLib.OniUtils"
+      ]
+    },
+    {
+      "workshopId": "1840755803",
+      "dir": "1840755803-buildable-natural-tile",
+      "title": "Buildable Natural Tile",
+      "dll": "BuildableNaturalTile-merged.dll",
+      "trackedTypes": [
+        "NaturalTileConfig",
+        "BuildableNaturalTile.BuildableNaturalTilePatches",
+        "BuildableNaturalTile.Config"
+      ]
+    },
+    {
+      "workshopId": "2806200110",
+      "dir": "2806200110-high-pressure-applications",
+      "title": "High Pressure Applications",
+      "dll": "High Pressure Applications.dll",
+      "trackedTypes": [
+        "High_Pressure_Applications.BuildingConfigs.PressureGasPumpConfig",
+        "High_Pressure_Applications.BuildingConfigs.PressureLiquidPumpConfig",
+        "High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitConfig",
+        "High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitConfig",
+        "High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig",
+        "High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionGasValveConfig",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionLiquidValveConfig",
+        "High_Pressure_Applications.Components.HPA_ModSettings",
+        "High_Pressure_Applications.HarmonyPatches",
+        "High_Pressure_Applications.BuildingConfigs.PressureGasPump_Patches.PressureGasPump_TechPatch.PressureGasPumpTechMod",
+        "High_Pressure_Applications.BuildingConfigs.PressureGasPump_Patches.PressureGasPump_UIPatch.PressureGasPumpUI",
+        "High_Pressure_Applications.BuildingConfigs.PressureLiquidPump_Patches.PressureLiquidPump_TechPatch.PressureLiquidPumpTechMod",
+        "High_Pressure_Applications.BuildingConfigs.PressureLiquidPump_Patches.PressureLiquidPump_UIPatch.PressureLiquidPumpUI",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionGasValve_Patches.DecompressionGasValve_TechPatch.DecompressionGasValveTechMod",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionGasValve_Patches.DecompressionGasValve_UIPatch.DecompressionGasValveUI",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionLiquidValve_Patches.DecompressionLiquidValve_TechPatch.DecompressionLiquidValveTechMod",
+        "High_Pressure_Applications.BuildingConfigs.DecompressionLiquidValve_Patches.DecompressionLiquidValve_UIPatch.DecompressionLiquidValveUI"
+      ]
+    },
+    {
+      "workshopId": "3544371748",
+      "dir": "3544371748-splitters-mkii",
+      "title": "Splitters MK II",
+      "dll": "MJSplittersMKII.dll",
+      "trackedTypes": [
+        "MJSplittersMKII.Filters.MJGasFilterConfig",
+        "MJSplittersMKII.Filters.MJLiquidFilterConfig",
+        "MJSplittersMKII.Filters.MJSolidFilterConfig",
+        "MJSplittersMKII.MJSplittersMKIIStrings",
+        "MJSplittersMKII.Patch.Patches"
+      ]
+    }
+  ]
+}

@@ -11,6 +11,16 @@ namespace OniExtract2024
         public BKprefabID kPrefabID;
         public HashSet<Tag> tags;
 
+        // Source-mod attribution: the Steam workshop id (or local-mod folder id) and title
+        // of the mod whose IBuildingConfig registered this building. Omitted entirely for
+        // base-game buildings — "field present" means "modded". The website uses this to
+        // group/filter modded buildings and to flag blueprints that require a mod. Matches
+        // the `mod` field the offline mods/ pipeline emits. See building/ModSourceTracker.cs.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string mod = null;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string modTitle = null;
+
         // Rendered ui_image placement in footprint cells (see UiImageRect / the website
         // contract). Measured by the in-game building-image pass and carried here via the
         // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
@@ -58,7 +68,8 @@ namespace OniExtract2024
 
         // Power port cell offsets — non-null only when the corresponding connection exists.
         // powerInputOffset: where a wire plugs in for buildings that consume power (RequiresPowerInput=true).
-        // powerOutputOffset: where a wire plugs in for buildings that generate power (have EnergyGenerator).
+        // powerOutputOffset: where a wire plugs in for buildings that produce/store power
+        //   (RequiresPowerOutput=true, an EnergyGenerator, or a Battery).
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public CellOffset? powerInputOffset = null;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -70,6 +81,13 @@ namespace OniExtract2024
         // *Offset fields above are kept for backward compatibility. Built by
         // ExportBuilding.BuildUtilityPorts(). See EXPORT_SCHEMA.md.
         public List<OutUtilityPort> utilities = new List<OutUtilityPort>();
+
+        // Areas of effect this building projects onto surrounding cells (light cast,
+        // gas/liquid intake reach, operating range, radiation, sky scans). Offsets share
+        // the utilities[].offset convention; cells[] is the nominal unobstructed area.
+        // Omitted entirely when the building projects none. See AREA_OF_EFFECT.md.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<OutAreaOfEffect> areasOfEffect = null;
         public OutPlantablePlot plantablePlot;
         public List<OutElementConverter> elementConverters = new List<OutElementConverter>();
         public List<OutElementConsumer> elementConsumers = new List<OutElementConsumer>();

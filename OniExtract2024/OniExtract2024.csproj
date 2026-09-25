@@ -101,6 +101,8 @@
     <Compile Include="ExportElement.cs" />
     <Compile Include="ExportDb.cs" />
     <Compile Include="ExportBuilding.cs" />
+    <Compile Include="AreaOfEffectBuilder.cs" />
+    <Compile Include="model\OutAreaOfEffect.cs" />
     <Compile Include="ExportEntity.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />
@@ -182,6 +184,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="utils\AnimTool.cs" />
     <Compile Include="building\BuildingSpawnFilter.cs" />
+    <Compile Include="building\ModSourceTracker.cs" />
+    <Compile Include="model\OutModInfo.cs" />
     <Compile Include="building\BiomeTintNeutralizer.cs" />
     <Compile Include="building\ImageCrop.cs" />
     <Compile Include="building\ExportBuildingImages.cs" />
