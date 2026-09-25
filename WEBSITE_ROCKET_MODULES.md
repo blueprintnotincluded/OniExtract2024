@@ -77,9 +77,10 @@ export with the checks in §5.
 `CellOffset` from the building's **origin cell**, pre-rotation — the same convention as
 `utilities[].offset`, `areasOfEffect[].origin` and the `offset` the blueprint file records per
 building. The origin cell is the one `Grid.PosToCell(building)` returns: the **bottom row**, at
-column `floor(widthInCells / 2)` counted from the left (`EntityTemplates.GenerateOffsets`
-spans `x = width/2 - width + 1 .. width/2`). So it is the bottom-left cell for widths 1 and 2,
-and the **bottom-centre** cell for odd widths — which every rocket module is (3, 5 or 7 wide).
+column `floor((widthInCells - 1) / 2)` counted from the left (`EntityTemplates.GenerateOffsets`
+spans `x = width/2 - width + 1 .. width/2` with integer division, so a 4-wide building spans
+`-1..2`). So it is the bottom-left cell for widths 1 and 2, and the **bottom-centre** cell for
+odd widths — which every rocket module is (3, 5 or 7 wide).
 A 7-wide engine at origin `(0,2)` above a 7-wide pad at `(0,0)` is centred on it; its
 footprint spans `x = -3..3`. Do not treat the origin as the bottom-left corner: for the
 LaunchPad that would put the whole stack three cells to the right.
