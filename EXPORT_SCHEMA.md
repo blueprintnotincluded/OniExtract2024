@@ -175,8 +175,10 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 
 ```jsonc
 {
-  "offset": { "x": 0, "y": 5 },   // cell offset from the building's origin cell, pre-rotation —
-                                  // same convention as utilities[].offset
+  "offset": { "x": 0, "y": 5 },   // cell offset from the building's ORIGIN cell, pre-rotation —
+                                  // same convention as utilities[].offset. The origin is the
+                                  // bottom row at column floor(width/2) from the left (bottom-
+                                  // centre for odd widths), NOT the bottom-left corner.
   "tag": "Rocket"                 // attachable type accepted here (GameTags name)
 }
 ```
@@ -198,9 +200,11 @@ for non-engines). In game, `Clustercraft.Speed = Σ enginePower / Σ burden` ove
 (`SelectModuleCondition` subclasses) — the checks the game's module screen runs before offering a
 module at a position. Values seen: `ResearchCompleted`, `MaterialsAvailable`,
 `PlaceSpaceAvailable`, `RocketHeightLimit` (every cluster module), `LimitOneEngine` +
-`EngineOnBottom` (engines), `TopOnly` (nosecones, habitats — nothing may go above),
-`LimitOneCommandModule` (habitats), `NoFreeRocketInterior` (passenger modules),
-`LimitOneRoboPilotModule`. The `LaunchPad` has none.
+`EngineOnBottom` (engines), `TopOnly` (the two nosecones and `HabitatModuleSmall` — nothing
+may go above; these are also the only modules without `attachPoints`), `LimitOneCommandModule`
+(habitats), `NoFreeRocketInterior` (passenger modules), `LimitOneRoboPilotModule`. The
+`LaunchPad` has none. Verified against all 32 module configs in U59: every module with a
+hardpoint has exactly one, at `(0, heightInCells)`.
 
 **Settings shapes**: `door.doorType` is a `Door.DoorType` name (`Pressure`, `ManualPressure`,
 `Internal`, `Sealed`); `valve.conduitType` / `limitValve.conduitType` are `ConduitType` names

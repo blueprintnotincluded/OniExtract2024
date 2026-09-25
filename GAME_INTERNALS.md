@@ -190,10 +190,14 @@ method, falling back to `(0,0)` with `isSecondary=true` if none is found.
 
 ## Offset conventions
 
-All port offsets are `CellOffset` values measured from the building's **bottom-left
-corner** in its **unrotated orientation**. The building's origin cell is NOT the
-bottom-left — it depends on the building's `WidthInCells`/`HeightInCells`. The game
-applies rotation at display/placement time; the exported offsets are always pre-rotation.
+All port offsets (and `attachPoints`, `attachablePosition`, `areasOfEffect[].origin`) are
+`CellOffset` values measured from the building's **origin cell** in its **unrotated
+orientation**. The origin cell is the one `Grid.PosToCell(building)` returns: the bottom row,
+at column `floor(WidthInCells / 2)` from the left — `EntityTemplates.GenerateOffsets` spans
+`x = width/2 - width + 1 .. width/2`, `y = 0 .. height-1`. That is the bottom-left cell only
+for widths 1 and 2; for odd widths it is the bottom-centre cell (a 7-wide LaunchPad spans
+`x = -3..3`, which is why its logic ports sit at `(-1,0)` and `(1,0)`). The game applies
+rotation at display/placement time; the exported offsets are always pre-rotation.
 
 `CellOffset` is a struct with `x` (column) and `y` (row) integer fields.
 `CellOffset.none` == `(0, 0)`.
