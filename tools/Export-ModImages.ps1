@@ -9,7 +9,7 @@ For each building in each mods\<dir>\buildings.json:
   - Parses <base>_build.bytes (Klei "BILD" format, same layout as tools\Parse-KanimBuild.ps1).
   - Crops the "ui" symbol's frame 0 out of the texture atlas.
   - Writes mods\images\<buildingName>.png  (filename == building `name`, matching the
-    website contract ui_image/<prefabId>.png — see WEBSITE_POSTPROCESSING.md).
+    website contract ui_image/<prefabId>.png — see docs/WEBSITE_POSTPROCESSING.md).
 
 These are footprint-style flat icons (the same kind the website's legacy stretch-to-footprint
 path expects), so no uiImageRect is needed. Connection-state sprites for drag-build utilities

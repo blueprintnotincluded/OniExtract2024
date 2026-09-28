@@ -11,7 +11,7 @@ namespace OniExtract2024
     //   - LaunchPad.baseModulePosition — the pad has no BuildingAttachPoint component; the game
     //     places a rocket's bottom module at pad-origin + baseModulePosition
     //     (LaunchPad.AddBaseModule). Emitted here in the same shape so the website can treat
-    //     "module on pad" and "module on module" with one rule. See WEBSITE_ROCKET_MODULES.md.
+    //     "module on pad" and "module on module" with one rule. See docs/WEBSITE_ROCKET_MODULES.md.
     public class OutAttachPoint
     {
         public BVector2 offset;

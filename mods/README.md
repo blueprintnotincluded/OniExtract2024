@@ -1,7 +1,7 @@
 # Mod Building Extraction — Playbook
 
 How mod buildings get into the website export. Research background:
-[../MOD_OFFLINE_EXTRACTION.md](../MOD_OFFLINE_EXTRACTION.md).
+[../docs/MOD_OFFLINE_EXTRACTION.md](../docs/MOD_OFFLINE_EXTRACTION.md).
 
 ## Two paths — in-game first, offline as fallback
 

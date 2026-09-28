@@ -25,7 +25,7 @@ namespace OniExtract2024
         // contract). Measured by the in-game building-image pass and carried here via the
         // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
         // have no measurement for this building — that means "image == footprint" to the
-        // website (do NOT emit null). See UIIMAGERECT_DURABILITY.md.
+        // website (do NOT emit null). See docs/archive/UIIMAGERECT_DURABILITY.md.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public UiImageRect? uiImageRect = null;
 
@@ -86,13 +86,13 @@ namespace OniExtract2024
         // each with its cell offset from the building's origin cell (pre-rotation).
         // This is the authoritative port list the website uses for placement; the power
         // *Offset fields above are kept for backward compatibility. Built by
-        // ExportBuilding.BuildUtilityPorts(). See EXPORT_SCHEMA.md.
+        // ExportBuilding.BuildUtilityPorts(). See docs/EXPORT_SCHEMA.md.
         public List<OutUtilityPort> utilities = new List<OutUtilityPort>();
 
         // Areas of effect this building projects onto surrounding cells (light cast,
         // gas/liquid intake reach, operating range, radiation, sky scans). Offsets share
         // the utilities[].offset convention; cells[] is the nominal unobstructed area.
-        // Omitted entirely when the building projects none. See AREA_OF_EFFECT.md.
+        // Omitted entirely when the building projects none. See docs/AREA_OF_EFFECT.md.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public List<OutAreaOfEffect> areasOfEffect = null;
         public OutPlantablePlot plantablePlot;
@@ -110,7 +110,7 @@ namespace OniExtract2024
 
         // ── Rocketry (Spaced Out module stacking) ─────────────────────────────────────────
         // All optional: omitted (never null/false) when they do not apply. Filled by
-        // RocketModuleBuilder; website-side semantics in WEBSITE_ROCKET_MODULES.md.
+        // RocketModuleBuilder; website-side semantics in docs/WEBSITE_ROCKET_MODULES.md.
 
         // true when the BuildingComplete prefab carries a RocketModule (or RocketModuleCluster)
         // component: engines, tanks, cargo bays, habitats, nosecones, ... Omitted when false.

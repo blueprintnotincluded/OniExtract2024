@@ -14,3 +14,6 @@ OniExtract2024.Core.Tests/bin/
 OniExtract2024.Core.Tests/obj/
 export-2023.zip
 export/
+
+# Local implementation plans and working specifications
+/specs/

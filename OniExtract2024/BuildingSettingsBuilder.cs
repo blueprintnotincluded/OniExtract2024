@@ -7,7 +7,7 @@ namespace OniExtract2024
     // (Blueprints Included / BlueprintsV2 handler keys): whether a building is prioritizable or
     // nameable, and the slider bounds for doors, valves, limit valves and capacity-controlled
     // storages. All read from the BuildingComplete prefab. Fields are omitted from the JSON
-    // when the building lacks the component. See WEBSITE_ROCKET_MODULES.md ("Settings ranges").
+    // when the building lacks the component. See docs/WEBSITE_ROCKET_MODULES.md ("Settings ranges").
     public static class BuildingSettingsBuilder
     {
         public static void Apply(BBuildingEntity b, GameObject go)

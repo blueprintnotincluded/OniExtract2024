@@ -1,0 +1,28 @@
+# Normalize line endings. Without this, what lands in a commit depends on each
+# contributor's core.autocrlf, so the same file can flip between LF and CRLF
+# between machines and show up as a whole-file diff that isn't a real change.
+#
+# Text is stored LF in the repository and checked out LF, matching the sibling
+# consuming repo (blueprintnotincluded). Visual Studio, MSBuild and PowerShell
+# all read LF fine on Windows.
+#
+# This codifies what the repository already stored: every tracked text file was
+# LF in the index before this file existed, so adding it renormalized nothing
+# and produced no churn. Verify with `git ls-files --eol`.
+* text=auto eol=lf
+
+# Visual Studio rewrites solution files with CRLF whenever it touches them, so
+# forcing LF here just produces churn every time the solution is opened.
+*.sln text eol=crlf
+
+# Explicitly binary — never diffed, never line-ending converted.
+*.dll binary
+*.nupkg binary
+*.pdb binary
+*.snk binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary

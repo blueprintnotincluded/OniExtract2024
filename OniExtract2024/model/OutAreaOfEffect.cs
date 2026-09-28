@@ -7,7 +7,7 @@ namespace OniExtract2024
 {
     // One entry per area-of-effect a building projects onto the cells around it:
     // light cast, gas/liquid intake reach, machine operating range, radiation, sky scans.
-    // Built by AreaOfEffectBuilder from the BuildingComplete prefab. See AREA_OF_EFFECT.md
+    // Built by AreaOfEffectBuilder from the BuildingComplete prefab. See docs/AREA_OF_EFFECT.md
     // for the full contract, per-kind geometry semantics and worked examples.
     //
     // Offset convention: `origin` and `cells` use the same anchor as utilities[].offset —

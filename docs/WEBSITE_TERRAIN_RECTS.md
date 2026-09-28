@@ -24,7 +24,7 @@ Same coordinate space and semantics as buildings — origin at the footprint's b
 (3×3 footprint; art overhangs slightly on all four sides.)
 
 > Separately, a fix landed for `uiImageRect`s that disagreed with their PNG on 302 of 342
-> buildings. That is a data fix needing no website change — see `UIIMAGERECT_DURABILITY.md`,
+> buildings. That is a data fix needing no website change — see `archive/UIIMAGERECT_DURABILITY.md`,
 > Part 2.
 
 ---
