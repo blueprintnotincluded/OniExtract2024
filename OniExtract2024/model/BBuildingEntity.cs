@@ -83,7 +83,7 @@ namespace OniExtract2024
         public CellOffset? powerOutputOffset = null;
 
         // Every connection port on this building (power / gas / liquid / solid / logic),
-        // each with its cell offset from the building's bottom-left corner (pre-rotation).
+        // each with its cell offset from the building's origin cell (pre-rotation).
         // This is the authoritative port list the website uses for placement; the power
         // *Offset fields above are kept for backward compatibility. Built by
         // ExportBuilding.BuildUtilityPorts(). See EXPORT_SCHEMA.md.

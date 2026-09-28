@@ -29,7 +29,7 @@ namespace OniExtract2024
     }
 
     // One entry per utility port on a building.
-    // offset is a cell offset from the building's bottom-left corner, pre-rotation.
+    // offset is a cell offset from the building's origin cell (bottom row, column floor((width-1)/2)), pre-rotation.
     public class OutUtilityPort
     {
         public BVector2 offset;

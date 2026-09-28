@@ -96,7 +96,7 @@ buildingDef.LogicOutputPorts = new List<LogicPorts.Port> { ... };
 ```
 
 These are readable from `BuildingDef` directly. Each `LogicPorts.Port` has:
-- `cellOffset` — `CellOffset` from the building's bottom-left
+- `cellOffset` — `CellOffset` from the building's origin cell (see "Offset conventions")
 - `spriteType` — `LogicPortSpriteType` enum that identifies the port icon
 
 `LogicPortSpriteType.ToString()` is used (rather than the int value) to classify port

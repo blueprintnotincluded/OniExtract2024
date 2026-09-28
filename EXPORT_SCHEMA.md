@@ -236,7 +236,7 @@ Tiles). `userControlledCapacity.source` names the game component the range came 
 
 ```jsonc
 {
-  "offset": { "x": 0, "y": 0 },   // cell offset from the building's bottom-left corner (pre-rotation)
+  "offset": { "x": 0, "y": 0 },   // cell offset from the building's origin cell (pre-rotation; see GAME_INTERNALS.md "Offset conventions")
   "type": "GasInput",             // ConnectionType enum name (string)
   "isSecondary": false            // true for secondary/filtered ports (e.g. ElementFilter outputs)
 }
