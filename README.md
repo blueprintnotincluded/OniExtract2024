@@ -150,7 +150,10 @@ carry the full detail:
 
 The render writes a per-building `uiImageRect` (cell-space, footprint-relative) into
 `building.json` so the website can place tight-cropped icons without squishing overhang — see
-[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md).
+[WEBSITE_POSTPROCESSING.md](WEBSITE_POSTPROCESSING.md). Terrain features (geysers, vents,
+volcanoes, the oil reservoir) get the same render and a measured rect, but only in
+`ui_image_rects.json`, since they have no `building.json` entry — see
+[WEBSITE_TERRAIN_RECTS.md](WEBSITE_TERRAIN_RECTS.md).
 
 **Open item:** spot-check `uiImageRect` placement on the website against the still-untested
 branches of the rect math — an even-width building (validates the +0.5 horizontal centring), a
