@@ -105,7 +105,9 @@ export
               ├─ 0.png ... 15.png  16 connection states per connectable
 ```
 
-Field-level schema for every JSON file: see [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md).
+Field-level schema for every JSON file: see [EXPORT_SCHEMA.md](EXPORT_SCHEMA.md). Website-side
+guidance for the rocket-module stacking data and blueprint-setting ranges in `building.json`:
+[WEBSITE_ROCKET_MODULES.md](WEBSITE_ROCKET_MODULES.md).
 
 ## Building images
 
