@@ -10,7 +10,7 @@ compatibility concerns, no Extract-mod changes needed.
 
 > **Status update (2026-07-19): implemented.** The property pipeline is built and all 5
 > buildable mods (15 buildings) are extracted to `mods/mod_database.json`. The operational
-> playbook — per-mod notes, refresh/merge scripts, schema — is **[mods/README.md](mods/README.md)**.
+> playbook — per-mod notes, refresh/merge scripts, schema — is **[mods/README.md](../mods/README.md)**.
 > This file remains the research background (kanim format, decompile findings).
 
 ---
@@ -122,7 +122,7 @@ snapshotter gets for free from `KBatchedAnimController`.
   that converts kanim triplets → Spriter project / PNGs entirely offline. Since it's
   C#, its reader classes can be vendored/referenced directly rather than reimplementing.
 - Proof-of-concept BILD parser written during this research:
-  [`tools/Parse-KanimBuild.ps1`](tools/Parse-KanimBuild.ps1) — parses header,
+  [`tools/Parse-KanimBuild.ps1`](../tools/Parse-KanimBuild.ps1) — parses header,
   symbols, frames, hash table, and computes atlas pixel rects. Easy to port to C#
   if not using kanimal-SE.
 

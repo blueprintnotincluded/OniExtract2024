@@ -12,7 +12,7 @@ namespace OniExtract2024.Tests
     // OutDoor / OutValve / OutLimitValve are deliberately absent from the probe: their
     // constructors take Door / ValveBase / LimitValve, and Newtonsoft's contract resolution
     // reflects over constructor parameters, which loads the KMonoBehaviour hierarchy and throws
-    // TypeLoadException in the net48 test host (see GAME_INTERNALS.md, "Probing the assembly").
+    // TypeLoadException in the net48 test host (see docs/GAME_INTERNALS.md, "Probing the assembly").
     public class BuildingSettingsTests
     {
         // Mirrors the attributes on BBuildingEntity's settings fields exactly.

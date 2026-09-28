@@ -6,7 +6,7 @@ namespace OniExtract2024
     // Collects every area-of-effect a building projects onto surrounding cells, reading
     // only components that exist on the BuildingComplete prefab (all are configured in
     // ConfigureBuildingTemplate/DoPostConfigureComplete, so they are prefab-readable —
-    // see GAME_INTERNALS.md "Building configuration lifecycle").
+    // see docs/GAME_INTERNALS.md "Building configuration lifecycle").
     //
     // Sources, in emit order:
     //   Light2D                  -> kind "light"          (lamps, sun lamp, mercury light, ...)
@@ -18,7 +18,7 @@ namespace OniExtract2024
     //
     // Geometry semantics are replicated from the game's own cell math (DiscreteShadowCaster
     // for light, the sim's orthogonal spread for consumers, RangeVisualizerEffect for rects)
-    // with occlusion removed: cells[] is the nominal, unobstructed area. AREA_OF_EFFECT.md
+    // with occlusion removed: cells[] is the nominal, unobstructed area. docs/AREA_OF_EFFECT.md
     // documents each shape with worked examples.
     public static class AreaOfEffectBuilder
     {

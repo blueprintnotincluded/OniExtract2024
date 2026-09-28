@@ -10,7 +10,7 @@ For each mod in mods\manifest.json:
     updates source-state.json. Review the diff (git diff mods\<dir>\decompiled) and follow
     the "How to update" checklist in that mod's NOTES.md, then run tools\Build-ModDatabase.ps1.
 
-Requires the ilspycmd dotnet global tool (see GAME_INTERNALS.md).
+Requires the ilspycmd dotnet global tool (see docs/GAME_INTERNALS.md).
 
 .PARAMETER Force
 Re-decompile every mod even if the DLL hash is unchanged.

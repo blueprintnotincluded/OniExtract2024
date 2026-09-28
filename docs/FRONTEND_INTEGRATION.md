@@ -236,4 +236,4 @@ the per-building UI images:
 5. **Port icons** — map `type` → icon via the table in §5.
 6. **Areas of effect** — light cast, intake reach, machine operating ranges, radiation and
    sky scans ship per building in `areasOfEffect[]`; consumer guide in
-   [FRONTEND_AREA_OF_EFFECT.md](FRONTEND_AREA_OF_EFFECT.md).
+   [AREA_OF_EFFECT.md](AREA_OF_EFFECT.md).

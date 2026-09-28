@@ -199,7 +199,7 @@ the exporter so export-side changes can be checked against it without leaving th
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Canonical repository guide — architecture, build/deploy, game-assembly gotchas, export contract invariants. Written for coding agents, but the commands and constraints are the same for humans. |
 | [AGENTS.md](AGENTS.md) | Entry point for coding agents; defers to `CLAUDE.md`. |
-| [docs/](docs/) | Durable reference: [EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) (field-level JSON schema), [GAME_INTERNALS.md](docs/GAME_INTERNALS.md) (ONI assembly knowledge base), [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md), [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md). |
+| [docs/](docs/) | Durable reference: [EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) (field-level JSON schema), [GAME_INTERNALS.md](docs/GAME_INTERNALS.md) (ONI assembly knowledge base), [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md), [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md), the per-feature website handoffs (`WEBSITE_*.md`), [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md), [MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md). |
 | [docs/archive/](docs/archive/) | Resolved diagnostics, kept for provenance. Not current state. |
 | [agent/](agent/) | Dated working notes that go stale fast — session progress and the manual building-pose worklist. |
 | [OniExtract2024/building/CLAUDE.md](OniExtract2024/building/CLAUDE.md) | Design notes for the hi-res building-image render path, next to the code. |

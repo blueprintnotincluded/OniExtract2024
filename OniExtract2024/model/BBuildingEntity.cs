@@ -92,7 +92,7 @@ namespace OniExtract2024
         // Areas of effect this building projects onto surrounding cells (light cast,
         // gas/liquid intake reach, operating range, radiation, sky scans). Offsets share
         // the utilities[].offset convention; cells[] is the nominal unobstructed area.
-        // Omitted entirely when the building projects none. See AREA_OF_EFFECT.md.
+        // Omitted entirely when the building projects none. See docs/AREA_OF_EFFECT.md.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public List<OutAreaOfEffect> areasOfEffect = null;
         public OutPlantablePlot plantablePlot;
@@ -110,7 +110,7 @@ namespace OniExtract2024
 
         // ── Rocketry (Spaced Out module stacking) ─────────────────────────────────────────
         // All optional: omitted (never null/false) when they do not apply. Filled by
-        // RocketModuleBuilder; website-side semantics in WEBSITE_ROCKET_MODULES.md.
+        // RocketModuleBuilder; website-side semantics in docs/WEBSITE_ROCKET_MODULES.md.
 
         // true when the BuildingComplete prefab carries a RocketModule (or RocketModuleCluster)
         // component: engines, tanks, cargo bays, habitats, nosecones, ... Omitted when false.
