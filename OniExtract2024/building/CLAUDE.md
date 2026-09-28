@@ -5,8 +5,11 @@ Read before changing the render path, the pose selection, or how `uiImageRect` r
 
 ## What this directory does
 
-Re-renders every buildable building as a hi-res icon from its **live kanim**, at 200 px/cell,
-and overwrites the low-res atlas sprites the main-menu JSON pass wrote to `ui_image/`. It runs
+Re-renders every buildable building, plus a fixed list of terrain features (geysers, vents,
+volcanoes, the oil reservoir; `TerrainFeaturePrefabNames`), as a hi-res icon from its **live
+kanim**, at 200 px/cell, and overwrites the low-res atlas sprites the main-menu JSON pass wrote
+to `ui_image/`. Terrain features have no `Building`, so their footprint comes from
+`KBoxCollider2D` and their rect reaches the website only through `ui_image_rects.json`. It runs
 as a manual in-game tool (Esc → *Export Building Images*), not as part of the automatic export.
 
 | File | Role |
@@ -58,7 +61,14 @@ So the flow is deliberately decoupled, mirroring `pose_overrides.json`:
    `uiImageRect` on `BBuildingEntity`.
 
 Anything that makes the rect travel only through `building.json` reintroduces the bug. The
-field is **omitted when absent, never emitted as null**. Full diagnosis:
+field is **omitted when absent, never emitted as null**.
+
+The PNG has the same problem the other way round: the main-menu pass also writes
+`ui_image/{prefabId}.png` on every load, and an atlas icon written over a render leaves the
+rect describing an image that is no longer on disk. So `ExportUISprite` skips the icon write
+when `ExportBuildingImages.PngMatchesRect` says the file already there is the measured render.
+It checks the file itself, not just whether a rect exists, because the icon filename follows
+the `SaveUIFileName` option and only matches the rect's prefab-tag key in ID mode. Full diagnosis:
 [docs/archive/UIIMAGERECT_DURABILITY.md](../../docs/archive/UIIMAGERECT_DURABILITY.md).
 
 ## Other things worth knowing

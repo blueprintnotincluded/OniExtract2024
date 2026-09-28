@@ -14,8 +14,10 @@ whose importer is `app/api/batch/convert-export-2024.ts` in that repo. This repo
 repo consumes. Changing an emitted field is a change to a cross-repo contract — see
 [docs/WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md).
 
-This is a fork. `origin` is the working fork; `upstream` is
+The canonical repo is
 [blueprintnotincluded/OniExtract2024](https://github.com/blueprintnotincluded/OniExtract2024).
+Contributors may work from a fork, in which case that is `origin` and the canonical repo is
+`upstream`; check `git remote -v` rather than assuming.
 
 ## The single most important constraint
 
@@ -48,7 +50,10 @@ with the game installed has to confirm it.
   can verify. Currently `ExportPaths` and `UiImageRect`. Pure logic belongs here.
 - **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
-  with ONI installed. 13 tests.
+  with ONI installed. 38 tests.
+- **`tools/`** + **`mods/`** — the offline mod pipeline: PowerShell scripts that decompile
+  third-party mods and merge their buildings into the export when an in-game export with the
+  mods enabled is not possible. See [docs/MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md).
 
 ### Three independent export paths
 
@@ -57,7 +62,7 @@ They are separate, run at different times, and are easy to confuse:
 | # | Path | Trigger | Writes |
 |---|---|---|---|
 | 1 | JSON data + UI icons | Automatic, when the game reaches the **main menu**. No save needed. | 13 JSON files in `export/database/`, one PNG per building/item in `export/ui_image/` |
-| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` |
+| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings and terrain features (geysers, vents, volcanoes) at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` |
 | 3 | Connection sprites | Manual: load any colony, **Esc** → *Export Connection Sprites* | `export/connection_sprites/{prefabId}/{0..15}.png` |
 
 Path 1 runs on **every game load** and authors `building.json` from scratch. Paths 2 and 3 are
@@ -83,7 +88,7 @@ as a dirty diff.
 
 ```bash
 dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 6 tests
-dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 13 tests
+dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 38 tests
 ```
 
 ### Probing the game assembly
@@ -126,6 +131,11 @@ Breaking one of these breaks the website silently — the site renders, just wro
 - **`viewMode` emits the game-native overlay ID string** via an `OverlayModes.*.ID` lookup, and
   `null` when there is no special overlay — not a `HashedString` hex, not a pluralized name.
 - **`uiImageRect` is omitted when absent, never emitted as null.**
+- **Cell offsets are measured from the building's origin cell, not its bottom-left corner.**
+  That covers `utilities[].offset`, `attachPoints`, `attachablePosition` and
+  `areasOfEffect[].origin`. The origin is the bottom row at column `floor((width-1)/2)`, so it
+  is the bottom-centre cell for odd widths. See "Offset conventions" in
+  [docs/GAME_INTERNALS.md](docs/GAME_INTERNALS.md).
 - **The `model/` DTOs are the schema.** Renaming a field there is a breaking change to the
   website. Update [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) in the same commit.
 
@@ -141,6 +151,11 @@ Breaking one of these breaks the website silently — the site renders, just wro
   - [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md) — the export↔website contract.
     Its authoritative source is the consuming repo, so this copy drifts; treat the website repo
     as truth on conflict.
+  - Website handoffs for specific data: [WEBSITE_ROCKET_MODULES.md](docs/WEBSITE_ROCKET_MODULES.md)
+    (rocket-module stacking, settings ranges), [WEBSITE_TERRAIN_RECTS.md](docs/WEBSITE_TERRAIN_RECTS.md)
+    (terrain-feature rects), [WEBSITE_MOD_IMPORT.md](docs/WEBSITE_MOD_IMPORT.md) (modded buildings).
+  - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.
+  - [MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md) — the offline `mods/` pipeline.
 - **`docs/archive/`** — resolved diagnostics kept for provenance. **Not current state.** Their
   durable conclusions are already folded into `docs/` and the invariants above; read them only
   for the "why".
