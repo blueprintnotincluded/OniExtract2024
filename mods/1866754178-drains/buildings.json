@@ -1,0 +1,50 @@
+{
+  "mod": { "workshopId": "1866754178", "title": "Drains" },
+  "buildings": [
+    {
+      "name": "Drain",
+      "nameString": "Drain",
+      "description": "9 out of 10 plumbers recommend Drain® for its uncloggability. Our new Drain® companion product, Clog-Be-Gone™, will hit shelves soon. Now less likely to vaporize unexpectedly during normal operation!",
+      "effect": "Slowly drains liquids into a pipe.",
+      "widthInCells": 1,
+      "heightInCells": 1,
+      "hitpoints": 100,
+      "constructionTime": 30.0,
+      "materialCategory": ["Metal"],
+      "materialMass": [100.0],
+      "meltingPoint": 1600.0,
+      "isFoundation": true,
+      "isKAnimTile": false,
+      "isUtility": false,
+      "dragBuild": false,
+      "buildLocationRule": 6,
+      "permittedRotations": 0,
+      "sceneLayer": 30,
+      "objectLayer": 1,
+      "viewMode": "LiquidConduit",
+      "defaultAnimState": "off",
+      "initialAnim": "built",
+      "kanim": "drain_kanim",
+      "decor": { "amount": -5, "radius": 1 },
+      "noise": { "amount": 0, "radius": 0 },
+      "overheatable": false,
+      "floodable": false,
+      "entombable": false,
+      "thermalConductivity": 1.0,
+      "energyConsumer": null,
+      "utilities": [
+        { "offset": { "x": 0, "y": 0 }, "type": "LiquidOutput", "isSecondary": false }
+      ],
+      "elementConsumers": [
+        { "configuration": "AllLiquid", "consumptionRate": 0.1, "consumptionRadius": 1, "storeOnConsume": true }
+      ],
+      "storage": { "capacityKg": 1.0 },
+      "planCategory": "Plumbing",
+      "planSubCategory": "uncategorized",
+      "addAfter": null,
+      "tech": "SanitationSciences",
+      "configClass": "Drains.DrainConfig",
+      "notes": "Option-dependent (PLib options, defaults used here): UseSolidDrain=false selects drain_kanim / non-solid tile; true selects solidDrain_kanim, isSolidTile=true, and samples the cell above. FlowRate (default 0.1 kg/s, range 0.1-1.0) sets ElementConsumer.consumptionRate. Foundation tile that passively drinks the liquid in its cell into a liquid pipe."
+    }
+  ]
+}

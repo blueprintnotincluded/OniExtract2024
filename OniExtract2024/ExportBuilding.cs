@@ -14,6 +14,9 @@ public class ExportBuilding : BaseExport
     public Dictionary<string, List<KeyValuePair<string, string>>> buildingAndSubcategoryDataPairs = new Dictionary<string, List<KeyValuePair<string, string>>>();
     public List<Tag> roomConstraintTags= new List<Tag>();
     public Dictionary<string, string> requiredSkillPerkMap = new Dictionary<string, string>();
+    // Roster of enabled mods that contributed buildings to this export; each entry's `id`
+    // matches the per-building `mod` field. Empty for a vanilla-only export.
+    public List<OutModInfo> mods = new List<OutModInfo>();
 
     public ExportBuilding()
     {
@@ -51,14 +54,13 @@ public class ExportBuilding : BaseExport
         bBuild.defaultAnimState = buildingDef.DefaultAnimState;
         bBuild.uiSpriteName = buildingDef.UISprite != null ? buildingDef.UISprite.name : null;
         EnergyGenerator energyGenerator = go.GetComponent<EnergyGenerator>();
-        if (energyGenerator != null)
+        bBuild.energyGenerator = energyGenerator != null ? new OutEnergyGenerator(energyGenerator) : null;
+        // powerOutputOffset duplicates the utilities[] PowerOutput entry: emit it for every power
+        // producer — generators (incl. solar/Staterpillar via RequiresPowerOutput) and batteries —
+        // so it stays consistent with utilities[], not just for EnergyGenerator-component buildings.
+        if (buildingDef.RequiresPowerOutput || energyGenerator != null || go.GetComponent<Battery>() != null)
         {
-            bBuild.energyGenerator = new OutEnergyGenerator(energyGenerator);
             bBuild.powerOutputOffset = buildingDef.PowerOutputOffset;
-        }
-        else
-        {
-            bBuild.energyGenerator = null;
         }
         EnergyConsumer energyConsumer = go.GetComponent<EnergyConsumer>();
         if (energyConsumer != null)
@@ -226,6 +228,24 @@ public class ExportBuilding : BaseExport
 
         bBuild.utilities = BuildUtilityPorts(buildingDef, go);
 
+        List<OutAreaOfEffect> areasOfEffect = AreaOfEffectBuilder.Build(go);
+        bBuild.areasOfEffect = areasOfEffect.Count > 0 ? areasOfEffect : null;
+
+        // Source-mod attribution (omitted for base-game buildings) + root roster upkeep.
+        if (OniExtract2024.building.ModSourceTracker.TryGetMod(buildingDef.PrefabID,
+                out string sourceModId, out string sourceModTitle))
+        {
+            bBuild.mod = sourceModId;
+            bBuild.modTitle = sourceModTitle;
+            OutModInfo rosterEntry = this.mods.Find(m => m.id == sourceModId);
+            if (rosterEntry == null)
+            {
+                rosterEntry = new OutModInfo { id = sourceModId, title = sourceModTitle };
+                this.mods.Add(rosterEntry);
+            }
+            rosterEntry.buildings.Add(buildingDef.Tag.Name);
+        }
+
         this.bBuildingDefList.Add(bBuild);
     }
 
@@ -375,11 +395,41 @@ public class ExportBuilding : BaseExport
         }
 
         // ── Power ports ────────────────────────────────────────────────────────
-        if (def.EnergyConsumptionWhenActive > 0f)
+        // RequiresPowerInput/RequiresPowerOutput are the game's authoritative BuildingDef flags
+        // for whether a building plugs into the power grid as a consumer / producer — the same
+        // flags it uses to place wire-connection cells. Gate on these rather than on the
+        // EnergyConsumer/EnergyGenerator components: solar panels, the Staterpillar and the rocket
+        // power plug produce power without an EnergyGenerator, and a consumer can RequirePowerInput
+        // with zero active draw (e.g. PowerTransformer). Batteries are the one producer that sets
+        // neither flag (they connect via the Battery component), so keep an explicit Battery check.
+        if (def.RequiresPowerInput)
             ports.Add(new OutUtilityPort(def.PowerInputOffset, ConnectionType.PowerInput, false));
-        // EnergyGenerator = wired generators; Battery = rechargeable storage that also outputs
-        if (go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
+        if (def.RequiresPowerOutput || go.GetComponent<EnergyGenerator>() != null || go.GetComponent<Battery>() != null)
             ports.Add(new OutUtilityPort(def.PowerOutputOffset, ConnectionType.PowerOutput, false));
+
+        // ── Power pass-through links (wire bridges & switches) ─────────────────
+        // Bridges and switches carry power straight through and set no RequiresPower flag, so the
+        // block above adds nothing for them. Their connection cells live on dedicated components.
+        // Wire bridges (WireBridge / *HighWattage / WireRefined* / WireRubber*) expose two cells as
+        // WireUtilityNetworkLink.link1/link2 ([SerializeField], set in AddNetworkLink during
+        // ConfigureBuildingTemplate/DoPostConfigureComplete — readable on the prefab; the building's
+        // UtilityInput/OutputOffset are unrelated). Power switches (CircuitSwitch: Switch /
+        // PressureSwitchGas|Liquid / TemperatureControlledSwitch) are 1x1 and interrupt the wire in
+        // their single cell (0,0). Emit an input-end + output-end pair for each, mirroring the
+        // conduit-bridge convention; for a 1x1 switch the two ends coincide at (0,0). These offsets
+        // do NOT mirror the power-only powerInputOffset/powerOutputOffset fields (omitted for
+        // pass-through buildings) — utilities[] is the authoritative port list.
+        WireUtilityNetworkLink wireLink = go.GetComponent<WireUtilityNetworkLink>();
+        if (wireLink != null)
+        {
+            ports.Add(new OutUtilityPort(wireLink.link1, ConnectionType.PowerInput, false));
+            ports.Add(new OutUtilityPort(wireLink.link2, ConnectionType.PowerOutput, false));
+        }
+        else if (go.GetComponent<CircuitSwitch>() != null)
+        {
+            ports.Add(new OutUtilityPort(new CellOffset(0, 0), ConnectionType.PowerInput, false));
+            ports.Add(new OutUtilityPort(new CellOffset(0, 0), ConnectionType.PowerOutput, false));
+        }
 
         // ── Logic ports (sensors and standard buildings) ───────────────────────
         // BuildingDef.LogicInputPorts/LogicOutputPorts are set during CreateBuildingDef()
@@ -390,6 +440,31 @@ public class ExportBuilding : BaseExport
         if (def.LogicOutputPorts != null)
             foreach (var p in def.LogicOutputPorts)
                 ports.Add(new OutUtilityPort(p.cellOffset, LogicSpriteToType(p.spriteType, false), false));
+
+        // ── Logic ports (PLib-style mods, e.g. Airlock Door) ───────────────────
+        // PLib's PBuilding writes ports straight into LogicPorts.inputPortInfo /
+        // outputPortInfo at prefab-config time instead of BuildingDef.LogicInputPorts.
+        // Vanilla buildings only populate these arrays in LogicPorts.OnSpawn(), so they
+        // are null on vanilla prefabs and nothing is double-counted; dedupe anyway in
+        // case a mod fills both the def lists and the component arrays.
+        LogicPorts logicPorts = go.GetComponent<LogicPorts>();
+        if (logicPorts != null)
+        {
+            if (logicPorts.inputPortInfo != null)
+                foreach (var p in logicPorts.inputPortInfo)
+                {
+                    ConnectionType t = LogicSpriteToType(p.spriteType, true);
+                    if (!ports.Any(x => x.type == t && x.offset.x == p.cellOffset.x && x.offset.y == p.cellOffset.y))
+                        ports.Add(new OutUtilityPort(p.cellOffset, t, false));
+                }
+            if (logicPorts.outputPortInfo != null)
+                foreach (var p in logicPorts.outputPortInfo)
+                {
+                    ConnectionType t = LogicSpriteToType(p.spriteType, false);
+                    if (!ports.Any(x => x.type == t && x.offset.x == p.cellOffset.x && x.offset.y == p.cellOffset.y))
+                        ports.Add(new OutUtilityPort(p.cellOffset, t, false));
+                }
+        }
 
         // ── Logic ports (gates: AND/OR/XOR/NOT/BUFFER/FILTER/MUX/DEMUX) ────────
         // Logic gates do NOT set BuildingDef.LogicInputPorts/LogicOutputPorts.

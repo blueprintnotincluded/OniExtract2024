@@ -18,6 +18,9 @@ namespace OniExtract2024
         public float hardness;
         public float lowTemp;
         public float highTemp;
+        public float maxMass;             // kg — sim cell capacity
+        public float defaultMass;         // kg
+        public float defaultTemperature;  // Kelvin, same convention as lowTemp/highTemp
         public string lowTempTransitionTarget;
         public string highTempTransitionTarget;
         public float sublimateRate;
@@ -39,6 +42,9 @@ namespace OniExtract2024
             hardness = e.hardness;
             lowTemp = e.lowTemp;
             highTemp = e.highTemp;
+            maxMass = e.maxMass;
+            defaultMass = e.defaultValues.mass;
+            defaultTemperature = e.defaultValues.temperature;
             lowTempTransitionTarget = e.lowTempTransitionTarget.ToString();
             highTempTransitionTarget = e.highTempTransitionTarget.ToString();
             sublimateRate = e.sublimateRate;

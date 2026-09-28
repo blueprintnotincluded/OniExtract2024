@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using OniExtract2024.building;
 using UnityEngine;
 
 namespace OniExtract2024.utils
@@ -85,6 +86,27 @@ namespace OniExtract2024.utils
             return CacheTexture[sprite];
         }
 
+        // Returns a new texture cropped to the opaque bounding box, or null when the
+        // input is already tight (or fully transparent) and should be written as-is.
+        // Never mutates the input — GetSingleSpriteFromTexture caches untinted textures.
+        static Texture2D TrimToOpaqueBBox(Texture2D tex)
+        {
+            Color[] px = tex.GetPixels();
+            if (!ImageCrop.FindOpaqueBBox(px, tex.width, tex.height,
+                    out int minX, out int minY, out int maxX, out int maxY))
+                return null;
+
+            int cw = maxX - minX + 1;
+            int ch = maxY - minY + 1;
+            if (cw == tex.width && ch == tex.height)
+                return null;
+
+            var result = new Texture2D(cw, ch);
+            result.SetPixels(ImageCrop.CropPixels(px, tex.width, minX, minY, cw, ch));
+            result.Apply();
+            return result;
+        }
+
         public static void WriteUISpriteToFile(Sprite sprite, string folder, string UIName, Color tint = default)
         {
             if (!Directory.Exists(folder))
@@ -99,8 +121,18 @@ namespace OniExtract2024.utils
             if (tex == null)
                 return;
 
-            var imageBytes = tex.EncodeToPNG();
+            // Trim transparent padding baked into the atlas sprite rect. Buildings the
+            // hi-res snapshot pass can't render (tiles — no KBatchedAnimController) keep
+            // this atlas icon as their final ui_image, and the website stretches the whole
+            // PNG to the footprint, so any padding shows up as blank border in-editor.
+            // Same opaque-bbox rule as BuildingImageSnapshotter.TrimToOpaqueBBox.
+            var trimmed = TrimToOpaqueBBox(tex);
+
+            var imageBytes = (trimmed != null ? trimmed : tex).EncodeToPNG();
             File.WriteAllBytes(fileName, imageBytes);
+
+            if (trimmed != null)
+                Object.Destroy(trimmed);
         }
     }
 }

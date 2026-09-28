@@ -13,8 +13,9 @@
 ## 1. `building.json` — `utilities[]` (authoritative connection-port list)
 
 Every building has a `utilities` array: **one entry per connection port**, each with the cell it
-occupies. This is the source of truth for where wires/pipes/rails/automation connect. Buildings
-that transport but don't connect (e.g. `Wire`, `GasConduit`) have an **empty** array.
+occupies. This is the source of truth for where wires/pipes/rails/automation connect. Plain
+transport segments (e.g. `Wire`, `GasConduit`) have an **empty** array — but *bridges* are not
+transport-only: they connect at two cells and **do** get ports (see the bridge note below).
 
 ```jsonc
 "utilities": [
@@ -62,8 +63,44 @@ Notes:
 | `BatterySmart` | `PowerOutput(0,0)`, `LogicOutput(0,0)` |
 | `LogicGateAND` | `LogicInput(0,0)`, `LogicInput(0,1)`, `LogicOutput(1,0)` |
 | `Wire` | *(empty — transport only)* |
+| `WireBridge` | `PowerInput(-1,0)`, `PowerOutput(1,0)` |
+| `GasConduitBridge` | `GasInput(-1,0)`, `GasOutput(1,0)` |
 
-Coverage: **275 / 449** buildings have at least one port.
+Coverage: **280 / 449** buildings have at least one port.
+
+### Bridges
+
+A *bridge* (gas/liquid/solid/power/logic) is a pass-through link with two connection cells, one at
+each end. It is **not** transport-only. Each conduit bridge emits an input-end + output-end port
+(`GasInput`/`GasOutput`, `LiquidInput`/`LiquidOutput`, `SolidInput`/`SolidOutput`); each wire
+bridge emits `PowerInput` + `PowerOutput`; logic bridges emit two logic ports. The Input/Output
+labels are a convention for the two ends — current flows both ways through a bridge.
+
+> ⚠️ **Pending re-run:** the power-connection fixes below are in the current mod DLL but, like the
+> connection sprites (§4), require a full game restart + re-export to appear on disk. Until then the
+> affected buildings still read `utilities: []`.
+>
+> Fixed power ports now emitted (gated on the game's authoritative `BuildingDef.RequiresPowerInput`
+> / `RequiresPowerOutput` flags rather than on `EnergyConsumer`/`EnergyGenerator` components):
+> - **Wire bridges** — `WireBridge`, `WireBridgeHighWattage`, `WireRefinedBridge`,
+>   `WireRefinedBridgeHighWattage`, `WireRubberBridge` → `PowerInput`/`PowerOutput` at link1/link2.
+> - **Non-`EnergyGenerator` producers** — `SolarPanel`, `StaterpillarGenerator`, `DevGenerator`,
+>   `RocketInteriorPowerPlug` produce power without an `EnergyGenerator` component → now get
+>   `PowerOutput`.
+> - **Power switches** — `Switch`, `PressureSwitchGas`, `PressureSwitchLiquid`,
+>   `TemperatureControlledSwitch` (all `CircuitSwitch`, 1x1) → `PowerInput` + `PowerOutput`, both at
+>   `(0,0)` (the wire passes through their single cell).
+> - **Zero-draw consumers** — e.g. `PowerTransformer` now gets its `PowerInput` even though its
+>   active draw is 0.
+>
+> Correctly still empty: `SushiBar` (`RequiresPowerInput=false` — decorative), and plain transport
+> (`Wire`, `HighWattageWire`, `WireRefined`, `WireRefinedHighWattage`, `WireRubber`).
+
+> **Networks with no port type (still empty `utilities[]`, by design):** `HEPBridgeTile`
+> (radbolt / high-energy-particle network), `TravelTubeWallBridge` (transit tube), and
+> `ModularLaunchpadPortBridge` (rocket launchpad). The `type` enum has no value for these
+> networks, so they emit no ports. Adding them would require new `ConnectionType` values **and**
+> matching `ui_image/` icons — file an issue if the front-end needs them.
 
 ---
 
@@ -120,15 +157,14 @@ time). Wires have `energyConsumer: null`.
 ### `powerInputOffset` / `powerOutputOffset`
 
 ```jsonc
-"powerInputOffset":  { "x": 0, "y": 1 }   // present on power-consuming buildings (133)
-"powerOutputOffset": { "x": 0, "y": 0 }   // present on generators/batteries (5)
+"powerInputOffset":  { "x": 0, "y": 1 }   // present on power-consuming buildings (RequiresPowerInput)
+"powerOutputOffset": { "x": 0, "y": 0 }   // present on every power producer/store (RequiresPowerOutput, EnergyGenerator, or Battery)
 ```
-The key is **omitted** (absent, not `null`) when the connection doesn't exist.
-
-> Minor edge case: `powerInputOffset` is gated on `RequiresPowerInput`, while the `PowerInput`
-> entry in `utilities[]` is gated on `EnergyConsumptionWhenActive > 0`. These differ for a single
-> building that requires power input but has zero active draw. **Prefer `utilities[]`** as the
-> authoritative port source.
+The key is **omitted** (absent, not `null`) when the connection doesn't exist. Both are now gated
+on the same `RequiresPowerInput` / `RequiresPowerOutput` flags as the matching `utilities[]`
+entries, so they stay in sync — but they remain **producer/consumer only**: pass-through power
+buildings (wire bridges, switches) appear **only** in `utilities[]`, with no `*Offset` field.
+**Prefer `utilities[]`** as the authoritative port source.
 
 ### `battery` — storage (6)
 
@@ -198,3 +234,6 @@ the per-building UI images:
 4. **Segment sprites** — load `connection_sprites/{name}/{bitmask}.png`; after the next in-game
    sprite re-run this will include the 14 bridges.
 5. **Port icons** — map `type` → icon via the table in §5.
+6. **Areas of effect** — light cast, intake reach, machine operating ranges, radiation and
+   sky scans ship per building in `areasOfEffect[]`; consumer guide in
+   [FRONTEND_AREA_OF_EFFECT.md](FRONTEND_AREA_OF_EFFECT.md).
