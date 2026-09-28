@@ -263,6 +263,12 @@ namespace OniExtract2024.building
                 + mismatched + " mismatched, " + absent + " png missing.");
         }
 
+        private static readonly byte[] PngHeaderPrefix =
+        {
+            0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A,
+            0, 0, 0, 13, (byte)'I', (byte)'H', (byte)'D', (byte)'R',
+        };
+
         // Reads width/height from a PNG's IHDR chunk (bytes 16..23, big-endian) without
         // decoding the image.
         private static bool TryReadPngSize(string path, out int width, out int height)
@@ -277,6 +283,10 @@ namespace OniExtract2024.building
                 {
                     if (fs.Read(header, 0, 24) < 24) return false;
                 }
+                // 8-byte signature, then a 13-byte IHDR as the first chunk. Anything else is
+                // not a PNG we wrote, so it must not count as a measured render.
+                for (int i = 0; i < PngHeaderPrefix.Length; i++)
+                    if (header[i] != PngHeaderPrefix[i]) return false;
                 width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
                 height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
                 return width > 0 && height > 0;
