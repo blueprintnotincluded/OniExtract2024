@@ -14,7 +14,7 @@ namespace OniExtract2024
         public float maxCapacity;
         // true → the slider steps in whole units (item counts) rather than fractional kg.
         public bool wholeValues;
-        // Display unit for the slider ("kg" for mass; unit-count storages vary).
+        // Display unit for the slider ("kg" for mass; "Critters", "Radbolts", ... otherwise).
         public string units;
         public string source;
     }

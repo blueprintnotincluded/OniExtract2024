@@ -29,16 +29,16 @@ Always present:
 
 | Key | Type | What |
 |---|---|---|
-| `showInBuildMenu` | `bool` | `BuildingDef.ShowInBuildMenu`. With Spaced Out active, `false` for every rocket module (`BuildingTemplates.ExtendBuildingToRocketModule` clears it when cluster space is enabled) and a few special parts. Sits beside `deprecated` / `debugOnly`. Without the DLC the base-game rocket parts (`CommandModule`, `SteamEngine`, ...) are `isRocketModule: true` **and** in the rocketry build-menu category with this `true`; they are not cluster modules and never appear in `rocketModuleMenu`. |
+| `showInBuildMenu` | `bool` | `BuildingDef.ShowInBuildMenu`. With Spaced Out active, `false` for every rocket module (`BuildingTemplates.ExtendBuildingToRocketModule` clears it when cluster space is enabled) and for 44 other buildings the player never builds from the menu (POI and Gravitas props, rocket-interior ports, `Headquarters`, ...), so `false` does not imply a module. Sits beside `deprecated` / `debugOnly`. Without the DLC the base-game rocket parts (`CommandModule`, `SteamEngine`, ...) are `isRocketModule: true` **and** in the rocketry build-menu category with this `true`; they are not cluster modules and never appear in `rocketModuleMenu`. |
 
 Rocketry, present only when applicable:
 
 | Key | Type | Present on | What |
 |---|---|---|---|
 | `isRocketModule` | `true` | modules | Prefab carries `RocketModule` (or `RocketModuleCluster`). |
-| `attachableTo` | `string` | modules | Hardpoint type this building must sit on. `"Rocket"` for every module (`BuildingDef.AttachmentSlotTag`). |
-| `attachablePosition` | `{x,y}` | modules | Cell of *this* building (offset from its origin) that lands on the hardpoint. `(0,0)` for all vanilla modules. |
-| `attachPoints` | `[{offset:{x,y}, tag}]` | modules that carry another module, `LaunchPad` | Hardpoints this building offers, offset from its origin. One `Rocket` point at `(0, heightInCells)` for stackable modules; `(0, 2)` for the LaunchPad. Absent on nosecones and other top-only modules. |
+| `attachableTo` | `string` | modules, plus a few non-rocket buildings | Hardpoint type this building sits on (`BuildingDef.AttachmentSlotTag`). `"Rocket"` for every module. Also on `OilWellCap` (`OilWell`), `MonumentMiddle`, `MonumentTop`, `LadderBed`, `ReefGenerator`, `UnderwaterVentDrill`, `CrewCapsule`, so match on the tag rather than on presence. **Not** on the `LaunchPad`. |
+| `attachablePosition` | `{x,y}` | same as `attachableTo` | Cell of *this* building (offset from its origin) that lands on the hardpoint. `(0,0)` for all vanilla buildings. |
+| `attachPoints` | `[{offset:{x,y}, tag}]` | modules that carry another module, `LaunchPad`, `LadderBed`, `MonumentBottom`, `MonumentMiddle` | Hardpoints this building offers, offset from its origin. One `Rocket` point at `(0, heightInCells)` for stackable modules; `(0, 2)` for the LaunchPad. Absent on nosecones and other top-only modules. |
 | `rocketModulePerformance` | `{burden, enginePower, fuelKilogramPerDistance}` | cluster modules | The stats behind rocket speed and fuel use. |
 | `moduleBuildConditions` | `string[]` | cluster modules | Names of the game's module-screen constraints: `TopOnly`, `EngineOnBottom`, `LimitOneEngine`, `LimitOneCommandModule`, `RocketHeightLimit`, `NoFreeRocketInterior`, `LimitOneRoboPilotModule`, plus the always-present `ResearchCompleted`, `MaterialsAvailable`, `PlaceSpaceAvailable`. |
 
@@ -46,12 +46,12 @@ Settings ranges, present only when the component exists:
 
 | Key | Type | What |
 |---|---|---|
-| `prioritizable` | `true` | Accepts a work priority (`buildingData.Prioritizable`). |
+| `prioritizable` | `true` | The completed building keeps a priority the player can set (storage, fabricators, doors, ...). Absent on wires, pipes, tiles and other passive buildings. A blueprint can still carry `buildingData.Prioritizable` for any building: the mod applies it as the build priority. |
 | `userNameable` | `true` | Player can rename it (`buildingData.UserNameable.savedName`). |
 | `door` | `{doorType, hasComplexUserControls, allowAutoControl}` | `doorType` ∈ `Pressure`, `ManualPressure`, `Internal`, `Sealed` (`buildingData.Door.requestedState`). |
-| `valve` | `{conduitType, maxFlow}` | Flow slider bound, kg/s (`buildingData.Valve.DesiredFlow`). |
+| `valve` | `{conduitType, maxFlow}` | Flow slider bound, kg/s (`buildingData.Valve.DesiredFlow`). Only `GasValve` and `LiquidValve` in vanilla; the shutoffs have no slider and no key. |
 | `limitValve` | `{conduitType, maxLimitKg, displayUnitsInsteadOfMass}` | Limit slider bound (`buildingData.LimitValve.Limit`). |
-| `userControlledCapacity` | `{minCapacity, maxCapacity, wholeValues, units, source}` | Capacity slider bounds (`buildingData.IUserControlledCapacity.UserMaxCapacity`, `buildingData.StorageTile`). `source` is the game component the range came from. |
+| `userControlledCapacity` | `{minCapacity, maxCapacity, wholeValues, units, source}` | Capacity slider bounds (`buildingData.IUserControlledCapacity.UserMaxCapacity`, `buildingData.StorageTile`). `units` is `kg`, `Critters` or `Radbolts`. `source` is the game component the range came from. |
 
 Unchanged but relevant: `rocketEngineCluster.maxHeight` and `.maxModules` (the engine's stack
 limits) were already exported; `tags[]` already contained `RocketModule` / `NoseRocketModule` /
@@ -149,7 +149,8 @@ the example above uses 8 of 35).
 
 8. When adding `Prioritizable`, `Door`, `Valve`, `LimitValve`, `StorageTile`,
    `IUserControlledCapacity` and `UserNameable` to `SETTINGS_CATALOG`, use the per-building
-   ranges here to render controls: show a priority control only when `prioritizable` is set,
+   ranges here to render controls: offer the priority as a standing setting when
+   `prioritizable` is set (for other buildings a stored priority is only the build priority),
    clamp the valve slider to `[0, valve.maxFlow]`, the limit slider to `[0, limitValve.maxLimitKg]`
    (label it as units when `displayUnitsInsteadOfMass`), and the capacity slider to
    `[minCapacity, maxCapacity]` stepping in whole numbers when `wholeValues`. `door.doorType`
@@ -173,10 +174,19 @@ the example above uses 8 of 35).
 
 ## 5. Verifying a fresh export
 
-**Status: not yet run in-game.** Every value in this document comes from the game's source
-(U59 decompile) and the unit tests, not from an export produced by this code; the on-disk
-`building.json` predates it. Treat the numbers as expected values until these spot checks pass
-on a fresh main-menu export (`export/database/building.json`):
+**Status: checked against the 2026-10-03 export** (U59-744825, 487 buildings, 32 modules).
+Every rocketry value below matched. Four things did not, and were fixed in the exporter the
+same day; they need one more export to confirm:
+
+- `prioritizable` was `true` on all 487 buildings (it tested for the component, which every
+  building has). Now `Prioritizable.IsPrioritizable()`.
+- `valve` was also on `GasLogicValve` / `LiquidLogicValve` (shutoffs, no slider). Now requires
+  the `Valve` component.
+- `attachableTo: "Rocket"` was on the `LaunchPad`, and `"MonumentBottom"` on `MonumentBottom`.
+  Now emitted only for buildings that sit on a hardpoint.
+- `userControlledCapacity.units` carried the game's leading space (`" kg"`). Now trimmed.
+
+Spot checks for a fresh main-menu export (`export/database/building.json`):
 
 - `rocketModuleMenu` starts `CO2Engine, SugarEngine, SteamEngineCluster, ...` and ends
   `..., ArtifactCargoBay, ScannerModule` (32 entries when every id in the game's list is
@@ -193,4 +203,4 @@ on a fresh main-menu export (`export/database/building.json`):
   `source:"StorageLocker"`, and `userNameable: true`, `prioritizable: true`;
   `StorageTile.userControlledCapacity.source == "StorageTile.Def"`; `Door.door.doorType == "Internal"`
   (`Door` is the plain Pneumatic Door) with `prioritizable: true`; `Wire` and `Tile` carry none of
-  the settings keys.
+  the settings keys; `GasLogicValve` has no `valve`.

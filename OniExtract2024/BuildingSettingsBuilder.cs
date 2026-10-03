@@ -12,19 +12,25 @@ namespace OniExtract2024
     {
         public static void Apply(BBuildingEntity b, GameObject go)
         {
-            // Prioritizable lands on the BuildingComplete prefab only through the config's
-            // Prioritizable.AddRef(go) (DoPostConfigureComplete); BuildingLoader adds one to the
-            // under-construction template, never to the complete building. Runtime AddRef calls
-            // (e.g. Deconstructable while a deconstruct is queued) are transient and not what a
-            // blueprint's buildingData.Prioritizable describes.
-            b.prioritizable = go.GetComponent<Prioritizable>() != null;
+            // Every building has a Prioritizable component (BuildingConfigManager puts one on the
+            // base template), so its presence says nothing. What makes a completed building
+            // prioritizable is the config's Prioritizable.AddRef(go) in DoPostConfigureComplete:
+            // it bumps the serialized refCount on the prefab, and the game only shows the
+            // priority control while IsPrioritizable() (refCount > 0). Runtime AddRef calls
+            // (e.g. Deconstructable while a deconstruct is queued) are transient and not on the
+            // prefab.
+            Prioritizable prioritizable = go.GetComponent<Prioritizable>();
+            b.prioritizable = prioritizable != null && prioritizable.IsPrioritizable();
             b.userNameable = go.GetComponent<UserNameable>() != null;
 
             Door door = go.GetComponent<Door>();
             if (door != null) b.door = new OutDoor(door);
 
+            // Valve is the flow-slider component (buildingData.Valve.DesiredFlow). ValveBase alone
+            // is not enough: the shutoffs (GasLogicValve / LiquidLogicValve) are OperationalValve,
+            // a ValveBase with no Valve and no slider.
             ValveBase valveBase = go.GetComponent<ValveBase>();
-            if (valveBase != null) b.valve = new OutValve(valveBase);
+            if (valveBase != null && go.GetComponent<Valve>() != null) b.valve = new OutValve(valveBase);
 
             LimitValve limitValve = go.GetComponent<LimitValve>();
             if (limitValve != null) b.limitValve = new OutLimitValve(limitValve);
@@ -105,9 +111,11 @@ namespace OniExtract2024
             return null;
         }
 
+        // The game's unit strings are suffixes with a leading space (" kg", " Critters"); the
+        // export carries the bare unit.
         private static string LocStringToString(LocString s)
         {
-            return s == null ? null : s.ToString();
+            return s == null ? null : s.ToString().Trim();
         }
 
         // Evaluates a prefab-time getter that may dereference unbound runtime fields.
