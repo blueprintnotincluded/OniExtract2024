@@ -21,7 +21,9 @@ namespace OniExtract2024.building
     /// </summary>
     public static class ExportBuildingImages
     {
-        public static bool IsRunning { get; private set; }
+        private const string ExportName = "building images";
+
+        public static bool IsRunning => InGameExport.Running == ExportName;
 
         public static string OutputDir =>
             Path.Combine(Util.RootFolder(), "export", "ui_image");
@@ -72,22 +74,14 @@ namespace OniExtract2024.building
 
         public static void Start()
         {
-            if (Game.Instance == null)
-            {
-                Debug.LogWarning("OniExtract: building-image export requires a loaded game.");
-                return;
-            }
-            if (IsRunning)
-            {
-                Debug.LogWarning("OniExtract: building-image export already running.");
-                return;
-            }
-            Game.Instance.StartCoroutine(Run());
+            if (InGameExport.TryBegin(ExportName))
+                Game.Instance.StartCoroutine(Run());
         }
 
         private static IEnumerator Run()
         {
-            IsRunning = true;
+            // Replaced on success; what the user sees if the export throws part-way.
+            string summary = "The building images export stopped early. See Player.log for the error.";
             try
             {
                 Rects.Clear();
@@ -108,7 +102,10 @@ namespace OniExtract2024.building
                     cell = Grid.CellDownLeft(cell);
                 Vector3 spawnPos = Grid.CellToPos(cell);
 
+                // notRendered: spawned, but gone or empty by the time the snapshot ran, so no
+                // image was written (a mod that deletes its own building on spawn, say).
                 int exported = 0, skipped = 0;
+                var notRendered = new List<string>();
                 foreach (var def in Assets.BuildingDefs)
                 {
                     if (!BuildingSpawnFilter.IsRenderable(def))
@@ -132,7 +129,12 @@ namespace OniExtract2024.building
                     // after KDestroyGameObject — the while loop handles this robustly.
                     while (!temp.IsNullOrDestroyed())
                         yield return null;
-                    exported++;
+                    // The snapshotter records a rect exactly when it writes the PNG, so the
+                    // rect is the evidence that this building was exported.
+                    if (Rects.ContainsKey(def.PrefabID))
+                        exported++;
+                    else
+                        notRendered.Add(def.PrefabID);
                 }
 
                 // Terrain features (geysers, vents, volcanoes, oil reservoir). Not BuildingDefs,
@@ -174,18 +176,28 @@ namespace OniExtract2024.building
                     snapshotter.StartExport(OutputDir, Rects, cellW, cellH);
                     while (!temp.IsNullOrDestroyed())
                         yield return null;
-                    terrainExported++;
+                    if (Rects.ContainsKey(prefabName))
+                        terrainExported++;
+                    else
+                        notRendered.Add(prefabName);
                 }
 
                 Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
                 Debug.Log("OniExtract: terrain-feature export complete -> " + terrainExported + " exported, " + terrainSkipped + " skipped.");
+                if (notRendered.Count > 0)
+                    Debug.LogWarning("OniExtract: spawned but not rendered (no image written): " + string.Join(", ", notRendered));
 
                 PatchBuildingJsonRects(Rects);
                 VerifyRectsMatchPngs(Rects);
+
+                summary = "Building images exported: " + exported + " buildings and "
+                    + terrainExported + " terrain features rendered"
+                    + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
+                    + ".\n" + OutputDir;
             }
             finally
             {
-                IsRunning = false;
+                InGameExport.End(summary);
             }
         }
 

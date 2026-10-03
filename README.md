@@ -125,8 +125,10 @@ icons (elements, items, critters, facades) are only written by the main-menu pas
 not affected.
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause
-screen (Esc), and click **Export Building Images**. Progress is logged to `Player.log`
-(lines prefixed `OniExtract:`). The tool filters to `ShowInBuildMenu && !Deprecated`
+screen (Esc), and click **Export Building Images**. A banner at the top of the screen says the export has
+started and is replaced by a summary when it finishes (about a minute); progress is logged to
+`Player.log` (lines prefixed `OniExtract:`). Only one of the two pause-screen exports runs at a
+time — the second is refused, with a message, until the first has finished. The tool filters to `ShowInBuildMenu && !Deprecated`
 buildings, so deprecated and dev-only entries are skipped automatically.
 
 ### Implementation notes
@@ -182,8 +184,12 @@ export/connection_sprites/{prefabId}/{bitmask}.png   (bitmask 0–15)
 | Tiles | `isKAnimTile` | Resample the building's `BlockTileAtlas` into a fixed 1.5-cell canvas (cell centred) reproducing the game's geometry: connected edges trim flush to the cell boundary, disconnected edges overhang it by ¼ cell so caps bleed into the neighbour and tiles join seamlessly (no placement needed). `15.png` fills exactly the centre cell — the website's scale reference | [TileConnectionExtractor.cs](OniExtract2024/connection/TileConnectionExtractor.cs) |
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause screen
-(Esc), and click **Export Connection Sprites**. Progress and the output path are logged to
-`Player.log` (lines prefixed `OniExtract:`).
+(Esc), and click **Export Connection Sprites**. A banner at the top of the screen says the export has started
+and is replaced by a summary when it finishes (about ten seconds). Progress and the output path
+are logged to `Player.log` (lines prefixed `OniExtract:`).
+
+Bridges (wire, pipe, rail, logic) are deliberately not in this export: a bridge has one fixed
+sprite and does not redraw to match its neighbours, so its `ui_image` icon is all there is.
 
 ## Downstream use
 

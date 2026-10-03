@@ -29,7 +29,9 @@ namespace OniExtract2024.connection
     /// </summary>
     public static class ExportConnectionSprites
     {
-        public static bool IsRunning { get; private set; }
+        private const string ExportName = "connection sprites";
+
+        public static bool IsRunning => InGameExport.Running == ExportName;
 
         public static string RootDir =>
             Path.Combine(Util.RootFolder(), "export", "connection_sprites");
@@ -38,27 +40,18 @@ namespace OniExtract2024.connection
 
         public static void Start()
         {
-            if (Game.Instance == null)
-            {
-                Debug.LogWarning("OniExtract: connection-sprite export requires a loaded game.");
-                return;
-            }
-            if (IsRunning)
-            {
-                Debug.LogWarning("OniExtract: connection-sprite export already running.");
-                return;
-            }
-            Game.Instance.StartCoroutine(Run());
+            if (InGameExport.TryBegin(ExportName))
+                Game.Instance.StartCoroutine(Run());
         }
 
         private static IEnumerator Run()
         {
-            IsRunning = true;
+            // Replaced on success; what the user sees if the export throws part-way.
+            string summary = "The connection sprites export stopped early. See Player.log for the error.";
             Debug.Log("OniExtract: connection-sprite export started -> " + RootDir);
 
             int tileBuildings = 0, tileSprites = 0;
             int utilityBuildings = 0;
-            int bridgeBuildings = 0;
 
             try
             {
@@ -97,41 +90,27 @@ namespace OniExtract2024.connection
                         continue;
 
                     var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
-                    utilityBuildings++;
                     yield return snapshotter.ExportThenDestroy();
+                    // Count what was written, not what was attempted: a building with no
+                    // usable connection manager is spawned, skipped with a warning, and
+                    // leaves no sprites behind.
+                    if (snapshotter.WroteSprites)
+                        utilityBuildings++;
                 }
                 Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
 
-                // --- 3) Bridges: non-utility, non-tile buildings with KAnimGraphTileVisualizer
-                // (e.g. wire/pipe bridges). isUtility=false so they're skipped by pass 2, but
-                // they carry KAnimGraphTileVisualizer and animate connection states identically.
-                foreach (var def in Assets.BuildingDefs)
-                {
-                    if (def == null || def.isKAnimTile || def.isUtility)
-                        continue;
-                    if (def.BuildingComplete == null)
-                        continue;
-                    if (!def.BuildingComplete.TryGetComponent<KAnimGraphTileVisualizer>(out _))
-                        continue;
-                    if (!def.BuildingComplete.TryGetComponent<KBatchedAnimController>(out _))
-                        continue;
-
-                    GameObject temp = def.Create(spawnPos, null,
-                        new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
-                    if (temp == null)
-                        continue;
-
-                    var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
-                    bridgeBuildings++;
-                    yield return snapshotter.ExportThenDestroy();
-                }
-                Debug.Log("OniExtract: bridges exported - " + bridgeBuildings + " buildings.");
+                // There is no third pass for bridges. A wire or pipe bridge has one fixed
+                // sprite: it carries no KAnimGraphTileVisualizer and does not redraw to match
+                // its neighbours. Every config that adds that component also sets isUtility,
+                // so pass 2 already covers everything that has connection states.
 
                 Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
+                summary = "Connection sprites exported: " + tileBuildings + " tiles and "
+                    + utilityBuildings + " utilities.\n" + RootDir;
             }
             finally
             {
-                IsRunning = false;
+                InGameExport.End(summary);
             }
         }
     }

@@ -199,13 +199,16 @@ export/connection_sprites/{name}/{bitmask}.png      // name == building.json `na
 `5.png` = Left+Up (corner). `15.png` = all four sides. Pick the file matching which of the four
 neighbours share the same network type.
 
-> **⚠️ Coverage status in *this* export:** the PNGs are fresh, but the folder still contains only
-> **31 buildings (wires, gas/liquid conduits, logic, tiles)** and **none of the 14 bridges**. The
-> bridge pass is in the current mod build, but the in-game sprite export that produced these ran
-> against the *previously loaded* mod — rebuilding the DLL does not hot-swap a running game. To get
-> the bridges: **fully restart the game so the new DLL loads, then trigger the connection-sprite
-> export (pause-screen button) again.** Until then, fall back to bitmask `0` for any building
-> without a `connection_sprites/{name}/` folder.
+> **Coverage:** the folder holds the buildings that redraw to match their neighbours — wires,
+> gas/liquid/solid conduits, logic wire and ribbon, travel tubes and tiles (33 in the 2026-10-03
+> export). **Bridges are not among them and never will be.** A bridge has one fixed sprite: in the
+> game it carries no `KAnimGraphTileVisualizer` and does not change with its neighbours, so there
+> are no 16 states to export. Draw a bridge from its `ui_image` icon. More generally, a building
+> with no `connection_sprites/{name}/` folder has no connection sprites to draw from, so fall back
+> to its `ui_image` icon; the missing folder says nothing more than that (it is also what an
+> export looks like before the connection-sprite tool has been run). (An earlier version of this note
+> promised 14 bridge folders from a "bridge pass" in the exporter; that pass could never match a
+> building and has been removed.)
 
 ---
 
@@ -231,8 +234,8 @@ the per-building UI images:
    same `type`.
 2. **Overlay filtering** — group/filter buildings by `viewMode`; treat `null` as "no overlay".
 3. **Labels** — `energyConsumer.baseWattageRating` (W) for draw; `battery.capacity` (J) for storage.
-4. **Segment sprites** — load `connection_sprites/{name}/{bitmask}.png`; after the next in-game
-   sprite re-run this will include the 14 bridges.
+4. **Segment sprites** — load `connection_sprites/{name}/{bitmask}.png` for buildings that have
+   a folder; bridges have none and use their `ui_image` icon.
 5. **Port icons** — map `type` → icon via the table in §5.
 6. **Areas of effect** — light cast, intake reach, machine operating ranges, radiation and
    sky scans ship per building in `areasOfEffect[]`; consumer guide in

@@ -70,6 +70,9 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>$(GameLibsFolder)\UnityEngine.UI.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(GameLibsFolder)\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(GameLibsFolder)\UnityEngine.ImageConversionModule.dll</HintPath>
@@ -110,6 +113,7 @@
     <Compile Include="ExportEntity.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />
+    <Compile Include="InGameExport.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="model\BEquipment.cs" />
     <Compile Include="model\BSeed.cs" />

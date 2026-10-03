@@ -28,6 +28,10 @@ namespace OniExtract2024.connection
         private RenderTexture targetTexture;
         private static readonly int DrawLayer = 30;
 
+        // True once this building's sprites are on disk. A plain field, so the caller can
+        // still read it after ExportThenDestroy has destroyed the host object.
+        public bool WroteSprites { get; private set; }
+
         public IEnumerator ExportThenDestroy()
         {
             // Give the freshly-created building a frame (and a moment) to initialise its
@@ -73,7 +77,7 @@ namespace OniExtract2024.connection
                 shots[i] = SnapShot();
             }
 
-            CropAndWrite(dir, shots);
+            WroteSprites = CropAndWrite(dir, shots);
 
             foreach (var t in shots)
             {
@@ -87,8 +91,8 @@ namespace OniExtract2024.connection
         // centred on the frame centre (where the cell sits) and just large enough to
         // hold the largest state's content. Cropping the whole set identically - rather
         // than per-state bounding boxes - preserves the cell anchor so the sprites still
-        // tile against each other.
-        private static void CropAndWrite(string dir, Texture2D[] shots)
+        // tile against each other. Returns false when there was nothing to write.
+        private static bool CropAndWrite(string dir, Texture2D[] shots)
         {
             int w = 0, h = 0;
             foreach (var t in shots)
@@ -96,7 +100,7 @@ namespace OniExtract2024.connection
                 if (t != null) { w = t.width; h = t.height; break; }
             }
             if (w == 0)
-                return;
+                return false;
 
             int cx = w / 2, cy = h / 2;
             var pixels = new Color[shots.Length][];
@@ -126,10 +130,11 @@ namespace OniExtract2024.connection
             half += CropMargin;
             half = Mathf.Min(half, Mathf.Min(cx, cy)); // stay within the frame
             if (half < 1)
-                return;
+                return false;
 
             int side = 2 * half;
             int sx0 = cx - half, sy0 = cy - half;
+            bool wrote = false;
             for (int k = 0; k < shots.Length; k++)
             {
                 if (pixels[k] == null)
@@ -150,7 +155,9 @@ namespace OniExtract2024.connection
                 outTex.Apply();
                 File.WriteAllBytes(Path.Combine(dir, k + ".png"), outTex.EncodeToPNG());
                 Destroy(outTex);
+                wrote = true;
             }
+            return wrote;
         }
 
         private Texture2D SnapShot()
