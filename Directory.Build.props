@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    Machine-specific paths, shared by every project that links against the game
+    (OniExtract2024 and OniExtract2024.Tests).
+
+    The defaults below match a standard Steam install. If yours differs, do not edit this
+    file: create Directory.Build.user.props next to it (it is gitignored) and set the
+    properties there, for example
+
+      <Project>
+        <PropertyGroup>
+          <GameLibsFolder>D:\Games\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsFolder>
+        </PropertyGroup>
+      </Project>
+
+    or pass them on the command line with -p:GameLibsFolder=... / -p:ModFolder=...
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.user.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.user.props')" />
+
+  <PropertyGroup>
+    <!-- The game's Managed folder: Assembly-CSharp.dll, UnityEngine.dll and friends. -->
+    <GameLibsFolder Condition="'$(GameLibsFolder)' == ''">C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsFolder>
+    <!-- Where the post-build step deploys the mod; the game loads dev mods from here. -->
+    <ModFolder Condition="'$(ModFolder)' == ''">$(UserProfile)\Documents\Klei\OxygenNotIncluded\mods\dev</ModFolder>
+  </PropertyGroup>
+</Project>

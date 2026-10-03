@@ -1,3 +1,11 @@
+> **Archived — resolved, kept for provenance.** This is not current state.
+> The website chose **Option A**: its importer reads `ui_image_rects.json` from the export root
+> and applies it to terrain features (confirmed in `convert-export-2024.ts` at website commit
+> 44e3429, 2026-09-27). Option B was never built. The durable conclusion — that file is now
+> part of the export contract — lives in [../EXPORT_SCHEMA.md](../EXPORT_SCHEMA.md)
+> ("ui_image_rects.json") and [../WEBSITE_POSTPROCESSING.md](../WEBSITE_POSTPROCESSING.md)
+> ("Two delivery paths").
+
 # Handoff: uiImageRect for terrain features
 
 Direction: export → website.
@@ -24,7 +32,7 @@ Same coordinate space and semantics as buildings — origin at the footprint's b
 (3×3 footprint; art overhangs slightly on all four sides.)
 
 > Separately, a fix landed for `uiImageRect`s that disagreed with their PNG on 302 of 342
-> buildings. That is a data fix needing no website change — see `archive/UIIMAGERECT_DURABILITY.md`,
+> buildings. That is a data fix needing no website change — see `UIIMAGERECT_DURABILITY.md`,
 > Part 2.
 
 ---

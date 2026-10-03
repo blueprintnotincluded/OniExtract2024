@@ -32,7 +32,9 @@ blueprintnotincluded website. It runs inside the game. That shapes everything be
   in scope. Keep changes narrowly related to the request and preserve unrelated work.
 - Never make changes on `master`. Before editing, verify the current branch and worktree. If
   on `master`, create or request a task branch first.
-- Do not commit, push, open a PR, or mutate external systems unless the user asks.
+- Commit on the task branch and open a **draft** pull request as "Work Session Lifecycle" in
+  `CLAUDE.md` describes. Never push to `master`, never mark a pull request ready or merge it,
+  and do not mutate any other external system unless the user asks.
 - Do not kill the user's running game process to make a build succeed — say the game is
   running and let them close it.
 - The export output directory (`Documents\Klei\OxygenNotIncluded\export`) can represent hours
@@ -50,6 +52,8 @@ blueprintnotincluded website. It runs inside the game. That shapes everything be
 - `utilities[]` must keep carrying every connection type with cell offsets. The power-specific
   fields are additive and never a replacement — this has been regressed once before.
 - Tests are xunit. Do not introduce another test framework.
+- Comments are plain `//` explaining why, with a `/// <summary>` on a type where it helps.
+  There is no XML-doc coverage target; do not add `///` blocks to satisfy one.
 - Read building data from `buildingDef.BuildingComplete`, never from a spawned instance.
 - Use `ilspycmd` to verify game-assembly details. Deep runtime reflection overflows the Unity
   stack.
@@ -63,5 +67,6 @@ Choose checks proportional to the change. Fastest first:
 2. Build the mod with MSBuild (see `CLAUDE.md`) — requires the game's `Managed` folder, and
    requires ONI to be closed (or `-p:ModFolder=<temp-dir>` to compile without deploying).
 3. `dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj` — requires the game installed.
+   It builds the mod project as a dependency, so it also redeploys the mod and needs ONI closed.
 4. In-game run of the affected export path, checking `Player.log` for `OniExtract:` lines.
    Only a human can do this. Name it as outstanding when you cannot.

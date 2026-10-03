@@ -1,3 +1,11 @@
+> **Archived — resolved, kept for provenance.** This is not current state.
+> The website's importer passes `mod`, `modTitle` and `offlineMerged` through and builds its
+> mod index from the per-building `mod` values, as §6 asks (confirmed in
+> `convert-export-2024.ts` at website commit 44e3429, 2026-09-27). The field definitions live
+> in [../EXPORT_SCHEMA.md](../EXPORT_SCHEMA.md) (`mod`, `modTitle`, root `mods`). The counts
+> and the per-mod table in §0 and §4 describe the 2026-07-19 export and are out of date —
+> Buildable Natural Tile, the one offline-merged building, has since exported natively.
+
 # Modded Buildings in the Export — Import & UI Guide
 
 **Take-to-website handoff, written 2026-07-19.** The export now contains buildings from
