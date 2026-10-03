@@ -174,19 +174,19 @@ the example above uses 8 of 35).
 
 ## 5. Verifying a fresh export
 
-**Status: checked against the 2026-10-03 export** (U59-744825, 487 buildings, 32 modules).
-Every rocketry value below matched. Four things did not, and were fixed in the exporter the
-same day; they need one more export to confirm:
+**Status: verified against the 2026-10-03 exports** (U59-744825, 488 buildings, 32 modules).
+The first export that day matched every rocketry value below and exposed four wrong fields;
+they were fixed in the exporter and the second export confirms each one:
 
 - `prioritizable` was `true` on all 487 buildings (it tested for the component, which every
-  building has). Now `Prioritizable.IsPrioritizable()`.
+  building has). Now `Prioritizable.IsPrioritizable()`: 168 buildings.
 - `valve` was also on `GasLogicValve` / `LiquidLogicValve` (shutoffs, no slider). Now requires
-  the `Valve` component.
+  the `Valve` component: `GasValve` and `LiquidValve` only.
 - `attachableTo: "Rocket"` was on the `LaunchPad`, and `"MonumentBottom"` on `MonumentBottom`.
-  Now emitted only for buildings that sit on a hardpoint.
+  Now emitted only for buildings that sit on a hardpoint: 39 buildings.
 - `userControlledCapacity.units` carried the game's leading space (`" kg"`). Now trimmed.
 
-Spot checks for a fresh main-menu export (`export/database/building.json`):
+Spot checks, all passing on that export (`export/database/building.json`):
 
 - `rocketModuleMenu` starts `CO2Engine, SugarEngine, SteamEngineCluster, ...` and ends
   `..., ArtifactCargoBay, ScannerModule` (32 entries when every id in the game's list is
