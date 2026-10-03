@@ -80,9 +80,9 @@ The `CopyModsToDevFolder` post-build target copies the DLLs and YAML to
 `<ModFolder>\OniExtract2024_dev\` (default `Documents\Klei\OxygenNotIncluded\mods\dev`). There
 is no separate install step.
 
-Both `OniExtract2024.csproj` and `OniExtract2024.Tests.csproj` hardcode `<GameLibsFolder>`. If
-the game lives elsewhere, both must be edited — they are tracked files, so that edit shows up
-as a dirty diff.
+`<GameLibsFolder>` and `<ModFolder>` are defined once, in `Directory.Build.props`, for both
+projects that link against the game. If the game lives elsewhere, set them in a gitignored
+`Directory.Build.user.props` beside it rather than editing a tracked file.
 
 ### Tests
 

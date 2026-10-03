@@ -24,8 +24,11 @@ download_depot <AppID> <DepotsID> <ManifestID>
 
 ## Build
 
-1. Check `<GameLibsFolder>` in `OniExtract2024\OniExtract2024.csproj`, adjust to your game installation.
-2. Check `<ModFolder>`, adjust to your mod installation.
+1. The game's `Managed` folder (`<GameLibsFolder>`) and the mod deploy folder (`<ModFolder>`) are
+   set in `Directory.Build.props`, with defaults for a standard Steam install.
+2. If yours differ, do not edit that file. Create `Directory.Build.user.props` beside it (it is
+   gitignored) and set the properties there; the comment at the top of `Directory.Build.props`
+   shows the shape.
 3. Run MSBuild from the terminal:
 
 ```powershell
