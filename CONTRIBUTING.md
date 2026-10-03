@@ -45,8 +45,8 @@ the previous one, and that is only checkable when the cleanup is not mixed with 
   (`gh pr create --repo blueprintnotincluded/OniExtract2024`).
 - Conventional commit subjects (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`).
 - Open it as a draft if it changes the export and has not been run in game yet.
-- CodeRabbit reviews a pull request when it is opened. It does not re-review on later pushes;
-  comment `@coderabbitai review` to ask for another pass.
+- CodeRabbit reviews a pull request when it is opened. If you push more commits afterwards and
+  they are not picked up, comment `@coderabbitai review` to have the new commits reviewed.
 - Issues are disabled on this repository. Raise problems in a pull request or with the
   maintainers directly.
 

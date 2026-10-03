@@ -42,8 +42,7 @@ download_depot <AppID> <DepotsID> <ManifestID>
 
 ### 通过版本发布
 
-1. 从本仓库的**Releases**中下载发布文件。解压缩。
-2. 复制**解压后的文件夹**到`Documents\Klei\OxygenNotIncluded\mods\dev` 。
+本仓库不发布 Releases，请按上面的“通过构建项目”从源码构建。
 
 在游戏中打开mod。重启游戏。导出数据将会放在`Documents\Klei\OxygenNotIncluded\export`。
 
