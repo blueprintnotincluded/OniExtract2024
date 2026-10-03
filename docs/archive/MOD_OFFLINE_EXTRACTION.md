@@ -1,3 +1,17 @@
+> **Archived — the pipeline this describes has been removed.** This is not current state.
+> Mod buildings reach the export by running the normal in-game export with the mods enabled;
+> every export pass iterates `Assets.BuildingDefs`, which includes them. The offline pipeline
+> (`mods/` and four `tools/*.ps1` scripts) was a fallback for mods that would not load in game.
+> Its only user, Buildable Natural Tile, has exported natively since the 2026-10-03 export, so
+> it was retired. To bring it back, the last commit that has it is `ed3f742`
+> (`git show ed3f742:mods/README.md` is the operational playbook; links to `mods/` below are
+> dead for the same reason).
+>
+> What stays useful here is the research: the kanim `BILD` format, the `IBuildingConfig` scan
+> for deciding whether a mod adds buildings, and how mod DLLs decompile.
+> [`tools/Parse-KanimBuild.ps1`](../../tools/Parse-KanimBuild.ps1) is kept as the working
+> parser for that format.
+
 # Extracting Mod Buildables Without Launching the Game
 
 Research findings (2026-07-18) on whether mod art and building data can be extracted
@@ -10,7 +24,7 @@ compatibility concerns, no Extract-mod changes needed.
 
 > **Status update (2026-07-19): implemented.** The property pipeline is built and all 5
 > buildable mods (15 buildings) are extracted to `mods/mod_database.json`. The operational
-> playbook — per-mod notes, refresh/merge scripts, schema — is **[mods/README.md](../mods/README.md)**.
+> playbook — per-mod notes, refresh/merge scripts, schema — is **mods/README.md**.
 > This file remains the research background (kanim format, decompile findings).
 
 ---
@@ -122,7 +136,7 @@ snapshotter gets for free from `KBatchedAnimController`.
   that converts kanim triplets → Spriter project / PNGs entirely offline. Since it's
   C#, its reader classes can be vendored/referenced directly rather than reimplementing.
 - Proof-of-concept BILD parser written during this research:
-  [`tools/Parse-KanimBuild.ps1`](../tools/Parse-KanimBuild.ps1) — parses header,
+  [`tools/Parse-KanimBuild.ps1`](../../tools/Parse-KanimBuild.ps1) — parses header,
   symbols, frames, hash table, and computes atlas pixel rects. Easy to port to C#
   if not using kanimal-SE.
 
@@ -142,39 +156,29 @@ building definitions straight out of mod DLLs. Both authoring styles decompile c
 
 ### PLib style (PeterHan mods, e.g. Airlock Door)
 
-`AirlockDoorConfig.CreateBuilding()` is a single `PBuilding` object initializer that
-literally lists everything:
+The building's config has a `CreateBuilding()` method that returns a single `PBuilding`
+object initializer, and that one initializer states almost everything the export needs as
+named properties: footprint (`Width`, `Height`), `HP`, the kanim (`Animation`), build-menu
+placement (`Category`, `SubCategory`), `ConstructionTime`, `Decor`, the `Ingredients` list
+(material tag plus a mass tier), `Placement` (a `BuildLocationRule`), `PowerInput` (wattage
+plus a cell offset), `LogicIO` ports and the unlocking `Tech`.
 
-```csharp
-new PBuilding("PAirlockDoor", ...) {
-    Width = 3, Height = 2, HP = 30,
-    Animation = "airlock_door_kanim",
-    Category = "Base", SubCategory = "doors",
-    ConstructionTime = 60f,
-    Decor = PENALTY.TIER1,
-    Ingredients = { new BuildIngredient("RefinedMetal", 4) },
-    Placement = (BuildLocationRule)6,
-    PowerInput = new PowerRequirement(120f, new CellOffset(0, 0)),
-    LogicIO = { Port.InputPort(...) },
-    Tech = "ImprovedGasPiping",
-    ...
-}
-```
-
-Plus `CreateBuildingDef()` overrides: `IsFoundation`, `ThermalConductivity`, etc.
+A few remaining values are set in a `CreateBuildingDef()` override, such as `IsFoundation`
+and `ThermalConductivity`.
 
 ### Vanilla style (e.g. Drains)
 
-```csharp
-BuildingTemplates.CreateBuildingDef("Drain", 1, 1, "drain_kanim", 100, 30f,
-    MASS, MATERIALS.ALL_METALS, 1600f, (BuildLocationRule)6,
-    PENALTY.TIER0, NOISE_POLLUTION.NONE, 0.2f);
-// width, height, kanim, HP, construction time, mass, materials,
-// melting point, placement, decor, noise, thermal conductivity
-```
+The config calls `BuildingTemplates.CreateBuildingDef(...)` exactly as a base-game building
+does. Its positional arguments are, in order: prefab id, width, height, kanim, HP,
+construction time, mass, materials, melting point, placement rule, decor, noise and thermal
+conductivity.
 
-Followed by field assignments: `OutputConduitType`, `UtilityOutputOffset`,
-`IsFoundation`, `PermittedRotations`, ...
+That call is followed by plain field assignments on the returned def: `OutputConduitType`,
+`UtilityOutputOffset`, `IsFoundation`, `PermittedRotations`, and so on.
+
+(Earlier versions of this document quoted both shapes from the mods' decompiled source. The
+excerpts were replaced with these descriptions so that no third-party mod code is carried in
+this repository.)
 
 ### Caveats (the bespoke-per-mod part)
 

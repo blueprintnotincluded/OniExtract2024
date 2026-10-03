@@ -14,8 +14,8 @@ namespace OniExtract2024
         // Source-mod attribution: the Steam workshop id (or local-mod folder id) and title
         // of the mod whose IBuildingConfig registered this building. Omitted entirely for
         // base-game buildings — "field present" means "modded". The website uses this to
-        // group/filter modded buildings and to flag blueprints that require a mod. Matches
-        // the `mod` field the offline mods/ pipeline emits. See building/ModSourceTracker.cs.
+        // group/filter modded buildings and to flag blueprints that require a mod. See
+        // building/ModSourceTracker.cs.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string mod = null;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
