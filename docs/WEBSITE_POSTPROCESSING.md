@@ -10,6 +10,12 @@
 >
 > The section to read before changing anything the export writes is
 > **"Contract — don't break these"**.
+>
+> Known to be out of date in the source itself at this commit, and left as written because this
+> is a copy: **"Schema-vs-actual caveats"** still says `viewMode` is a hex hash and counts 449
+> buildings, and **"Rendering model"** still says 275 of 449 buildings have ports. The export has
+> emitted overlay names since U59, and the same document's own contract section gives the
+> current figures (487 buildings, 322 with ports). The fix belongs in the website repository.
 
 # OniExtract2024 import — export contract & converter reference
 

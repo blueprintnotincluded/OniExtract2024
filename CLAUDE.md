@@ -102,8 +102,10 @@ The game overwrites the export in place, so the snapshot has to be taken first. 
 command checks the contract invariants below and the documented spot checks, then compares
 every JSON value and every PNG with the snapshot. A behaviour-neutral change should come back
 `RESULT: clean`. Renders are not byte-stable between runs, so images are compared by size,
-outline and colour rather than by hash. When a new field gets a spot check in the docs, add it
-to the script as well.
+outline and colour rather than by hash. An export where only the main-menu pass has run fails
+the checks for `ui_image_rects.json` and `connection_sprites`; pass `-AllowPartialExport` if that
+is what you meant to check. When a new field gets a spot check in the docs, add it to the script
+as well.
 
 ### Probing the game assembly
 

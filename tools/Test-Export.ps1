@@ -45,6 +45,11 @@ Where the snapshot lives. Default: Documents\Klei\OxygenNotIncluded\export-basel
 .PARAMETER Snapshot
 Copy ExportDir to BaselineDir and stop. Refuses to replace an existing baseline without -Force.
 
+.PARAMETER AllowPartialExport
+A complete export has ui_image_rects.json and connection_sprites, and their absence is a
+failure. Pass this when checking an export where only the main-menu pass has run, to have the
+missing pieces reported as skipped instead.
+
 .PARAMETER GameLibs
 The game's Managed folder, for Newtonsoft.Json.dll.
 
@@ -68,6 +73,7 @@ param(
     [switch]$Snapshot,
     [switch]$Force,
     [switch]$SkipImages,
+    [switch]$AllowPartialExport,
     [string]$GameLibs = 'C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed',
     [double]$OutlineTolerance = 0.5,
     [double]$ColourTolerance = 4,
@@ -76,6 +82,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# PowerShell's location and .NET's current directory are separate, and the C# below resolves
+# relative paths against the latter. Make every path absolute here so both halves agree.
+function Resolve-FullPath([string]$path) {
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($path)
+}
+$ExportDir = Resolve-FullPath $ExportDir
+$BaselineDir = Resolve-FullPath $BaselineDir
+$ReportPath = Resolve-FullPath $ReportPath
+$GameLibs = Resolve-FullPath $GameLibs
 
 # What an export consists of. `images\` and building.pre-mod-merge.json, which older runs left
 # in the same folder, are not written by the current mod and are left out.
@@ -93,16 +109,26 @@ if ($Snapshot) {
         throw "$BaselineDir already exists. Pass -Force to replace it, or -BaselineDir to keep both."
     }
     New-Item -ItemType Directory -Force $BaselineDir | Out-Null
+    # A re-snapshot with -Force must end up holding exactly what the export holds: a piece
+    # the export no longer has is removed from the baseline too, or the next comparison
+    # would report it as "removed" from an export that never had it. Only these named
+    # pieces are touched; anything else in the baseline folder is left alone.
     foreach ($d in $exportDirs) {
         $src = Join-Path $ExportDir $d
-        if (-not (Test-Path $src)) { continue }
-        # /MIR so a re-snapshot with -Force drops files the export no longer has.
-        robocopy $src (Join-Path $BaselineDir $d) /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+        $dst = Join-Path $BaselineDir $d
+        if (-not (Test-Path $src)) {
+            if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+            continue
+        }
+        # /MIR drops files the export no longer has.
+        robocopy $src $dst /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { throw "robocopy failed for $d (exit $LASTEXITCODE)" }
     }
     foreach ($f in $exportFiles) {
         $src = Join-Path $ExportDir $f
-        if (Test-Path $src) { Copy-Item $src (Join-Path $BaselineDir $f) -Force }
+        $dst = Join-Path $BaselineDir $f
+        if (Test-Path $src) { Copy-Item $src $dst -Force }
+        elseif (Test-Path $dst) { Remove-Item $dst -Force }
     }
     $count = (Get-ChildItem $BaselineDir -Recurse -File | Measure-Object).Count
     Write-Host "Snapshot of $ExportDir -> $BaselineDir ($count files)."
@@ -382,6 +408,14 @@ public static class OniExportCheck
             Out.Add(new OniCheck { Group = group, Name = name, Status = ok ? "PASS" : "FAIL", Detail = ok ? "" : detail });
         }
 
+        // A piece of the export that one of the in-game tools writes. The website needs it,
+        // so its absence fails unless the caller said this export is knowingly partial.
+        public void Missing(string name, string detail, bool allowPartial)
+        {
+            Out.Add(new OniCheck { Group = "invariant", Name = name, Status = allowPartial ? "SKIP" : "FAIL",
+                Detail = allowPartial ? detail : detail + " (pass -AllowPartialExport if that is expected)" });
+        }
+
         // Runs a spot check against one named building, or records a skip when this
         // export does not contain it.
         public void On(string group, string building, string what, Func<JObject, string> test)
@@ -393,7 +427,11 @@ public static class OniExportCheck
                 Out.Add(new OniCheck { Group = group, Name = name, Status = "SKIP", Detail = "not in this export" });
                 return;
             }
-            string problem = test(b);
+            // A spot check reads fields by cast; a missing or mistyped one is a failed
+            // check, not a reason to stop checking everything else.
+            string problem;
+            try { problem = test(b); }
+            catch (Exception e) { problem = "entry is malformed: " + e.Message; }
             Add(group, name, problem == null, problem);
         }
     }
@@ -441,12 +479,25 @@ public static class OniExportCheck
         return null;
     }
 
+    static bool Number(JToken parent, string key, out double value)
+    {
+        value = 0;
+        var obj = parent as JObject;
+        var v = obj == null ? null : obj[key];
+        if (v == null || (v.Type != JTokenType.Float && v.Type != JTokenType.Integer)) return false;
+        value = (double)v;
+        return true;
+    }
+
+    static bool IsTrue(JToken t) { return t != null && t.Type == JTokenType.Boolean && (bool)t; }
+
     static bool RectMatchesPng(JToken rect, string png, out string detail)
     {
         detail = null;
         int w, h;
         if (!PngSize(png, out w, out h)) { detail = "no PNG"; return false; }
-        double rw = (double)rect["w"], rh = (double)rect["h"];
+        double rw, rh;
+        if (!Number(rect, "w", out rw) || !Number(rect, "h", out rh)) { detail = "rect has no numeric w/h"; return false; }
         if (rw <= 0 || rh <= 0) { detail = "empty rect"; return false; }
         double pngAspect = (double)w / h;
         double off = Math.Abs(pngAspect - rw / rh) / pngAspect;
@@ -454,7 +505,7 @@ public static class OniExportCheck
         return true;
     }
 
-    public static List<OniCheck> Check(string exportDir)
+    public static List<OniCheck> Check(string exportDir, bool allowPartial)
     {
         var r = new Run();
         var root = (JObject)Load(Path.Combine(exportDir, "database", "building.json"));
@@ -491,8 +542,9 @@ public static class OniExportCheck
                 if (utilities.Count > 0) withPorts++;
                 foreach (var u in utilities)
                 {
-                    string type = u["type"] == null ? null : u["type"].ToString();
-                    if (type == null || !ConnectionTypes.Contains(type) || u["offset"] == null)
+                    var port = u as JObject;
+                    string type = port == null || port["type"] == null ? null : port["type"].ToString();
+                    if (type == null || !ConnectionTypes.Contains(type) || port["offset"] == null)
                     {
                         badTypes.Add(kv.Key + ":" + (type ?? "<none>"));
                         break;
@@ -501,8 +553,9 @@ public static class OniExportCheck
             }
 
             if (!Has(b, "viewMode")) badViewMode.Add(kv.Key + ":<absent>");
-            else if (!IsNull(b["viewMode"]) && !ViewModes.Contains((string)b["viewMode"]))
-                badViewMode.Add(kv.Key + ":" + (string)b["viewMode"]);
+            else if (!IsNull(b["viewMode"])
+                && (b["viewMode"].Type != JTokenType.String || !ViewModes.Contains((string)b["viewMode"])))
+                badViewMode.Add(kv.Key + ":" + Short(b["viewMode"]));
 
             foreach (string k in OmittedNotNull)
                 if (Has(b, k) && IsNull(b[k])) nullKeys.Add(kv.Key + "." + k);
@@ -553,7 +606,7 @@ public static class OniExportCheck
         }
         else
         {
-            r.Out.Add(new OniCheck { Group = "invariant", Name = "ui_image_rects.json", Status = "SKIP", Detail = "absent: the building-image tool has not run on this export" });
+            r.Missing("ui_image_rects.json is present", "absent: the building-image tool has not run on this export", allowPartial);
         }
 
         // Connection sprites: a directory is the website's signal that a building is a
@@ -571,7 +624,7 @@ public static class OniExportCheck
                     if (!File.Exists(Path.Combine(d, i + ".png"))) { incomplete.Add(id); break; }
                 JObject b;
                 if (!r.ByName.TryGetValue(id, out b)) notConnectable.Add(id + " (no building)");
-                else if (!(bool)b["isUtility"] && !(bool)b["isKAnimTile"]) notConnectable.Add(id);
+                else if (!IsTrue(b["isUtility"]) && !IsTrue(b["isKAnimTile"])) notConnectable.Add(id);
             }
             r.Add("invariant", "every connection_sprites directory has 0.png .. 15.png", incomplete.Count == 0, Sample(incomplete));
             r.Add("invariant", "every connection_sprites directory is a tile or utility building", notConnectable.Count == 0, Sample(notConnectable));
@@ -579,7 +632,7 @@ public static class OniExportCheck
         }
         else
         {
-            r.Out.Add(new OniCheck { Group = "invariant", Name = "connection_sprites", Status = "SKIP", Detail = "absent: the connection-sprite tool has not run on this export" });
+            r.Missing("connection_sprites is present", "absent: the connection-sprite tool has not run on this export", allowPartial);
         }
 
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings", Status = "PASS", Detail = r.ByName.Count.ToString() });
@@ -596,7 +649,7 @@ public static class OniExportCheck
         }
         else
         {
-            var ids = menu.Select(t => (string)t).ToList();
+            var ids = menu.Select(t => t.ToString()).ToList();
             bool startOk = ids.Count >= 3 && ids[0] == "CO2Engine" && ids[1] == "SugarEngine" && ids[2] == "SteamEngineCluster";
             bool endOk = ids.Count >= 2 && ids[ids.Count - 2] == "ArtifactCargoBay" && ids[ids.Count - 1] == "ScannerModule";
             r.Add(R, "rocketModuleMenu starts CO2Engine, SugarEngine, SteamEngineCluster and ends ArtifactCargoBay, ScannerModule",
@@ -606,8 +659,8 @@ public static class OniExportCheck
             {
                 JObject b;
                 if (!r.ByName.TryGetValue(id, out b)) { wrong.Add(id + " (no entry)"); continue; }
-                bool module = Has(b, "isRocketModule") && (bool)b["isRocketModule"];
-                bool hidden = Has(b, "showInBuildMenu") && !(bool)b["showInBuildMenu"];
+                bool module = IsTrue(b["isRocketModule"]);
+                bool hidden = Has(b, "showInBuildMenu") && b["showInBuildMenu"].Type == JTokenType.Boolean && !(bool)b["showInBuildMenu"];
                 if (!module || !hidden) wrong.Add(id);
             }
             r.Add(R, "every rocketModuleMenu id is an entry with isRocketModule true and showInBuildMenu false", wrong.Count == 0, Sample(wrong));
@@ -735,7 +788,7 @@ function Write-Lines([string[]]$lines, [string]$indent = '   ') {
 
 # --- 1. invariants and spot checks ----------------------------------------------------
 Write-Section "Invariants and spot checks: $ExportDir"
-$checks = [OniExportCheck]::Check($ExportDir)
+$checks = [OniExportCheck]::Check($ExportDir, [bool]$AllowPartialExport)
 $info = @($checks | Where-Object { $_.Group -eq 'info' })
 $real = @($checks | Where-Object { $_.Group -ne 'info' })
 Write-Lines @($info | ForEach-Object { '{0}: {1}' -f $_.Name, $_.Detail })
