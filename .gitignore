@@ -1,19 +1,14 @@
-﻿.vs
+# IDE and agent state
+.vs
 .claude
-OniExtract2024/obj/Debug
-OniExtract2024/bin/Debug
-OniExtract2024/obj
-OniExtract2024/bin
-OniExtract2024/obj/Release
-OniExtract2024/bin/Release
-OniExtract2024.Tests/bin/
-OniExtract2024.Tests/obj/
-OniExtract2024.Core/bin/
-OniExtract2024.Core/obj/
-OniExtract2024.Core.Tests/bin/
-OniExtract2024.Core.Tests/obj/
-export-2023.zip
+
+# Build output
+bin/
+obj/
+
+# Local copies of an export, kept for comparison. Large, never committed.
 export/
+export-2023.zip
 
 # Local implementation plans and working specifications
 /specs/
