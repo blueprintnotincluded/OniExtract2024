@@ -2,6 +2,9 @@
 
 # OniExtract2024
 
+> **注意：** 本译文来自原始项目，已不再同步更新。当前的构建方式、游戏版本和导出内容请以
+> [英文 README](README.md) 为准。
+
 导出游戏《缺氧》中的数据和图片。
 
 项目使用**Visual Studio 2022**编译，ONI游戏版本为 **U51-600112**.
@@ -39,8 +42,7 @@ download_depot <AppID> <DepotsID> <ManifestID>
 
 ### 通过版本发布
 
-1. 从本仓库的**Releases**中下载发布文件。解压缩。
-2. 复制**解压后的文件夹**到`Documents\Klei\OxygenNotIncluded\mods\dev` 。
+本仓库不发布 Releases，请按上面的“通过构建项目”从源码构建。
 
 在游戏中打开mod。重启游戏。导出数据将会放在`Documents\Klei\OxygenNotIncluded\export`。
 
