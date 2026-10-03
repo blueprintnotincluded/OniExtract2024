@@ -156,39 +156,29 @@ building definitions straight out of mod DLLs. Both authoring styles decompile c
 
 ### PLib style (PeterHan mods, e.g. Airlock Door)
 
-`AirlockDoorConfig.CreateBuilding()` is a single `PBuilding` object initializer that
-literally lists everything:
+The building's config has a `CreateBuilding()` method that returns a single `PBuilding`
+object initializer, and that one initializer states almost everything the export needs as
+named properties: footprint (`Width`, `Height`), `HP`, the kanim (`Animation`), build-menu
+placement (`Category`, `SubCategory`), `ConstructionTime`, `Decor`, the `Ingredients` list
+(material tag plus a mass tier), `Placement` (a `BuildLocationRule`), `PowerInput` (wattage
+plus a cell offset), `LogicIO` ports and the unlocking `Tech`.
 
-```csharp
-new PBuilding("PAirlockDoor", ...) {
-    Width = 3, Height = 2, HP = 30,
-    Animation = "airlock_door_kanim",
-    Category = "Base", SubCategory = "doors",
-    ConstructionTime = 60f,
-    Decor = PENALTY.TIER1,
-    Ingredients = { new BuildIngredient("RefinedMetal", 4) },
-    Placement = (BuildLocationRule)6,
-    PowerInput = new PowerRequirement(120f, new CellOffset(0, 0)),
-    LogicIO = { Port.InputPort(...) },
-    Tech = "ImprovedGasPiping",
-    ...
-}
-```
-
-Plus `CreateBuildingDef()` overrides: `IsFoundation`, `ThermalConductivity`, etc.
+A few remaining values are set in a `CreateBuildingDef()` override, such as `IsFoundation`
+and `ThermalConductivity`.
 
 ### Vanilla style (e.g. Drains)
 
-```csharp
-BuildingTemplates.CreateBuildingDef("Drain", 1, 1, "drain_kanim", 100, 30f,
-    MASS, MATERIALS.ALL_METALS, 1600f, (BuildLocationRule)6,
-    PENALTY.TIER0, NOISE_POLLUTION.NONE, 0.2f);
-// width, height, kanim, HP, construction time, mass, materials,
-// melting point, placement, decor, noise, thermal conductivity
-```
+The config calls `BuildingTemplates.CreateBuildingDef(...)` exactly as a base-game building
+does. Its positional arguments are, in order: prefab id, width, height, kanim, HP,
+construction time, mass, materials, melting point, placement rule, decor, noise and thermal
+conductivity.
 
-Followed by field assignments: `OutputConduitType`, `UtilityOutputOffset`,
-`IsFoundation`, `PermittedRotations`, ...
+That call is followed by plain field assignments on the returned def: `OutputConduitType`,
+`UtilityOutputOffset`, `IsFoundation`, `PermittedRotations`, and so on.
+
+(Earlier versions of this document quoted both shapes from the mods' decompiled source. The
+excerpts were replaced with these descriptions so that no third-party mod code is carried in
+this repository.)
 
 ### Caveats (the bespoke-per-mod part)
 
