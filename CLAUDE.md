@@ -131,6 +131,9 @@ Breaking one of these breaks the website silently — the site renders, just wro
 - **`viewMode` emits the game-native overlay ID string** via an `OverlayModes.*.ID` lookup, and
   `null` when there is no special overlay — not a `HashedString` hex, not a pluralized name.
 - **`uiImageRect` is omitted when absent, never emitted as null.**
+- **`ui_image_rects.json` at the export root is read by the website**, not just by this mod. It
+  is the only route by which terrain features' rects reach the site. Keep its location and its
+  shape (`prefabId → {x, y, w, h}`).
 - **Cell offsets are measured from the building's origin cell, not its bottom-left corner.**
   That covers `utilities[].offset`, `attachPoints`, `attachablePosition` and
   `areasOfEffect[].origin`. The origin is the bottom row at column `floor((width-1)/2)`, so it
@@ -151,9 +154,9 @@ Breaking one of these breaks the website silently — the site renders, just wro
   - [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md) — the export↔website contract.
     Its authoritative source is the consuming repo, so this copy drifts; treat the website repo
     as truth on conflict.
-  - Website handoffs for specific data: [WEBSITE_ROCKET_MODULES.md](docs/WEBSITE_ROCKET_MODULES.md)
-    (rocket-module stacking, settings ranges), [WEBSITE_TERRAIN_RECTS.md](docs/WEBSITE_TERRAIN_RECTS.md)
-    (terrain-feature rects), [WEBSITE_MOD_IMPORT.md](docs/WEBSITE_MOD_IMPORT.md) (modded buildings).
+  - [WEBSITE_ROCKET_MODULES.md](docs/WEBSITE_ROCKET_MODULES.md) — website handoff for
+    rocket-module stacking and settings ranges. Still open: the importer does not read that
+    data yet. A handoff moves to `docs/archive/` once the website has acted on it.
   - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.
   - [MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md) — the offline `mods/` pipeline.
 - **`docs/archive/`** — resolved diagnostics kept for provenance. **Not current state.** Their
