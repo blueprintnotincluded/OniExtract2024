@@ -90,8 +90,12 @@ namespace OniExtract2024.connection
                         continue;
 
                     var snapshotter = temp.AddOrGet<ConnectionSpriteSnapshotter>();
-                    utilityBuildings++;
                     yield return snapshotter.ExportThenDestroy();
+                    // Count what was written, not what was attempted: a building with no
+                    // usable connection manager is spawned, skipped with a warning, and
+                    // leaves no sprites behind.
+                    if (snapshotter.WroteSprites)
+                        utilityBuildings++;
                 }
                 Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
 
