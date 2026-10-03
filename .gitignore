@@ -12,3 +12,6 @@ export-2023.zip
 
 # Local implementation plans and working specifications
 /specs/
+
+# Per-machine MSBuild overrides (game install path, mod folder)
+Directory.Build.user.props

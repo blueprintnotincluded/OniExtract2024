@@ -3,8 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <IsPackable>false</IsPackable>
-    <!-- Match the path in OniExtract2024\OniExtract2024.csproj -->
-    <GameLibsFolder>C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsFolder>
+    <!-- GameLibsFolder comes from ..\Directory.Build.props. -->
   </PropertyGroup>
 
   <ItemGroup>
