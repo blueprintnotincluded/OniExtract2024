@@ -1,3 +1,17 @@
+> **Archived — the pipeline this describes has been removed.** This is not current state.
+> Mod buildings reach the export by running the normal in-game export with the mods enabled;
+> every export pass iterates `Assets.BuildingDefs`, which includes them. The offline pipeline
+> (`mods/` and four `tools/*.ps1` scripts) was a fallback for mods that would not load in game.
+> Its only user, Buildable Natural Tile, has exported natively since the 2026-10-03 export, so
+> it was retired. To bring it back, the last commit that has it is `ed3f742`
+> (`git show ed3f742:mods/README.md` is the operational playbook; links to `mods/` below are
+> dead for the same reason).
+>
+> What stays useful here is the research: the kanim `BILD` format, the `IBuildingConfig` scan
+> for deciding whether a mod adds buildings, and how mod DLLs decompile.
+> [`tools/Parse-KanimBuild.ps1`](../../tools/Parse-KanimBuild.ps1) is kept as the working
+> parser for that format.
+
 # Extracting Mod Buildables Without Launching the Game
 
 Research findings (2026-07-18) on whether mod art and building data can be extracted
@@ -10,7 +24,7 @@ compatibility concerns, no Extract-mod changes needed.
 
 > **Status update (2026-07-19): implemented.** The property pipeline is built and all 5
 > buildable mods (15 buildings) are extracted to `mods/mod_database.json`. The operational
-> playbook — per-mod notes, refresh/merge scripts, schema — is **[mods/README.md](../mods/README.md)**.
+> playbook — per-mod notes, refresh/merge scripts, schema — is **mods/README.md**.
 > This file remains the research background (kanim format, decompile findings).
 
 ---
@@ -122,7 +136,7 @@ snapshotter gets for free from `KBatchedAnimController`.
   that converts kanim triplets → Spriter project / PNGs entirely offline. Since it's
   C#, its reader classes can be vendored/referenced directly rather than reimplementing.
 - Proof-of-concept BILD parser written during this research:
-  [`tools/Parse-KanimBuild.ps1`](../tools/Parse-KanimBuild.ps1) — parses header,
+  [`tools/Parse-KanimBuild.ps1`](../../tools/Parse-KanimBuild.ps1) — parses header,
   symbols, frames, hash table, and computes atlas pixel rects. Easy to port to C#
   if not using kanimal-SE.
 

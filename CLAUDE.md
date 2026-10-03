@@ -51,9 +51,11 @@ with the game installed has to confirm it.
 - **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
   with ONI installed. 45 tests.
-- **`tools/`** + **`mods/`** — the offline mod pipeline: PowerShell scripts that decompile
-  third-party mods and merge their buildings into the export when an in-game export with the
-  mods enabled is not possible. See [docs/MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md).
+- **`tools/`** — PowerShell helpers that run outside the game. `Test-Export.ps1` validates an
+  export and diffs it against a snapshot (see "Validating an export" below);
+  `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file. Mod buildings
+  need no tooling: run the normal export with the mods enabled and they are exported like any
+  other building.
 
 ### Three independent export paths
 
@@ -180,7 +182,6 @@ Breaking one of these breaks the website silently — the site renders, just wro
     rocket-module stacking and settings ranges. Still open: the importer does not read that
     data yet. A handoff moves to `docs/archive/` once the website has acted on it.
   - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.
-  - [MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md) — the offline `mods/` pipeline.
 - **`docs/archive/`** — resolved diagnostics kept for provenance. **Not current state.** Their
   durable conclusions are already folded into `docs/` and the invariants above; read them only
   for the "why".

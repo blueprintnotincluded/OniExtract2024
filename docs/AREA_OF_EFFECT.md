@@ -169,9 +169,7 @@ version, so these are illustrations, not contracts.)
 
 Because the scan is component-driven (never a building-name list), **modded buildings
 picked up by the in-game export get their areas automatically** — e.g. a mod lamp's
-`Light2D` or a mod pump's `ElementConsumer` exports without any per-mod work. The
-offline `mods/` pipeline (MOD_OFFLINE_EXTRACTION.md) does not compute AoE; that's fine
-while the in-game export remains the primary mod path.
+`Light2D` or a mod pump's `ElementConsumer` exports without any per-mod work.
 
 ### Verification checklist (next game run)
 
