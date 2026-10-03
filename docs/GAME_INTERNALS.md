@@ -216,3 +216,4 @@ always pre-rotation.
 | `go.GetDef<LogicPorts.Def>()` | Compile error in this game version — `LogicPorts.Def` does not exist |
 | `BuildingDef.LogicInputPorts` populated for gates | It is NOT. Gates use `LogicGateBase.inputPortOffsets` instead |
 | `ConduitDispenser` present on GasFilter/LiquidFilter/SolidFilter | There is none. Outputs are managed by `ElementFilter`; use the `BuildingDef.OutputConduitType` fallback + `ISecondaryOutput` scan |
+| A bridge (wire, pipe, rail, logic) as a "connectable" with 16 neighbour states | It is not one. Only buildings with `KAnimGraphTileVisualizer` redraw to match their neighbours, and every config that adds it also sets `isUtility` (wires, logic wire, the conduits, the travel tube). Bridges add `BuildingCellVisualizer` plus a network link and have one fixed sprite, so there is nothing for the connection-sprite export to render |
