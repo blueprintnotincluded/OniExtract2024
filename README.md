@@ -2,25 +2,15 @@ English | [简体中文](README_cn.md)
 
 # OniExtract2024
 
-Dumps game data and images from game **Oxygen Not Included**.
+Dumps game data and images from the game **Oxygen Not Included**, for the
+[blueprintnotincluded](https://github.com/blueprintnotincluded/blueprintnotincluded) website.
 
-Compiled under **Visual Studio 2022** for ONI version **U51-600112**.
+Last built and verified in game against ONI **U59-744825** (2026-10-03), using the MSBuild that
+ships with Visual Studio 2026 (version 18). The mod links against the game's own assemblies, so
+it is rebuilt against whatever build is installed — there is no pinned game version to roll
+back to, and a DLL built against an older game build can crash a newer one.
 
-## SteamDB Info
-
-Game Name: Oxygen Not Included
-
-App ID: 457140
-
-Depot ID: 457141
-
-Manifest ID: 5347960185499743335
-
-Rollback game in Steam console:
-
-```
-download_depot <AppID> <DepotsID> <ManifestID>
-```
+New here? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Build
 
@@ -52,8 +42,10 @@ files to `<ModFolder>\OniExtract2024_dev\`. Default: `Documents\Klei\OxygenNotIn
 
 ### From Releases
 
-1. Download package from **Releases**. Unzip package.
-2. Copy **unzipped folder** to `Documents\Klei\OxygenNotIncluded\mods\dev` 
+This repository publishes no releases; build from source. (The upstream project it was forked
+from, [cnctemaR/OniExtract2024](https://github.com/cnctemaR/OniExtract2024), has releases of
+the original mod, which predate the building-image and connection-sprite tools and the website
+contract described here.)
 
 Enable the mod in game. Restart game. Output will be in `Documents\Klei\OxygenNotIncluded\export`.
 
@@ -70,6 +62,10 @@ The mod has three independent export paths:
 3. **Connection sprites** — a separate in-game tool (pause screen → **Export Connection
    Sprites**) that renders the 16 connection states of each connectable building. See
    [Connection sprites](#connection-sprites) below.
+
+The pause screen has a third button, **Inspect Building Poses**. It exports nothing by itself:
+it is the tool for choosing which animation and frame path 2 renders a building in, and it
+saves those choices to `export/pose_overrides.json`.
 
 ## Output Result
 
@@ -100,10 +96,15 @@ export
 │    ├─ EquippableFacades
 │    ├─ MonumentParts
 │    └─ StickerBombs
-└─ connection_sprites             written by the pause-screen tool, not the main-menu export
-       └─ {prefabId}
-              ├─ 0.png ... 15.png  16 connection states per connectable
+├─ connection_sprites             written by the pause-screen tool, not the main-menu export
+│      └─ {prefabId}
+│             ├─ 0.png ... 15.png  16 connection states per connectable
+├─ ui_image_rects.json            measured icon rects, written by the building-image tool
+└─ pose_overrides.json            pose choices saved from the pose inspector (only if used)
 ```
+
+`ui_image_rects.json` is part of what the website reads (it is the only place terrain features'
+rects live). `pose_overrides.json` is an input to this mod, not something the website consumes.
 
 Field-level schema for every JSON file: see [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md).
 Website-side guidance for the rocket-module stacking data and blueprint-setting ranges in
@@ -197,6 +198,7 @@ the exporter so export-side changes can be checked against it without leaving th
 
 | Where | What |
 |---|---|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to build, test and send a change, and what CI does and does not check. |
 | [CLAUDE.md](CLAUDE.md) | Canonical repository guide — architecture, build/deploy, game-assembly gotchas, export contract invariants. Written for coding agents, but the commands and constraints are the same for humans. |
 | [AGENTS.md](AGENTS.md) | Entry point for coding agents; defers to `CLAUDE.md`. |
 | [docs/](docs/) | Durable reference: [EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) (field-level JSON schema), [GAME_INTERNALS.md](docs/GAME_INTERNALS.md) (ONI assembly knowledge base), [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md), [WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md), the per-feature website handoffs (`WEBSITE_*.md`), [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md), [MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md). |

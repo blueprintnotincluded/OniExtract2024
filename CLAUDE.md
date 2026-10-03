@@ -50,7 +50,7 @@ with the game installed has to confirm it.
   can verify. Currently `ExportPaths` and `UiImageRect`. Pure logic belongs here.
 - **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
-  with ONI installed. 38 tests.
+  with ONI installed. 45 tests.
 - **`tools/`** + **`mods/`** — the offline mod pipeline: PowerShell scripts that decompile
   third-party mods and merge their buildings into the export when an in-game export with the
   mods enabled is not possible. See [docs/MOD_OFFLINE_EXTRACTION.md](docs/MOD_OFFLINE_EXTRACTION.md).
@@ -104,6 +104,10 @@ recipe and a large body of findings: [docs/GAME_INTERNALS.md](docs/GAME_INTERNAL
   and only the deploy fails, so it looks like a build error but isn't. To check that the code
   *compiles* without closing the game, redirect the deploy to a scratch directory:
   `-p:ModFolder=<some-temp-dir>`. Do not kill the user's game process to make a build pass.
+- **`dotnet test OniExtract2024.Tests` builds and deploys the mod too.** The test project
+  references the mod project, so the same post-build copy runs: it overwrites `mods\dev` with
+  whatever branch is checked out, and fails the same way while the game is running. Pass
+  `-p:ModFolder=<some-temp-dir>` to `dotnet test` as well to leave the deployed mod alone.
 - **Fully restart ONI after every rebuild.** Mod DLLs are loaded once at startup and held for
   the session. Re-running the export without a restart silently uses the *old* code — the most
   expensive mistake available in this repo, because everything appears to work.
@@ -141,6 +145,8 @@ Breaking one of these breaks the website silently — the site renders, just wro
 
 ## Documentation layout
 
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — the human-facing entry point: setup, what CI covers,
+  the pull-request flow and the comment convention.
 - **`docs/`** — durable reference, kept current:
   - [EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md) — field-level schema for every JSON file.
   - [GAME_INTERNALS.md](docs/GAME_INTERNALS.md) — knowledge base for the ONI assembly: building
