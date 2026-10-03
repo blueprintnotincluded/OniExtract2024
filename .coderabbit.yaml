@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Repository overrides for CodeRabbit. Everything not set here comes from the
+# organisation's settings (inheritance), so this file stays limited to the places
+# where this repository differs.
+inheritance: true
+
+reviews:
+  auto_review:
+    # Pull requests here open as drafts and stay that way until someone has run the
+    # change in the game (see CLAUDE.md, "Work Session Lifecycle"). CodeRabbit skips
+    # drafts by default, which meant most pull requests were never reviewed unless
+    # someone asked by hand.
+    drafts: true
+
+  pre_merge_checks:
+    # The code is documented with `//` comments that explain why, not `///` XML docs
+    # (see CONTRIBUTING.md, "Conventions"). A coverage check that counts only XML docs
+    # reports under 80% on every pull request and tells a reviewer nothing.
+    docstrings:
+      mode: "off"

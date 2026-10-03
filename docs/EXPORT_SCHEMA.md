@@ -1,7 +1,8 @@
 # OniExtract2024 — Export Schema Reference
 
-Field-level reference for the 13 JSON files written by the main-menu export. For the overall
-output layout and the connection-sprite tool, see [README.md](../README.md).
+Field-level reference for the 13 JSON files written by the main-menu export, plus the
+`ui_image_rects.json` sidecar written by the building-image tool. For the overall output layout
+and the connection-sprite tool, see [README.md](../README.md).
 
 Documented against game version **U59-737790-SCA**, 4 active DLCs (includes `EXPANSION1_ID` —
 Spaced Out). Counts below reflect that version and shift as the game updates.
@@ -94,6 +95,12 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   // buildings, warn when a blueprint requires a mod. See also the root `mods` roster.
   "mod": "2094698134",                   // Steam workshop id (or local-mod folder name)
   "modTitle": "Airlock Door",
+
+  // Where the building's ui_image PNG sits relative to its footprint, in cells. PRESENT ONLY
+  // for buildings the in-game building-image tool has rendered; omitted otherwise (never
+  // null), which the website reads as "the image is the footprint". Same values as this
+  // building's entry in ui_image_rects.json — see that section for the coordinate space.
+  "uiImageRect": { "x": -0.03, "y": -0.025, "w": 2.105, "h": 2.11 },
   "kPrefabID": {
     "name": "ManualGenerator",
     "nameString": "<link=\"...\">...</link>",
@@ -928,6 +935,42 @@ Sprite metadata for UI icons.
   "color": null   // may be null or { r, g, b, a }
 }
 ```
+
+---
+
+## ui_image_rects.json
+
+Not one of the 13 database files: it lives at the **export root**
+(`export\ui_image_rects.json`), carries none of the shared root metadata, and is written by
+the in-game building-image tool rather than the main-menu export.
+
+A flat map from prefab id to the rectangle its `ui_image/<prefabId>.png` occupies:
+
+```jsonc
+{
+  "SteamTurbine2":             { "x": -0.09,  "y": -2.0,   "w": 5.165, "h": 6.1 },
+  "GeyserGeneric_big_volcano": { "x": -0.135, "y": -0.575, "w": 3.465, "h": 3.625 }
+}
+```
+
+- Units are cells, real numbers. The footprint runs from `(0,0)` at its bottom-left to
+  `(widthInCells, heightInCells)`; `+x` is right, `+y` is up.
+- `x`, `y` is the bottom-left corner of the whole PNG and `w`, `h` its size, so art that
+  overhangs the footprint shows up as a negative `x`/`y` or a `w`/`h` larger than the footprint.
+  `SteamTurbine2` above has a 5×3 footprint: its art hangs two cells below it.
+- The PNG maps linearly onto the rect, so `w:h` equals the PNG's pixel aspect. The tool checks
+  this at the end of every run and the website's importer fails on a mismatch.
+
+It has two readers:
+
+- **This mod.** `building.json` is rewritten from scratch on every game load, so the main-menu
+  export reads this file to put `uiImageRect` back on each building. Without it the rects
+  would last only until the next launch. See
+  [OniExtract2024/building/CLAUDE.md](../OniExtract2024/building/CLAUDE.md).
+- **The website.** Terrain features (geysers, vents, volcanoes, the oil reservoir) are not
+  buildings and have no `building.json` entry, so this file is the only place their rects
+  exist. The importer reads it for those, and keeps reading buildings' rects from
+  `building.json`.
 
 ---
 

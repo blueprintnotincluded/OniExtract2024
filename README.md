@@ -14,8 +14,11 @@ New here? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Build
 
-1. Check `<GameLibsFolder>` in `OniExtract2024\OniExtract2024.csproj`, adjust to your game installation.
-2. Check `<ModFolder>`, adjust to your mod installation.
+1. The game's `Managed` folder (`<GameLibsFolder>`) and the mod deploy folder (`<ModFolder>`) are
+   set in `Directory.Build.props`, with defaults for a standard Steam install.
+2. If yours differ, do not edit that file. Create `Directory.Build.user.props` beside it (it is
+   gitignored) and set the properties there; the comment at the top of `Directory.Build.props`
+   shows the shape.
 3. Run MSBuild from the terminal:
 
 ```powershell
@@ -153,8 +156,8 @@ The render writes a per-building `uiImageRect` (cell-space, footprint-relative) 
 `building.json` so the website can place tight-cropped icons without squishing overhang — see
 [docs/WEBSITE_POSTPROCESSING.md](docs/WEBSITE_POSTPROCESSING.md). Terrain features (geysers,
 vents, volcanoes, the oil reservoir) get the same render and a measured rect, but only in
-`ui_image_rects.json`, since they have no `building.json` entry — see
-[docs/WEBSITE_TERRAIN_RECTS.md](docs/WEBSITE_TERRAIN_RECTS.md).
+`ui_image_rects.json`, since they have no `building.json` entry. The website reads that file
+directly — see "ui_image_rects.json" in [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md).
 
 **Open item:** spot-check `uiImageRect` placement on the website against the still-untested
 branches of the rect math — an even-width building (validates the +0.5 horizontal centring), a

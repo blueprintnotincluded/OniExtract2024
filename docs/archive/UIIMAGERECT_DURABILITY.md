@@ -104,7 +104,7 @@ The sidecar above made the *rect* survive a main-menu-only export. It did not ma
 ## Symptom
 
 `uiImageRect` promises the PNG maps linearly onto the rect, so `w:h` must equal the PNG's
-pixel aspect (see `WEBSITE_POSTPROCESSING.md`, "The contract: uiImageRect"). Measured
+pixel aspect (see `WEBSITE_POSTPROCESSING.md`, "uiImageRect"). Measured
 across a real export, that held for only **40 of 342** buildings:
 
 | prefab | PNG aspect | rect aspect | off by |
