@@ -47,7 +47,7 @@ namespace OniExtract2024.connection
         private static IEnumerator Run()
         {
             // Replaced on success; what the user sees if the export throws part-way.
-            string summary = "The connection sprites export stopped early.\n\nSee Player.log for the error.";
+            string summary = "The connection sprites export stopped early. See Player.log for the error.";
             Debug.Log("OniExtract: connection-sprite export started -> " + RootDir);
 
             int tileBuildings = 0, tileSprites = 0;
@@ -101,8 +101,8 @@ namespace OniExtract2024.connection
                 // so pass 2 already covers everything that has connection states.
 
                 Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
-                summary = "Connection sprites exported.\n\n"
-                    + tileBuildings + " tiles and " + utilityBuildings + " utilities.\n\n" + RootDir;
+                summary = "Connection sprites exported: " + tileBuildings + " tiles and "
+                    + utilityBuildings + " utilities.\n" + RootDir;
             }
             finally
             {

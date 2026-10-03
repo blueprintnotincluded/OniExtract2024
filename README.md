@@ -125,7 +125,7 @@ icons (elements, items, critters, facades) are only written by the main-menu pas
 not affected.
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause
-screen (Esc), and click **Export Building Images**. A message on screen says the export has
+screen (Esc), and click **Export Building Images**. A banner at the top of the screen says the export has
 started and is replaced by a summary when it finishes (about a minute); progress is logged to
 `Player.log` (lines prefixed `OniExtract:`). Only one of the two pause-screen exports runs at a
 time — the second is refused, with a message, until the first has finished. The tool filters to `ShowInBuildMenu && !Deprecated`
@@ -184,7 +184,7 @@ export/connection_sprites/{prefabId}/{bitmask}.png   (bitmask 0–15)
 | Tiles | `isKAnimTile` | Resample the building's `BlockTileAtlas` into a fixed 1.5-cell canvas (cell centred) reproducing the game's geometry: connected edges trim flush to the cell boundary, disconnected edges overhang it by ¼ cell so caps bleed into the neighbour and tiles join seamlessly (no placement needed). `15.png` fills exactly the centre cell — the website's scale reference | [TileConnectionExtractor.cs](OniExtract2024/connection/TileConnectionExtractor.cs) |
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause screen
-(Esc), and click **Export Connection Sprites**. A message on screen says the export has started
+(Esc), and click **Export Connection Sprites**. A banner at the top of the screen says the export has started
 and is replaced by a summary when it finishes (about ten seconds). Progress and the output path
 are logged to `Player.log` (lines prefixed `OniExtract:`).
 

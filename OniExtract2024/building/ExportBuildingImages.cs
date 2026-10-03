@@ -81,7 +81,7 @@ namespace OniExtract2024.building
         private static IEnumerator Run()
         {
             // Replaced on success; what the user sees if the export throws part-way.
-            string summary = "The building images export stopped early.\n\nSee Player.log for the error.";
+            string summary = "The building images export stopped early. See Player.log for the error.";
             try
             {
                 Rects.Clear();
@@ -190,10 +190,10 @@ namespace OniExtract2024.building
                 PatchBuildingJsonRects(Rects);
                 VerifyRectsMatchPngs(Rects);
 
-                summary = "Building images exported.\n\n"
-                    + exported + " buildings and " + terrainExported + " terrain features rendered"
+                summary = "Building images exported: " + exported + " buildings and "
+                    + terrainExported + " terrain features rendered"
                     + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
-                    + ".\n\n" + OutputDir;
+                    + ".\n" + OutputDir;
             }
             finally
             {
