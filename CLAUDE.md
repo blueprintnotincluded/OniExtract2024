@@ -91,6 +91,20 @@ dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywh
 dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 45 tests
 ```
 
+### Validating an export
+
+```powershell
+.\tools\Test-Export.ps1 -Snapshot   # BEFORE the in-game run: copy the export to export-baseline
+.\tools\Test-Export.ps1             # AFTER it: invariants, spot checks, diff against the baseline
+```
+
+The game overwrites the export in place, so the snapshot has to be taken first. The second
+command checks the contract invariants below and the documented spot checks, then compares
+every JSON value and every PNG with the snapshot. A behaviour-neutral change should come back
+`RESULT: clean`. Renders are not byte-stable between runs, so images are compared by size,
+outline and colour rather than by hash. When a new field gets a spot check in the docs, add it
+to the script as well.
+
 ### Probing the game assembly
 
 `ilspycmd` is a dotnet global tool; use it to confirm field names and signatures before writing
