@@ -114,6 +114,7 @@
     <Compile Include="ExportEntity.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />
+    <Compile Include="InGameExport.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="model\BEquipment.cs" />
     <Compile Include="model\BSeed.cs" />
