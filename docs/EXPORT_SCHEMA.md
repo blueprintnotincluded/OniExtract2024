@@ -162,15 +162,15 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   // Rocketry (Spaced Out module stacking) — ALL OMITTED when they do not apply (never null,
   // never false). Full semantics and website guidance: WEBSITE_ROCKET_MODULES.md.
   "isRocketModule": true,               // prefab has a RocketModule / RocketModuleCluster component
-  "attachableTo": "Rocket",             // BuildingDef.AttachmentSlotTag: hardpoint type this must sit on
+  "attachableTo": "Rocket",             // BuildingDef.AttachmentSlotTag: hardpoint type this sits on (see below)
   "attachablePosition": { "x": 0, "y": 0 }, // cell of THIS building that lands on the hardpoint
   "attachPoints": [ /* OutAttachPoint[] — hardpoints this building offers; see below */ ],
   "rocketModulePerformance": { "burden": 8.0, "enginePower": 96.0, "fuelKilogramPerDistance": 1.6 },
   "moduleBuildConditions": ["ResearchCompleted", "MaterialsAvailable", "PlaceSpaceAvailable",
                             "RocketHeightLimit", "LimitOneEngine", "EngineOnBottom"],
 
-  // Settings ranges (blueprint buildingData) — ALL OMITTED when the component is absent.
-  "prioritizable": true,                // has Prioritizable: accepts a work priority
+  // Settings ranges (blueprint buildingData) — ALL OMITTED when they do not apply.
+  "prioritizable": true,                // completed building keeps a user-facing priority (see below)
   "userNameable": true,                 // has UserNameable: player can rename it
   "door": { "doorType": "Pressure", "hasComplexUserControls": true, "allowAutoControl": true },
   "valve": { "conduitType": "Liquid", "maxFlow": 10.0 },
@@ -200,6 +200,18 @@ another module have exactly one `Rocket` hardpoint at `(0, heightInCells)`; nose
 at pad-origin + `baseModulePosition`, which is the same relationship, so it is emitted in the
 same shape.
 
+`attachableTo` is not rocket-only. It is emitted for every building that sits on a hardpoint:
+the rocket modules (`Rocket`), and buildings whose `buildLocationRule` is `12`
+(`BuildingAttachPoint`: `OilWellCap` → `OilWell`, `MonumentMiddle`, `MonumentTop`,
+`ReefGenerator`, `UnderwaterVentDrill`, the deprecated `CrewCapsule`) or `13`
+(`OnFloorOrBuildingAttachPoint`: `LadderBed`, which may also stand on the floor). Always match
+on the tag. Hardpoints for `OilWell`, `ReefGenerator` and `UnderwaterVentDrill` belong to
+terrain features, which are not in `building.json`. Two defs carry an `AttachmentSlotTag` in
+game without sitting on anything, and get **no** `attachableTo`: `LaunchPad` (tagged `Rocket`
+as the root of its rocket's attach network) and `MonumentBottom` (a floor building). Likewise
+`attachPoints` appears on non-rocket buildings: `LadderBed` (`LadderBed`), `MonumentBottom`
+(`MonumentMiddle`), `MonumentMiddle` (`MonumentTop`).
+
 **OutRocketModulePerformance shape** (`RocketModuleCluster.performanceStats`): `burden` is the
 module's weight against the engine (`TUNING.ROCKETRY.BURDEN.*`), `enginePower` the lift an engine
 provides (0 for non-engines), `fuelKilogramPerDistance` the engine's fuel cost per cluster hex (0
@@ -215,9 +227,15 @@ may go above; these are also the only modules without `attachPoints`), `LimitOne
 `LaunchPad` has none. Verified against all 32 module configs in U59: every module with a
 hardpoint has exactly one, at `(0, heightInCells)`.
 
-**Settings shapes**: `door.doorType` is a `Door.DoorType` name (`Pressure`, `ManualPressure`,
-`Internal`, `Sealed`); `valve.conduitType` / `limitValve.conduitType` are `ConduitType` names
-(`Gas`, `Liquid`, `Solid`). `valve.maxFlow` bounds `buildingData.Valve.DesiredFlow` (kg/s);
+**Settings shapes**: `prioritizable` means the completed building keeps a priority the player
+can set (`Prioritizable.IsPrioritizable()` on the prefab: storage, fabricators, doors, ...).
+It is not "has a `Prioritizable` component": every building has one, and a blueprint may carry
+`buildingData.Prioritizable` for any building, where it acts as the build priority. Wires,
+tiles and pipes do not get the key. `door.doorType` is a `Door.DoorType` name (`Pressure`,
+`ManualPressure`, `Internal`, `Sealed`); `valve.conduitType` / `limitValve.conduitType` are
+`ConduitType` names (`Gas`, `Liquid`, `Solid`). `valve` is present only on buildings with the
+flow slider (`Valve` component: `GasValve`, `LiquidValve`), not on the shutoffs
+(`GasLogicValve`, `LiquidLogicValve`). `valve.maxFlow` bounds `buildingData.Valve.DesiredFlow` (kg/s);
 `limitValve.maxLimitKg` bounds `buildingData.LimitValve.Limit`; `userControlledCapacity`
 bounds `buildingData.IUserControlledCapacity.UserMaxCapacity` (and `StorageTile` on Storage
 Tiles). `userControlledCapacity.source` names the game component the range came from

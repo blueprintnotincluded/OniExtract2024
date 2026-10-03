@@ -117,10 +117,13 @@ namespace OniExtract2024
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool isRocketModule;
 
-        // BuildingDef.AttachmentSlotTag: the hardpoint type this building must sit on ("Rocket"
-        // for every module). attachablePosition (BuildingDef.attachablePosition) is the cell of
-        // THIS building that must land on the hardpoint, as an offset from its origin cell --
-        // (0,0) for all vanilla modules. Both omitted for ordinary buildings.
+        // BuildingDef.AttachmentSlotTag: the hardpoint type this building sits on ("Rocket" for
+        // every module; also "OilWell" for OilWellCap, "MonumentMiddle", "LadderBed", ...).
+        // attachablePosition (BuildingDef.attachablePosition) is the cell of THIS building that
+        // must land on the hardpoint, as an offset from its origin cell -- (0,0) for all vanilla
+        // buildings. Both omitted for ordinary buildings, and for the two that carry the tag
+        // without sitting on anything (LaunchPad, MonumentBottom): see
+        // RocketModuleBuilder.SitsOnAttachPoint.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string attachableTo = null;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -147,9 +150,11 @@ namespace OniExtract2024
 
         // ── Settings ranges (blueprint buildingData) ──────────────────────────────────────
         // Static facts behind per-building settings a blueprint may carry. Filled by
-        // BuildingSettingsBuilder; all omitted when the component is absent.
+        // BuildingSettingsBuilder; all omitted when they do not apply.
 
-        // Has a Prioritizable component: accepts a work priority (buildingData.Prioritizable).
+        // The completed building keeps a user-facing priority (Prioritizable.IsPrioritizable on
+        // the prefab): storage, fabricators, doors, ... Every building has the component, and a
+        // blueprint may carry buildingData.Prioritizable for any of them as its build priority.
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool prioritizable;
         // Has a UserNameable component: the player can rename it (buildingData.UserNameable).

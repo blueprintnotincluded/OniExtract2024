@@ -38,6 +38,29 @@ namespace OniExtract2024.Tests
             Assert.Equal(2, j.Properties().Count()); // nothing else leaks (no attachedBuilding)
         }
 
+        // ── attachableTo ───────────────────────────────────────────────────────
+
+        [Theory]
+        // Rocket modules are BuildLocationRule.Anywhere; the module screen stacks them.
+        [InlineData(true, true, BuildLocationRule.Anywhere, true)]
+        // OilWellCap, MonumentMiddle/Top: the placement rule itself demands a hardpoint.
+        [InlineData(true, false, BuildLocationRule.BuildingAttachPoint, true)]
+        // LadderBed: floor or a LadderBed hardpoint.
+        [InlineData(true, false, BuildLocationRule.OnFloorOrBuildingAttachPoint, true)]
+        // LaunchPad carries AttachmentSlotTag = Rocket as the root of the rocket's attach
+        // network, but is an Anywhere building that sits on nothing.
+        [InlineData(true, false, BuildLocationRule.Anywhere, false)]
+        // MonumentBottom: tagged "MonumentBottom", built on the floor.
+        [InlineData(true, false, BuildLocationRule.OnFloor, false)]
+        // No tag, no attachment, whatever the rule.
+        [InlineData(false, true, BuildLocationRule.Anywhere, false)]
+        [InlineData(false, false, BuildLocationRule.BuildingAttachPoint, false)]
+        public void SitsOnAttachPoint_NeedsTheTagAndAModuleOrAnAttachRule(
+            bool hasTag, bool isRocketModule, BuildLocationRule rule, bool expected)
+        {
+            Assert.Equal(expected, RocketModuleBuilder.SitsOnAttachPoint(hasTag, isRocketModule, rule));
+        }
+
         // ── moduleBuildConditions ──────────────────────────────────────────────
 
         [Fact]

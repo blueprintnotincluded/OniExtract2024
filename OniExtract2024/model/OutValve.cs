@@ -5,6 +5,7 @@ namespace OniExtract2024
 {
     // Flow valve (ValveBase + Valve): GasValve / LiquidValve and modded equivalents. The
     // blueprint `buildingData.Valve.DesiredFlow` setting is a kg/s value in [0, maxFlow].
+    // Shutoffs (OperationalValve, a ValveBase without Valve) have no slider and get no entry.
     public class OutValve
     {
         // ConduitType enum name: "Gas" | "Liquid".

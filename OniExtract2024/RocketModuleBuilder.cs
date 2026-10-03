@@ -32,7 +32,8 @@ namespace OniExtract2024
             // The slot this building plugs into. BuildingLoader adds an AttachableBuilding with
             // attachableToTag = def.AttachmentSlotTag whenever the tag is set, so the def field
             // is the authoritative source and is what BuildingDef.IsValidPlaceLocation checks.
-            if (def.AttachmentSlotTag.IsValid)
+            // The tag alone is not enough, though: see SitsOnAttachPoint.
+            if (SitsOnAttachPoint(def.AttachmentSlotTag.IsValid, b.isRocketModule, def.BuildLocationRule))
             {
                 b.attachableTo = def.AttachmentSlotTag.Name;
                 b.attachablePosition = new BVector2(def.attachablePosition);
@@ -56,6 +57,23 @@ namespace OniExtract2024
                 b.moduleBuildConditions = ConditionNames(reorderable.buildConditions);
 
             return cluster != null;
+        }
+
+        // Whether a def with an AttachmentSlotTag actually sits on a hardpoint of that type.
+        // The tag also marks buildings that merely belong to an attach network: LaunchPadConfig
+        // sets AttachmentSlotTag = Rocket so the pad is the root of its rocket's network, and
+        // MonumentBottomConfig sets "MonumentBottom" on a floor building no hardpoint offers.
+        // Emitting attachableTo for those would tell the website a LaunchPad snaps onto a
+        // module. The game only places a building on a hardpoint when it is a rocket module
+        // (the module screen stacks it) or its BuildLocationRule says so
+        // (BuildingDef.IsValidPlaceLocation checks AcceptsAttachment for BuildingAttachPoint;
+        // OnFloorOrBuildingAttachPoint, e.g. LadderBed, allows either).
+        public static bool SitsOnAttachPoint(bool hasAttachmentSlotTag, bool isRocketModule, BuildLocationRule rule)
+        {
+            if (!hasAttachmentSlotTag) return false;
+            return isRocketModule
+                || rule == BuildLocationRule.BuildingAttachPoint
+                || rule == BuildLocationRule.OnFloorOrBuildingAttachPoint;
         }
 
         // BuildingAttachPoint.HardPoint[] -> attachPoints entries. attachedBuilding is runtime

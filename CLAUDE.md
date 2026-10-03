@@ -88,7 +88,7 @@ as a dirty diff.
 
 ```bash
 dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 6 tests
-dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 38 tests
+dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 45 tests
 ```
 
 ### Probing the game assembly

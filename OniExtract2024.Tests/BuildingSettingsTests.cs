@@ -30,7 +30,10 @@ namespace OniExtract2024.Tests
         public void NoSettings_EmitsNothing()
         {
             var j = JObject.Parse(JsonConvert.SerializeObject(new SettingsProbe(), BaseExport.BuildSerializerSettings()));
-            Assert.Empty(j.Properties()); // a plain Wire/Tile adds zero keys to building.json
+            // A plain Wire/Tile adds zero keys to building.json. That depends on the builder
+            // reading Prioritizable.IsPrioritizable(), not component presence: every building
+            // has the component (first in-game export had prioritizable: true on all 487).
+            Assert.Empty(j.Properties());
         }
 
         [Fact]
