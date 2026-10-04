@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using OniExtract2024.building;
@@ -78,6 +80,67 @@ namespace OniExtract2024.Tests
             var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
             Assert.True(j["debugOnly"].Value<bool>());
             Assert.False(j["deprecated"].Value<bool>());
+        }
+
+        // Mirrors BBuildingEntity's replacement fields exactly.
+        private class ReplacementProbe
+        {
+            public bool replaceable;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public int? tileLayer = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public int? replacementLayer = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public List<int> replacementCandidateLayers = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> replacementTags = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> runtimeTags = null;
+        }
+
+        [Fact]
+        public void Replacement_UnsetFieldsAreOmitted_ReplaceableAlwaysEmitted()
+        {
+            // An ordinary building (ReplacementLayer == NumLayers, null lists) adds one key.
+            // replaceable stays even when false: that is the value that carries information.
+            var j = JObject.Parse(JsonConvert.SerializeObject(new ReplacementProbe(), BaseExport.BuildSerializerSettings()));
+            Assert.Equal(new[] { "replaceable" }, j.Properties().Select(p => p.Name).ToArray());
+            Assert.False(j["replaceable"].Value<bool>());
+        }
+
+        [Fact]
+        public void Replacement_LayersAreInts_TagsAreNames()
+        {
+            // The Tile values. Layers must be plain ints so they compare with objectLayer;
+            // tags plain names, unlike the {Name, IsValid} objects in `tags`.
+            var probe = new ReplacementProbe
+            {
+                replaceable = true,
+                tileLayer = 9,
+                replacementLayer = 11,
+                replacementCandidateLayers = new List<int> { 9, 24, 2 },
+                replacementTags = new List<string> { "FloorTiles", "Ladders", "Backwall" },
+                runtimeTags = new List<string> { "Ladders" },
+            };
+            var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
+            Assert.Equal(JTokenType.Integer, j["tileLayer"].Type);
+            Assert.Equal(11, j["replacementLayer"].Value<int>());
+            Assert.Equal(new[] { 9, 24, 2 }, j["replacementCandidateLayers"].Values<int>().ToArray());
+            Assert.Equal(new[] { "FloorTiles", "Ladders", "Backwall" }, j["replacementTags"].Values<string>().ToArray());
+            Assert.Equal(new[] { "Ladders" }, j["runtimeTags"].Values<string>().ToArray());
+        }
+
+        [Fact]
+        public void ObjectLayerNames_AreIndexedByEnumValue()
+        {
+            // The root objectLayerNames array is Enum.GetNames(typeof(ObjectLayer)) and is
+            // documented as "index == layer int". That holds only while the game's enum stays
+            // contiguous from 0 with NumLayers last.
+            string[] names = System.Enum.GetNames(typeof(ObjectLayer));
+            for (int i = 0; i < names.Length; i++)
+                Assert.Equal(((ObjectLayer)i).ToString(), names[i]);
+            Assert.Equal("NumLayers", names[names.Length - 1]);
+            Assert.Equal((int)ObjectLayer.NumLayers, names.Length - 1);
         }
 
         [Fact]

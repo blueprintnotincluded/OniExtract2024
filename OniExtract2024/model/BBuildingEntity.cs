@@ -65,6 +65,44 @@ namespace OniExtract2024
         public int permittedRotations;
         public int sceneLayer;
         public int objectLayer;
+
+        // ── Replacement (building over an existing building) ──────────────────────────────
+        // The BuildingDef fields the game reads when a building is placed on an occupied cell
+        // and queues a replacement instead of refusing (tile over tile, ladder over ladder,
+        // wire over wire). Copied as they are; the rule they feed is BuildTool.TryBuild, written
+        // out in docs/GAME_INTERNALS.md ("Building replacement"). Layers are ObjectLayer ints in
+        // the objectLayer numbering (names: the root objectLayerNames). ObjectLayer.NumLayers
+        // is the game's "unset" and is omitted, like a null list.
+
+        // BuildingDef.Replaceable: whether ANOTHER building may replace this one. true for
+        // nearly everything, so it only says something when false. Always emitted, like
+        // deprecated, so a consumer can tell "false" from "export predates the field".
+        public bool replaceable;
+        // BuildingDef.TileLayer: the second layer a placed tile piece occupies besides
+        // objectLayer (Tile: objectLayer 1 Building, tileLayer 9 FoundationTile). It is the
+        // layer a replacing building searches when it has no replacementCandidateLayers.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int? tileLayer = null;
+        // BuildingDef.ReplacementLayer: where this building's pending replacement is parked.
+        // Absent means this building never replaces another. Present is necessary, not
+        // sufficient: FloorSwitch has the layer but no replacementTags.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int? replacementLayer = null;
+        // BuildingDef.ReplacementCandidateLayers: layers searched, in this order, for the
+        // building to replace. Absent means "search tileLayer".
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<int> replacementCandidateLayers = null;
+        // BuildingDef.ReplacementTags, as tag names: the existing building must carry at least
+        // one (its tags[].Name plus runtimeTags). Absent means BuildTool replaces nothing.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> replacementTags = null;
+        // Tags the game adds only when the building is placed, so `tags` (read from the
+        // prefab) lacks them. Not a full list of runtime tags: only the ones a rule in this
+        // export depends on, which today is "Ladders" (Ladder.OnPrefabInit), matched by
+        // replacementTags. Omitted when there are none.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> runtimeTags = null;
+
         public string viewMode;
         public string defaultAnimState;
         public string uiSpriteName;

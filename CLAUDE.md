@@ -50,7 +50,7 @@ with the game installed has to confirm it.
   can verify. Currently `ExportPaths` and `UiImageRect`. Pure logic belongs here.
 - **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
-  with ONI installed. 45 tests.
+  with ONI installed. 48 tests.
 - **`tools/`** — PowerShell helpers that run outside the game. `Test-Export.ps1` validates an
   export and diffs it against a snapshot (see "Validating an export" below);
   `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file. Mod buildings
@@ -90,7 +90,7 @@ projects that link against the game. If the game lives elsewhere, set them in a 
 
 ```bash
 dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 6 tests
-dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 45 tests
+dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 48 tests
 ```
 
 ### Validating an export

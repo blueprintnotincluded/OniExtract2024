@@ -23,6 +23,10 @@ public class ExportBuilding : BaseExport
     // buildings have showInBuildMenu=false and appear in no buildingAndSubcategoryDataPairs
     // category, so this is the only menu source for them. Filled by ExportRocketModuleMenu().
     public List<string> rocketModuleMenu = new List<string>();
+    // ObjectLayer enum names indexed by value, to decode the per-building layer ints
+    // (objectLayer, tileLayer, replacementLayer, replacementCandidateLayers) without tracking
+    // the game's numbering. The enum is contiguous from 0; its last name is NumLayers.
+    public string[] objectLayerNames = Enum.GetNames(typeof(ObjectLayer));
     // PrefabIDs of the RocketModuleCluster buildings seen by AddNewBuildingEntity; input to
     // ExportRocketModuleMenu. Not serialized.
     [Newtonsoft.Json.JsonIgnore]
@@ -61,6 +65,7 @@ public class ExportBuilding : BaseExport
         bBuild.permittedRotations = (int)buildingDef.PermittedRotations;
         bBuild.sceneLayer = (int)buildingDef.SceneLayer;
         bBuild.objectLayer = (int)buildingDef.ObjectLayer;
+        ApplyReplacement(bBuild, buildingDef, prefabID);
         bBuild.viewMode = ViewModeToString(buildingDef.ViewMode);
         bBuild.defaultAnimState = buildingDef.DefaultAnimState;
         bBuild.uiSpriteName = buildingDef.UISprite != null ? buildingDef.UISprite.name : null;
@@ -263,6 +268,30 @@ public class ExportBuilding : BaseExport
     private static string ViewModeToString(HashedString viewMode)
     {
         return ViewModeNames.TryGetValue(viewMode, out string name) ? name : null;
+    }
+
+    // Copies the BuildingDef fields behind building-over-building replacement. See the field
+    // comments on BBuildingEntity and "Building replacement" in docs/GAME_INTERNALS.md.
+    private static void ApplyReplacement(BBuildingEntity b, BuildingDef def, KPrefabID prefabID)
+    {
+        b.replaceable = def.Replaceable;
+        b.tileLayer = LayerOrNull(def.TileLayer);
+        b.replacementLayer = LayerOrNull(def.ReplacementLayer);
+        if (def.ReplacementCandidateLayers != null)
+            b.replacementCandidateLayers = def.ReplacementCandidateLayers.Select(l => (int)l).ToList();
+        if (def.ReplacementTags != null)
+            b.replacementTags = def.ReplacementTags.Select(t => t.Name).ToList();
+
+        // Ladder.OnPrefabInit tags its building GameTags.Ladders. That runs on placed
+        // buildings only, so the prefab's tags never show it, yet it is the tag ladders and
+        // tiles list in ReplacementTags. A mod that tags its prefab directly needs no entry.
+        if (prefabID.GetComponent<Ladder>() != null && !prefabID.Tags.Contains(GameTags.Ladders))
+            b.runtimeTags = new List<string> { GameTags.Ladders.Name };
+    }
+
+    private static int? LayerOrNull(ObjectLayer layer)
+    {
+        return layer == ObjectLayer.NumLayers ? (int?)null : (int)layer;
     }
 
     // Returns one OutUtilityPort per connection port on this building.
