@@ -505,8 +505,10 @@ public static class OniExportCheck
     static string LayerName(JArray names, JToken v)
     {
         if (names == null || v == null || v.Type != JTokenType.Integer) return null;
-        int i = (int)v;
-        return i >= 0 && i < names.Count - 1 ? Str(names[i]) : null;
+        // As a long: an int cast throws on a value past Int32, and this runs in the invariant
+        // loop, where an exception would end the whole check instead of failing one building.
+        long i = (long)v;
+        return i >= 0 && i < names.Count - 1 ? Str(names[(int)i]) : null;
     }
 
     static string LayerIs(JArray names, JObject b, string key, string expected)
