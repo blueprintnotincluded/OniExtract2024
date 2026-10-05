@@ -80,6 +80,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 | `requiredSkillPerkMap` | dict | 28 keys | Keyed by skill perk Tag object |
 | `mods` | array | 0+ | Source-mod roster: `{ id, title, buildings[] }` per enabled mod that contributed buildings; `id` = Steam workshop id (or local-mod folder name), matching each entry's `mod` field. Empty for a vanilla-only export. |
 | `rocketModuleMenu` | string[] | 32 (Spaced Out) | Prefab ids of every Spaced Out rocket module (`RocketModuleCluster` buildings) in the order the game's rocket-platform module screen lists them (`SelectModuleSideScreen.moduleButtonSortOrder`), then any modded modules the game list does not know, in name order. These buildings have `showInBuildMenu: false` and appear in no `buildingAndSubcategoryDataPairs` category, so this is the only menu source for them. Empty without the DLC. See WEBSITE_ROCKET_MODULES.md. |
+| `objectLayerNames` | string[] | 46 | The game's `ObjectLayer` enum names, indexed by value: `objectLayerNames[1]` is `Building`. Decodes every per-building layer int (`objectLayer`, `tileLayer`, `replacementLayer`, `replacementCandidateLayers`). The last entry is `NumLayers`, the game's "unset", which the per-building fields never emit. |
 
 ### bBuildingDefList entry
 
@@ -139,7 +140,16 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
   "buildLocationRule": 1,               // BuildLocationRule enum as int
   "permittedRotations": 0,              // PermittedRotations enum as int (0=Unrotatable)
   "sceneLayer": 19,                     // Grid.SceneLayer enum as int
-  "objectLayer": 1,                     // ObjectLayer enum as int
+  "objectLayer": 1,                     // ObjectLayer enum as int (names: root objectLayerNames)
+
+  // Replacement (building over an existing building) — see "Replacement fields" below. The
+  // values shown are Tile's, not ManualGenerator's, which has only "replaceable": true.
+  "replaceable": true,                  // BuildingDef.Replaceable: ANOTHER building may replace this one. Always emitted.
+  "tileLayer": 9,                       // BuildingDef.TileLayer: second layer this building occupies. OMITTED when unset.
+  "replacementLayer": 11,               // BuildingDef.ReplacementLayer: absent = this building never replaces another. OMITTED when unset.
+  "replacementCandidateLayers": [9, 24, 2], // layers searched, in order, for the building to replace. OMITTED when null.
+  "replacementTags": ["FloorTiles", "Ladders", "Backwall"], // tag NAMES the replaced building must carry one of. OMITTED when null.
+  "runtimeTags": ["Ladders"],           // tags added only on placement, missing from `tags` (on Ladder, not Tile). OMITTED when none.
   "viewMode": "Power",                  // Overlay mode name (game-native string), or null when the building has no special overlay. Values: "Power", "GasConduit", "LiquidConduit", "SolidConveyor", "Logic", "Oxygen", "Decor", "Light", "Temperature", "Rooms", "Radiation", "Disease", "Crop". Mapped from BuildingDef.ViewMode via the OverlayModes.*.ID lookup so conduit/logic overlays resolve correctly (no longer null/hash).
   "defaultAnimState": "off",
   "uiSpriteName": "generatormanual_0",  // sprite name; cross-ref uiSpriteInfos[name].spriteName
@@ -247,6 +257,46 @@ flow slider (`Valve` component: `GasValve`, `LiquidValve`), not on the shutoffs
 bounds `buildingData.IUserControlledCapacity.UserMaxCapacity` (and `StorageTile` on Storage
 Tiles). `userControlledCapacity.source` names the game component the range came from
 (`StorageLocker`, `Refrigerator`, `FuelTank`, `CargoBayCluster`, ..., or `StorageTile.Def`).
+
+**Replacement fields**: the `BuildingDef` data behind the game queuing a *replacement* when a
+building is placed on an occupied cell. They are copied as they are; the matching is the
+consumer's. Layers are `ObjectLayer` ints in the `objectLayer` numbering, decoded by the root
+`objectLayerNames`. The game's "unset" layer (`NumLayers`) and null lists are omitted, never
+emitted as null. An export from before these fields existed has no `replaceable` key at all.
+
+The game's rule is `BuildTool.TryBuild`, set out step by step in GAME_INTERNALS.md ("Building
+replacement"). In terms of the export, with **C** the building being placed and **E** an
+existing one, where E *is on layer L* when `L == E.objectLayer || L == E.tileLayer`:
+
+- C is not (`isKAnimTile && isUtility`): C may replace E when C has a `replacementLayer`; E is
+  the first building found at C's origin cell on `C.replacementCandidateLayers`, in order (or
+  on `C.tileLayer` when C has no candidate list); `E.replaceable`; and `C.replacementTags`
+  shares a name with `E.tags[].Name` ∪ `E.runtimeTags`.
+- C is `isKAnimTile && isUtility` (wires, pipes, rails, logic wire, travel tubes): C may
+  replace E when C has a `replacementLayer` and E is on `C.tileLayer`. The game reads neither
+  `replacementTags` nor `replaceable` on this path.
+- Either way C never replaces another instance of itself unless the material differs.
+- The game only tries a replacement after ordinary placement was refused, and then re-checks
+  the build-location rule. Neither is in the export.
+
+`tags` is read from the prefab, so it misses tags a component adds when the building is
+placed. `runtimeTags` carries the ones a rule here depends on, which today is `Ladders` on
+buildings with a `Ladder` component. It is not a full list of runtime tags.
+
+Spot checks (run by `tools/Test-Export.ps1`; layers by name through `objectLayerNames`):
+
+- `Tile`: `replaceable`; `tileLayer` `FoundationTile`; `replacementLayer` `ReplacementTile`;
+  candidates `FoundationTile`, `LadderTile`, `Backwall`; `replacementTags` `FloorTiles`,
+  `Ladders`, `Backwall`; `tags` has `FloorTiles`; no `runtimeTags`.
+- `Ladder`: `tileLayer` `LadderTile`; `replacementLayer` `ReplacementLadder`; no
+  `replacementCandidateLayers`; `replacementTags` `Ladders`; `runtimeTags` `Ladders`.
+- `ExteriorWall`: `replacementLayer` `ReplacementBackwall`; candidates `FoundationTile`,
+  `Backwall`; `replacementTags` `FloorTiles`, `Backwall`; no `tileLayer`.
+- `Wire`: `tileLayer` `WireTile`; `replacementLayer` `ReplacementWire`; no `replacementTags`.
+- `PressureDoor`: `tileLayer` `FoundationTile`; no `replacementLayer`; `tags` has no
+  `FloorTiles`.
+- `PixelPack`: `replaceable` false.
+- `ManualGenerator`: `replaceable` true and none of the other replacement keys.
 
 **OutEnergyConsumer shape** (when present — buildings that draw from the power network):
 

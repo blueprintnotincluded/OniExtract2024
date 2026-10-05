@@ -206,12 +206,85 @@ always pre-rotation.
 
 ---
 
+## Building replacement
+
+Placing a building on an occupied cell sometimes queues a *replacement* (tile over tile, ladder
+over ladder, wire over wire) instead of refusing. Read from the decompiled U59-744825 assembly;
+not observed in game. Below, **C** is the def being placed and **E** the building already there.
+
+Which layers a placed building occupies: `BuildingComplete.OnSpawn` marks its footprint on
+`Def.ObjectLayer`, and also on `Def.TileLayer` when that is set (`IsTilePiece`). A `Tile` is on
+`Building` and `FoundationTile`; a `Ladder` on `Building` and `LadderTile`; a `Wire` on `Wire`
+and `WireTile`. `ObjectLayer.NumLayers` is the "unset" value of `TileLayer` and
+`ReplacementLayer`.
+
+The game has two placement tools, picked in `PlanScreen.OnRecipeElementsFullySelected`, and
+each has its own rule.
+
+**`BuildTool.TryBuild`** — every def that is not `isKAnimTile && isUtility`. This is the method
+that holds the final rule. A replacement is queued when all of these hold:
+
+1. Ordinary placement was refused (`C.TryPlace` returned null).
+2. `C.ReplacementLayer != NumLayers`.
+3. `C.GetReplacementCandidate(cell)` finds E at C's origin cell: with
+   `C.ReplacementCandidateLayers`, the first layer in list order that holds a
+   `BuildingComplete` there; without, whatever is on `C.TileLayer`.
+4. Nothing is already queued: no footprint cell has an object on `C.ReplacementLayer` or on
+   one of `C.EquivalentReplacementLayers` (`IsReplacementLayerOccupied`). Runtime state only.
+5. `E.Def.Replaceable`, and `C.CanReplace(E)`: `C.ReplacementTags` is non-null and E's
+   `KPrefabID` has at least one of them.
+6. `E.Def != C`, or the selected material differs from E's (a same-def material swap).
+7. `C.TryReplaceTile` then re-runs `IsValidPlaceLocation(replace_tile: true)`: the usual
+   build-location rule and area check, with the candidate exempt from "occupied".
+
+Only the origin cell's candidate is tested by 5 and 6. For a multi-cell C the other cells go
+through the area check, and `Constructable.FinishConstruction` removes whatever
+`GetReplacementCandidate` finds in each.
+
+**`BaseUtilityBuildTool.BuildPath`** — the `isKAnimTile && isUtility` defs (wires, logic wire,
+pipes, rails, travel tubes). Per path cell: `C.ReplacementLayer != NumLayers`,
+`C.IsValidBuildLocation`, an object E on `C.TileLayer` and none on `C.ReplacementLayer`, E is
+a `BuildingComplete`, and `E.Def != C` or the material differs. It checks **neither**
+`ReplacementTags` **nor** `Replaceable`: any wire replaces any other wire. The `Vents` /
+`Pipes` tags the conduit configs put in `ReplacementTags` are never read, because `CanReplace`
+has one caller and it is `BuildTool`.
+
+Who sets what (vanilla):
+
+| Defs | `ReplacementLayer` | `ReplacementCandidateLayers` | `ReplacementTags` |
+|---|---|---|---|
+| `BuildingTemplates.CreateFoundationTileDef` (20 configs: the tiles, the farm tiles, `TravelTubeWallBridge`, `WireBridgeHighWattage`) | `ReplacementTile` | `FoundationTile`, `LadderTile`, `Backwall` | `FloorTiles`, `Ladders`, `Backwall` |
+| `BuildingTemplates.CreateLadderDef`: `Ladder`, `LadderFast`, `FirePole` | `ReplacementLadder` | — (searches `LadderTile`) | `Ladders` |
+| `ExteriorWall`, `GlassExteriorWall`, `ThermalBlock` | `ReplacementBackwall` | `FoundationTile`, `Backwall` | `FloorTiles`, `Backwall` |
+| `FacilityBackWallWindow` | `ReplacementBackwall` | `FoundationTile`, `Backwall` | **null**, so `CanReplace` is always false |
+| `FloorSwitch`, `MouldingTile` | `ReplacementTile` | — | **null**, so `CanReplace` is always false |
+| `LargeBackwallFarm`, `ContactConductivePipeBridge` | **unset**, so never a replacement | — | set, unused |
+| Wires, logic wire, gas/liquid/solid conduits, `TravelTube` | their own `Replacement*` layer | — | not read (utility tool) |
+
+`Replaceable` is set false by the configs for `InsulatedDoor`, `WoodenDoor`, `PixelPack`,
+`LargeBackwallFarm`, `UnderwaterMilkFeeder`, `TilePOI`, `RocketWallTile`,
+`RocketEnvelopeWindowTile` and the four `RocketInterior*Port` tiles.
+
+Two traps for the export:
+
+- **The matching tag can be runtime-only.** `FloorTiles`, `Backwall`, `Vents` and `Pipes` are
+  added in the configs and are on the prefab. `Ladders` is added by `Ladder.OnPrefabInit`, so
+  the prefab's tags never carry it. The export lists it in `runtimeTags` for buildings with a
+  `Ladder` component.
+- **Being a foundation is not being replaceable by a tile.** `PressureDoor`,
+  `ManualPressureDoor` and `BunkerDoor` sit on `FoundationTile` but carry no `FloorTiles` tag,
+  and no door sets a `ReplacementLayer`, so a door and a tile never replace each other. The
+  same goes for `FarmTile` as the existing building: it has `FarmTiles`, not `FloorTiles`.
+
+---
+
 ## Things that look the same but are different
 
 | Looks like | Is actually |
 |---|---|
 | `ConduitType.Solid` on a `ConduitConsumer` | Dead code — never occurs. Solid conduit uses `SolidConduitConsumer` |
 | `LogicPorts` component → port data | Only valid on spawned objects; use `BuildingDef.LogicInputPorts` for export |
+| The prefab's `KPrefabID` tags → the placed building's tags | A subset. Components add more in `OnPrefabInit` / `OnSpawn`: a ladder only gets `Ladders` once placed (see "Building replacement") |
 | `LogicGate` component → same as `LogicPorts`? | No — completely separate system. `LogicGate` extends `LogicGateBase` and stores `CellOffset[]` arrays, not `List<LogicPorts.Port>` |
 | `go.GetDef<LogicPorts.Def>()` | Compile error in this game version — `LogicPorts.Def` does not exist |
 | `BuildingDef.LogicInputPorts` populated for gates | It is NOT. Gates use `LogicGateBase.inputPortOffsets` instead |

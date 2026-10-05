@@ -14,8 +14,11 @@ that used to be done by hand after every in-game run.
        - the export-contract invariants from CLAUDE.md (utilities[] present with known types,
          viewMode a game overlay name or null, uiImageRect never null, an icon for every
          building, 16 sprites per connectable, every rect matching its PNG's aspect);
-       - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5 and
-         docs/AREA_OF_EFFECT.md "Verification checklist".
+       - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
+         "Replacement fields");
+       - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
+         docs/AREA_OF_EFFECT.md "Verification checklist" and docs/EXPORT_SCHEMA.md
+         "Replacement fields".
      A spot check naming a building this export does not contain (no Spaced Out, say) is
      reported as skipped, not failed.
 
@@ -390,13 +393,16 @@ public static class OniExportCheck
     static readonly string[] OmittedNotNull = {
         "uiImageRect", "mod", "modTitle", "areasOfEffect", "attachPoints", "attachableTo",
         "rocketModulePerformance", "moduleBuildConditions", "valve", "limitValve",
-        "userControlledCapacity", "door" };
+        "userControlledCapacity", "door", "tileLayer", "replacementLayer",
+        "replacementCandidateLayers", "replacementTags", "runtimeTags" };
     static readonly string[] OmittedNotFalse = { "isRocketModule", "userNameable", "prioritizable" };
 
     static readonly string[] RocketKeys = {
         "isRocketModule", "attachPoints", "attachableTo", "rocketModulePerformance", "moduleBuildConditions" };
     static readonly string[] SettingsKeys = {
         "valve", "limitValve", "userControlledCapacity", "door", "userNameable", "prioritizable" };
+    static readonly string[] ReplacementKeys = {
+        "tileLayer", "replacementLayer", "replacementCandidateLayers", "replacementTags", "runtimeTags" };
 
     class Run
     {
@@ -491,6 +497,41 @@ public static class OniExportCheck
 
     static bool IsTrue(JToken t) { return t != null && t.Type == JTokenType.Boolean && (bool)t; }
 
+    static string Str(JToken t) { return t != null && t.Type == JTokenType.String ? (string)t : null; }
+
+    // The ObjectLayer name a layer int stands for. Null when it is not an index into the root
+    // objectLayerNames, or is the game's "unset" (NumLayers, the last name), which a
+    // per-building field must omit rather than emit.
+    static string LayerName(JArray names, JToken v)
+    {
+        if (names == null || v == null || v.Type != JTokenType.Integer) return null;
+        // As a long: an int cast throws on a value past Int32, and this runs in the invariant
+        // loop, where an exception would end the whole check instead of failing one building.
+        long i = (long)v;
+        return i >= 0 && i < names.Count - 1 ? Str(names[(int)i]) : null;
+    }
+
+    static string LayerIs(JArray names, JObject b, string key, string expected)
+    {
+        string name = LayerName(names, b[key]);
+        return name == expected ? null : key + " is " + Short(b[key]) + " (" + (name ?? "no such layer") + "), expected " + expected;
+    }
+
+    static string ListIs(JObject b, string key, Func<JToken, string> name, params string[] expected)
+    {
+        var a = b[key] as JArray;
+        return a != null && a.Select(name).SequenceEqual(expected) ? null
+            : key + " is " + Short(b[key]) + ", expected " + string.Join(", ", expected);
+    }
+
+    static string Absent(JObject b, string key) { return Has(b, key) ? "has " + key + " " + Short(b[key]) : null; }
+
+    static bool HasTag(JObject b, string tag)
+    {
+        var a = b["tags"] as JArray;
+        return a != null && a.OfType<JObject>().Any(t => Str(t["Name"]) == tag);
+    }
+
     static bool RectMatchesPng(JToken rect, string png, out string detail)
     {
         detail = null;
@@ -530,7 +571,15 @@ public static class OniExportCheck
         var falseKeys = new List<string>();
         var noIcon = new List<string>();
         var badRect = new List<string>();
-        int withRect = 0, withPorts = 0, modded = 0;
+        var badReplaceable = new List<string>();
+        var badLayers = new List<string>();
+        var badTagLists = new List<string>();
+        int withRect = 0, withPorts = 0, modded = 0, replacers = 0;
+
+        var layerNames = root["objectLayerNames"] as JArray;
+        r.Add("invariant", "building.json has objectLayerNames ending in NumLayers",
+            layerNames != null && layerNames.Count > 1 && Str(layerNames[layerNames.Count - 1]) == "NumLayers",
+            layerNames == null ? "missing" : "is " + Short(layerNames));
 
         foreach (var kv in r.ByName)
         {
@@ -562,6 +611,29 @@ public static class OniExportCheck
             foreach (string k in OmittedNotFalse)
                 if (Has(b, k) && (b[k].Type != JTokenType.Boolean || !(bool)b[k])) falseKeys.Add(kv.Key + "." + k);
 
+            if (!Has(b, "replaceable") || b["replaceable"].Type != JTokenType.Boolean) badReplaceable.Add(kv.Key);
+            if (Has(b, "replacementLayer")) replacers++;
+            if (layerNames != null)
+            {
+                var layers = new List<JToken> { b["objectLayer"] };
+                if (Has(b, "tileLayer")) layers.Add(b["tileLayer"]);
+                if (Has(b, "replacementLayer")) layers.Add(b["replacementLayer"]);
+                if (Has(b, "replacementCandidateLayers"))
+                {
+                    var candidates = b["replacementCandidateLayers"] as JArray;
+                    if (candidates == null) layers.Add(null);
+                    else layers.AddRange(candidates);
+                }
+                if (layers.Any(l => LayerName(layerNames, l) == null)) badLayers.Add(kv.Key);
+            }
+            foreach (string k in new[] { "replacementTags", "runtimeTags" })
+            {
+                if (!Has(b, k)) continue;
+                var names = b[k] as JArray;
+                if (names == null || names.Any(t => Str(t) == null) || (k == "runtimeTags" && names.Count == 0))
+                    badTagLists.Add(kv.Key + "." + k);
+            }
+
             string png = Path.Combine(uiDir, kv.Key + ".png");
             if (!File.Exists(png)) noIcon.Add(kv.Key);
 
@@ -579,6 +651,9 @@ public static class OniExportCheck
         r.Add("invariant", "viewMode is a game overlay name or null (never a hash, never absent)", badViewMode.Count == 0, Sample(badViewMode));
         r.Add("invariant", "optional keys are omitted, never null", nullKeys.Count == 0, Sample(nullKeys));
         r.Add("invariant", "optional flags are omitted, never false", falseKeys.Count == 0, Sample(falseKeys));
+        r.Add("invariant", "every building has a boolean replaceable", badReplaceable.Count == 0, Sample(badReplaceable));
+        r.Add("invariant", "every layer int names an ObjectLayer other than NumLayers", badLayers.Count == 0, Sample(badLayers));
+        r.Add("invariant", "replacementTags and runtimeTags are arrays of tag names", badTagLists.Count == 0, Sample(badTagLists));
         r.Add("invariant", "every building has ui_image/<name>.png", noIcon.Count == 0, Sample(noIcon));
         r.Add("invariant", "every uiImageRect matches its PNG's aspect within 2%", badRect.Count == 0, Sample(badRect));
 
@@ -639,6 +714,7 @@ public static class OniExportCheck
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings with ports", Status = "PASS", Detail = withPorts.ToString() });
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings with uiImageRect", Status = "PASS", Detail = withRect.ToString() });
         r.Out.Add(new OniCheck { Group = "info", Name = "modded buildings", Status = "PASS", Detail = modded.ToString() });
+        r.Out.Add(new OniCheck { Group = "info", Name = "buildings with a replacementLayer", Status = "PASS", Detail = replacers.ToString() });
 
         // ---- docs/WEBSITE_ROCKET_MODULES.md section 5 ----
         const string R = "rocket/settings";
@@ -730,6 +806,51 @@ public static class OniExportCheck
         r.On(R, "Wire", "no settings keys", b => AnyOf(b, SettingsKeys));
         r.On(R, "Tile", "no settings keys", b => AnyOf(b, SettingsKeys));
         r.On(R, "GasLogicValve", "no valve", b => Has(b, "valve") ? "has valve " + Short(b["valve"]) : null);
+
+        // ---- docs/EXPORT_SCHEMA.md "Replacement fields" ----
+        const string P = "replacement";
+        Func<JToken, string> layer = t => LayerName(layerNames, t);
+        r.On(P, "Tile", "replaces FloorTiles/Ladders/Backwall on FoundationTile, LadderTile, Backwall", b =>
+        {
+            if (!IsTrue(b["replaceable"])) return "replaceable is " + Short(b["replaceable"]);
+            if (!HasTag(b, "FloorTiles")) return "tags has no FloorTiles";
+            return LayerIs(layerNames, b, "tileLayer", "FoundationTile")
+                ?? LayerIs(layerNames, b, "replacementLayer", "ReplacementTile")
+                ?? ListIs(b, "replacementCandidateLayers", layer, "FoundationTile", "LadderTile", "Backwall")
+                ?? ListIs(b, "replacementTags", Str, "FloorTiles", "Ladders", "Backwall")
+                ?? Absent(b, "runtimeTags");
+        });
+        r.On(P, "Ladder", "replaces Ladders on its tileLayer, carries runtime tag Ladders", b =>
+        {
+            return LayerIs(layerNames, b, "tileLayer", "LadderTile")
+                ?? LayerIs(layerNames, b, "replacementLayer", "ReplacementLadder")
+                ?? Absent(b, "replacementCandidateLayers")
+                ?? ListIs(b, "replacementTags", Str, "Ladders")
+                ?? ListIs(b, "runtimeTags", Str, "Ladders");
+        });
+        r.On(P, "ExteriorWall", "replaces FloorTiles/Backwall on FoundationTile, Backwall", b =>
+        {
+            return LayerIs(layerNames, b, "replacementLayer", "ReplacementBackwall")
+                ?? ListIs(b, "replacementCandidateLayers", layer, "FoundationTile", "Backwall")
+                ?? ListIs(b, "replacementTags", Str, "FloorTiles", "Backwall")
+                ?? Absent(b, "tileLayer");
+        });
+        r.On(P, "Wire", "tileLayer WireTile, replacementLayer ReplacementWire, no replacementTags", b =>
+        {
+            return LayerIs(layerNames, b, "tileLayer", "WireTile")
+                ?? LayerIs(layerNames, b, "replacementLayer", "ReplacementWire")
+                ?? Absent(b, "replacementTags");
+        });
+        r.On(P, "PressureDoor", "on FoundationTile, no replacementLayer, no FloorTiles tag", b =>
+        {
+            if (HasTag(b, "FloorTiles")) return "tags has FloorTiles";
+            return LayerIs(layerNames, b, "tileLayer", "FoundationTile") ?? Absent(b, "replacementLayer");
+        });
+        r.On(P, "PixelPack", "replaceable false", b =>
+            Has(b, "replaceable") && b["replaceable"].Type == JTokenType.Boolean && !(bool)b["replaceable"]
+                ? null : "replaceable is " + Short(b["replaceable"]));
+        r.On(P, "ManualGenerator", "replaceable true, no other replacement keys", b =>
+            IsTrue(b["replaceable"]) ? AnyOf(b, ReplacementKeys) : "replaceable is " + Short(b["replaceable"]));
 
         // ---- docs/AREA_OF_EFFECT.md "Verification checklist" ----
         const string A = "area of effect";
