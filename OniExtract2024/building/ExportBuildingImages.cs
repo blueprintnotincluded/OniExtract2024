@@ -104,26 +104,36 @@ namespace OniExtract2024.building
 
                 // notRendered: spawned, but gone or empty by the time the snapshot ran, so no
                 // image was written (a mod that deletes its own building on spawn, say).
-                int exported = 0, skipped = 0;
+                int exported = 0, skipped = 0, artOnly = 0;
                 var notRendered = new List<string>();
                 foreach (var def in Assets.BuildingDefs)
                 {
-                    if (!BuildingSpawnFilter.IsRenderable(def))
+                    GameObject temp;
+                    if (BuildingSpawnFilter.IsRenderable(def))
+                    {
+                        temp = def.Create(spawnPos, null,
+                            new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
+                    }
+                    else if (BuildingSpawnFilter.HasArt(def))
+                    {
+                        temp = CreateArtOnly(def, spawnPos);
+                        if (temp != null) artOnly++;
+                    }
+                    else
                     {
                         skipped++;
                         continue;
                     }
-
-                    GameObject temp = def.Create(spawnPos, null,
-                        new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
                     if (temp == null)
                     {
                         skipped++;
                         continue;
                     }
 
+                    // The footprint is passed explicitly because an art-only object has no
+                    // Building to derive it from; for a real spawn it is the same value.
                     var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                    snapshotter.StartExport(OutputDir, Rects);
+                    snapshotter.StartExport(OutputDir, Rects, def.WidthInCells, def.HeightInCells);
                     // Wait for the snapshotter to destroy the temp building. Unity defers
                     // Destroy to end-of-frame, so IsNullOrDestroyed becomes true one frame
                     // after KDestroyGameObject — the while loop handles this robustly.
@@ -182,7 +192,8 @@ namespace OniExtract2024.building
                         notRendered.Add(prefabName);
                 }
 
-                Debug.Log("OniExtract: building-image export complete -> " + exported + " exported, " + skipped + " skipped.");
+                Debug.Log("OniExtract: building-image export complete -> " + exported + " exported ("
+                    + artOnly + " of them art-only), " + skipped + " skipped.");
                 Debug.Log("OniExtract: terrain-feature export complete -> " + terrainExported + " exported, " + terrainSkipped + " skipped.");
                 if (notRendered.Count > 0)
                     Debug.LogWarning("OniExtract: spawned but not rendered (no image written): " + string.Join(", ", notRendered));
@@ -321,6 +332,46 @@ namespace OniExtract2024.building
             BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
             if (rects.Count > 0)
                 PatchBuildingJsonRects(rects);
+        }
+
+        // A stand-in for a building that cannot be spawned for real (rocket modules need a
+        // rocket, LaunchPad corrupts an achievement, deprecated content corrupts state, ...):
+        // the game's own EffectTemplate — an entity carrying a KBatchedAnimController and
+        // nothing else, which FXHelpers.CreateEffect uses for one-off effects — given the
+        // building's kanim. With no building logic there is nothing to crash, and the image is
+        // all the sweep wants. It is placed exactly as BuildingDef.Create places a building
+        // (GameUtil.KInstantiate at the def's scene layer), so the renderer frames it and
+        // UiImageRect maps it the same way, and it carries the building's prefab tag so the
+        // PNG, the pose override and the rect are all keyed as for a real spawn.
+        //
+        // What it cannot reproduce is anything the building adds at spawn: meters, child
+        // controllers, symbols shown or hidden by OnSpawn. The controller settings below are
+        // the ones BuildingLoader puts on BuildingComplete, so the authored art matches.
+        internal static GameObject CreateArtOnly(BuildingDef def, Vector3 pos)
+        {
+            var source = def.BuildingComplete.GetComponentInChildren<KBatchedAnimController>(true);
+            GameObject template = Assets.GetPrefab(EffectConfigs.EffectTemplateId);
+            if (source == null || template == null) return null;
+
+            GameObject go = GameUtil.KInstantiate(template, pos, def.SceneLayer);
+            go.name = def.PrefabID;
+            go.GetComponent<KPrefabID>().PrefabTag = def.Tag;
+
+            var kbac = go.GetComponent<KBatchedAnimController>();
+            kbac.AnimFiles = def.AnimFiles;
+            // EffectTemplate draws with the Simple material; buildings use Default.
+            kbac.materialType = source.materialType;
+            kbac.initialAnim = source.initialAnim;
+            kbac.initialMode = KAnim.PlayMode.Paused;
+            kbac.fgLayer = source.fgLayer;
+            kbac.animScale = source.animScale;
+            go.SetActive(true);
+
+            // Offset's setter re-registers the controller with the batcher, so set it once
+            // the controller is live rather than on the inactive clone.
+            if (source.Offset != Vector3.zero)
+                kbac.Offset = source.Offset;
+            return go;
         }
 
         // Footprint of a non-building placed entity, in cells. EntityTemplates.ConfigPlacedEntity

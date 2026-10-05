@@ -131,9 +131,11 @@ recipe and a large body of findings: [docs/GAME_INTERNALS.md](docs/GAME_INTERNAL
   expensive mistake available in this repo, because everything appears to work.
 - **Never play the `"ui"` animation before a snapshot.** It renders at atlas/icon scale
   (~100 px/cell) instead of live-kanim scale and silently shrinks every output.
-- **Deprecated buildings are skipped except a vetted allowlist.** Spawning deprecated content
-  without full game context corrupts state and crashes the sweep (the exact culprit was never
-  isolated). `SteamTurbine` is opted back in. Vet any addition by spawning it in isolation.
+- **Deprecated buildings are never spawned, except a vetted allowlist.** Spawning deprecated
+  content without full game context corrupts state and crashes the sweep (the exact culprit was
+  never isolated). `SteamTurbine` is opted in. Vet any addition by spawning it in isolation.
+  Deprecated buildings, rocket modules and anything else that cannot be spawned are rendered
+  art-only instead. See [OniExtract2024/building/CLAUDE.md](OniExtract2024/building/CLAUDE.md).
 - **Player names are not prefab IDs.** Icons are named by prefab ID — the Auto-Sweeper is
   `SolidTransferArm`; there is no `AutoSweeper.png`.
 - **Read from `buildingDef.BuildingComplete`, never a spawned instance.** Anything set in

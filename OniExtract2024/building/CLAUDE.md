@@ -17,7 +17,7 @@ as a manual in-game tool (Esc → *Export Building Images*), not as part of the 
 | `ExportBuildingImages.cs` | The sweep coroutine; spawns each building, drives the snapshotter, patches rects into `building.json`. `ExportSingle` does one building for the inspector's touch-up. |
 | `BuildingImageSnapshotter.cs` | Per-building: poses the kanim, snapshots at 200 px/cell, trims to the opaque bbox, writes `ui_image/{prefabId}.png`. |
 | `BuildingKanimRenderer.cs` | The shared camera + RenderTexture pipeline, used by both the sweep and the inspector. |
-| `BuildingSpawnFilter.cs` | **Single source of truth** for "can this building be spawned and rendered outside its normal context?" (`IsRenderable`). Used by the sweep *and* the inspector's chooser. |
+| `BuildingSpawnFilter.cs` | **Single source of truth** for "can this building be spawned and rendered outside its normal context?" (`IsRenderable`) and "does it have art to render at all?" (`HasArt`). Used by the sweep *and* the inspector's chooser. |
 | `BuildingPoseOverrides.cs` | `Overrides` dictionary of hand-picked anim+frame per building, plus percent↔frame helpers. |
 | `BuildingPoseInspectorScreen.cs` | In-game pose-picker UI for populating that dictionary. |
 | `UiImageRectStore.cs` | Durable sidecar for measured rects. See below — this is the non-obvious one. |
@@ -31,16 +31,30 @@ building in its most *active* state instead (`generating_loop`, `working_loop`, 
 `PoseFramePercent = 0.5`, mid-loop, so the building is fully deployed rather than caught at the
 start of its timeline. `"ui"` is in `InactiveMarkers` for this reason; do not remove it.
 
-## Deprecated buildings are skipped except a vetted allowlist
+## Buildings that cannot be spawned are rendered art-only
 
-Spawning deprecated content without full game context corrupts state and crashes the sweep. The
-exact culprit was never isolated, so the exclusion is deliberately blunt. `SteamTurbine` is
-opted back in because the website still shows it. Vet any addition by spawning it in isolation
-first — a crash here loses the whole sweep, not one building.
+Some buildings crash or corrupt state when spawned outside their normal context: rocket modules
+(`RocketModuleCluster`) and rocket interiors, `LaunchPad`, `RocketControlStation`, deprecated
+content, and anything else `IsRenderable` rejects. The spawn path never sees them. Rocket modules
+are also `showInBuildMenu: false`, so `IsRenderable` drops them before any rocket check.
 
-Related filters: `RocketModuleCluster` buildings are excluded entirely, and rocket modules need
-a `CraftModuleInterface` ancestor (the sweep attaches the cluster components to the world object
-so DLC rocket modules bind instead of null-ref'ing on spawn).
+None of those get a low-res fallback. The sweep renders each building that has kanim art
+(`HasArt`) through `ExportBuildingImages.CreateArtOnly`. That method builds the game's
+`EffectTemplate`, an entity with a `KBatchedAnimController` and nothing else, gives it the
+building's anim files, prefab tag and controller settings, and places it the way
+`BuildingDef.Create` would. The snapshotter then handles it like any other render, pose
+overrides included. A building with no kanim on `BuildingComplete` (plain tiles, drawn by
+`BlockTileRenderer`) is the only case left on the atlas icon.
+
+The cost: art-only cannot show anything a building adds at spawn time, such as meters, child
+controllers or symbols toggled in `OnSpawn`. If one of these renders wrong, fix the pose or the
+symbols there. Do not loosen `IsRenderable`. Spawning deprecated content corrupts state and
+crashes the sweep. The culprit was never isolated, so the spawn exclusion stays blunt.
+`SteamTurbine` is allowlisted for a real spawn. Vet any other addition by spawning it in
+isolation first: a crash here loses the whole sweep, not one building.
+
+Rocket modules also need a `CraftModuleInterface` ancestor if spawned for real, so the sweep
+attaches the cluster components to the world object. That predates art-only and is harmless.
 
 ## `uiImageRect` must come from the sidecar, not the render
 
