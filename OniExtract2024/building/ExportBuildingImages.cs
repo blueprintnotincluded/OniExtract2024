@@ -109,7 +109,8 @@ namespace OniExtract2024.building
                 foreach (var def in Assets.BuildingDefs)
                 {
                     GameObject temp;
-                    if (BuildingSpawnFilter.IsRenderable(def))
+                    bool spawned = BuildingSpawnFilter.IsRenderable(def);
+                    if (spawned)
                     {
                         temp = def.Create(spawnPos, null,
                             new List<Tag> { SimHashes.Unobtanium.CreateTag() }, null, 100f, def.BuildingComplete);
@@ -117,7 +118,6 @@ namespace OniExtract2024.building
                     else if (BuildingSpawnFilter.HasArt(def))
                     {
                         temp = CreateArtOnly(def, spawnPos);
-                        if (temp != null) artOnly++;
                     }
                     else
                     {
@@ -142,7 +142,10 @@ namespace OniExtract2024.building
                     // The snapshotter records a rect exactly when it writes the PNG, so the
                     // rect is the evidence that this building was exported.
                     if (Rects.ContainsKey(def.PrefabID))
+                    {
                         exported++;
+                        if (!spawned) artOnly++;
+                    }
                     else
                         notRendered.Add(def.PrefabID);
                 }
