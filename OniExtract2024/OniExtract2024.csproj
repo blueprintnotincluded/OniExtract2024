@@ -111,6 +111,7 @@
     <Compile Include="model\OutLimitValve.cs" />
     <Compile Include="model\OutUserControlledCapacity.cs" />
     <Compile Include="ExportEntity.cs" />
+    <Compile Include="ExportGameData.cs" />
     <Compile Include="ExportMultiEntity.cs" />
     <Compile Include="ExportUISprite.cs" />
     <Compile Include="InGameExport.cs" />

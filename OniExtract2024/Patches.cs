@@ -14,37 +14,28 @@ namespace OniExtract2024
 {
     public class Patches
     {
-        static ExportEntity exportEntity = new ExportEntity();
-        static ExportMultiEntity exportMultiEntity = new ExportMultiEntity();
-        static ExportItem exportItem = new ExportItem();
+        // The game builds these prefabs while it boots, and some can only be caught there.
+        // The patches below keep a reference to each and do nothing else, so nothing here can
+        // hold up the loading screen. ExportGameData reads them when the player asks for an
+        // export.
+        internal static readonly List<GameObject> CapturedEntities = new List<GameObject>();
+        // Each prefab with the name of the IMultiEntityConfig that made it.
+        internal static readonly List<KeyValuePair<GameObject, string>> CapturedMultiEntities =
+            new List<KeyValuePair<GameObject, string>>();
+        internal static readonly List<OutMeteorShowerEvent> CapturedMeteorShowerEvents = new List<OutMeteorShowerEvent>();
+        internal static readonly List<GameObject> CapturedSeeds = new List<GameObject>();
+        internal static List<GeyserPrefabParams> CapturedGeyserParams = new List<GeyserPrefabParams>();
 
         [HarmonyPatch(typeof(EntityConfigManager), "RegisterEntity")]
         internal class OniExtract_Game_EntityConfig
         {
             private static readonly MethodInfo InjectBehind = AccessTools.Method(typeof(IEntityConfig), nameof(IEntityConfig.CreatePrefab));
             private static readonly MethodInfo RegisterExportEntityMethod = AccessTools.Method(typeof(OniExtract_Game_EntityConfig), nameof(OniExtract_Game_EntityConfig.RegisterPatch));
-            static string[] mRequiredDlcIds = null;
-            static string[] mForbiddenDlcIds = null;
-
-            public static void Prefix(IEntityConfig config, string[] requiredDlcIds, string[] forbiddenDlcIds)
-            {
-                mRequiredDlcIds = requiredDlcIds;
-                mForbiddenDlcIds = forbiddenDlcIds;
-            }
 
             public static GameObject RegisterPatch(GameObject gameObject)
             {
-                if (gameObject == null)
-                {
-                    return gameObject;
-                }
-                KPrefabID prefabID = gameObject.GetComponent<KPrefabID>();
-                prefabID.requiredDlcIds = mRequiredDlcIds;
-                prefabID.forbiddenDlcIds = mForbiddenDlcIds;
-                //Debug.Log(prefabID.PrefabID().Name.ToString());
-                BEntity bEntity = new BEntity(prefabID.PrefabID().Name, gameObject.GetComponent<KPrefabID>());
-                ExportEntity.LoadEntityComponent(gameObject, bEntity);
-                exportEntity.entities.Add(bEntity);
+                if (gameObject != null)
+                    CapturedEntities.Add(gameObject);
                 return gameObject;
             }
 
@@ -71,7 +62,7 @@ namespace OniExtract2024
             {
                 if (!SingletonOptions<ModOptions>.Instance.MultiEntities) return;
                 OutMeteorShowerEvent meteorShowEvent = new OutMeteorShowerEvent(id, (float)duration, (float)secondsPerMeteor, secondsBombardmentOff, secondsBombardmentOn, clusterMapMeteorShowerID, affectedByDifficulty);
-                exportMultiEntity.addNewMeteorShowerEvent(meteorShowEvent);
+                CapturedMeteorShowerEvents.Add(meteorShowEvent);
             }
         }
 
@@ -91,19 +82,8 @@ namespace OniExtract2024
             {
                 foreach (var gameObject in gameObjects)
                 {
-                    if (gameObject == null)
-                    {
-                        continue;
-                    }
-                    KPrefabID prefabID = gameObject.GetComponent<KPrefabID>();
-                    //Debug.Log(prefabID.PrefabID().Name.ToString());
-                    BMultiEntity BMultiEntity = new BMultiEntity(prefabID.PrefabID().Name, gameObject.GetComponent<KPrefabID>())
-                    {
-                        nameString = prefabID.GetProperName(),
-                        entityType = entityType
-                    };
-                    exportMultiEntity.LoadEntityComponent(gameObject, BMultiEntity);
-                    exportMultiEntity.multiEntities.Add(BMultiEntity);
+                    if (gameObject != null)
+                        CapturedMultiEntities.Add(new KeyValuePair<GameObject, string>(gameObject, entityType));
                 }
                 return gameObjects;
             }
@@ -122,132 +102,16 @@ namespace OniExtract2024
             }
         }
 
-        [HarmonyPatch(typeof(LegacyModMain), "Load")]
-        internal class OniExtract_Game_LegacyModMain
-        {
-            private static void Postfix()
-            {
-                Debug.Log("OniExtract: " + "Export Food");
-                if (SingletonOptions<ModOptions>.Instance.Food)
-                {
-                    ExportFood exportFood = new ExportFood();
-                    exportFood.ExportAllFood();
-                    exportFood.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export recipes");
-                if (SingletonOptions<ModOptions>.Instance.Recipe)
-                {
-                    ExportRecipe exportRecipe = new ExportRecipe();
-                    exportRecipe.ExportComplexRecipes();
-                    exportRecipe.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Elements");
-                if (SingletonOptions<ModOptions>.Instance.Element)
-                {
-                    ExportElement exportElement = new ExportElement();
-                    exportElement.AddAllElement();
-                    exportElement.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export PO_string");
-                if (SingletonOptions<ModOptions>.Instance.PoString)
-                {
-                    ExportPOString exportPOString = new ExportPOString();
-                    exportPOString.ExportAll();
-                    exportPOString.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Tags");
-                if (SingletonOptions<ModOptions>.Instance.Tags)
-                {
-                    ExportTag exportTag = new ExportTag();
-                    exportTag.AddAllGameTags();
-                    exportTag.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Db");
-                if (SingletonOptions<ModOptions>.Instance.db)
-                {
-                    ExportDb exportDb = new ExportDb();
-                    exportDb.AddDbResources();
-                    exportDb.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Buildings");
-                if (SingletonOptions<ModOptions>.Instance.Building)
-                {
-                    ExportBuilding exportBuilding = new ExportBuilding();
-                    exportBuilding.ExportBuildMenu();
-                    for (int indexBuilding = 0; indexBuilding < Assets.BuildingDefs.Count; ++indexBuilding)
-                    {
-                        BuildingDef buildingDef = Assets.BuildingDefs[indexBuilding];
-                        exportBuilding.AddNewBuildingEntity(buildingDef);
-                        exportBuilding.AddNewBuildingDef(buildingDef);
-                    }
-
-                    exportBuilding.ExportRocketModuleMenu();
-                    exportBuilding.ExportPortIcons();
-                    exportBuilding.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export UI Sprite");
-                if (SingletonOptions<ModOptions>.Instance.UISprintInfo)
-                {
-                    ExportUISprite exportUISprite = new ExportUISprite();
-                    exportUISprite.ExportAllUISprite();
-                    exportUISprite.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Entity");
-                if (SingletonOptions<ModOptions>.Instance.Entities)
-                {
-                    exportEntity.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export MultiEntity");
-                if (SingletonOptions<ModOptions>.Instance.MultiEntities)
-                {
-                    exportMultiEntity.updateAllMeteorShowEvent();
-                    exportMultiEntity.ExportJsonFile();
-                }
-
-                Debug.Log("OniExtract: " + "Export Items");
-                if (SingletonOptions<ModOptions>.Instance.Item)
-                {
-                    foreach (KPrefabID kpid in Assets.Prefabs)
-                    {
-                        if (kpid == null) continue;
-                        GameObject prefab = kpid.gameObject;
-                        IncubationMonitor.Def incDef = prefab.GetDef<IncubationMonitor.Def>();
-                        if (incDef == null) continue;
-                        BEgg bEgg = new BEgg(kpid.PrefabID().Name, kpid);
-                        exportItem.AddEgg(prefab, bEgg);
-                    }
-                    exportItem.ExportJsonFile();
-                }
-                Debug.Log("OniExtract: " + "Export Attribute");
-                if (SingletonOptions<ModOptions>.Instance.Attr)
-                {
-                    ExportAttr exportAttr = new ExportAttr();
-                    exportAttr.AddAllSicknessModifier();
-                    exportAttr.AddAllEnumClass();
-                    exportAttr.ExportJsonFile();
-                }
-            }
-        }
-
         [HarmonyPatch(typeof(GeyserGenericConfig), "GenerateConfigs")]
         internal class OniExtract_Game_Geysers
         {
             static void Postfix(ref List<GeyserPrefabParams> __result)
             {
-                //Debug.Log("OniExtract: " + "Export Geysers");
-                if (!SingletonOptions<ModOptions>.Instance.Geyser) return;
-                ExportGeyser exportGeyser = new ExportGeyser();
-                exportGeyser.AddGeyserPrefabParams(__result);
-                exportGeyser.ExportJsonFile();
+                // A copy, because CreatePrefabs removes the non-generic geysers from this same
+                // list straight afterwards. Replaced rather than appended to, so if the game
+                // ever calls this twice the last call wins.
+                if (__result != null)
+                    CapturedGeyserParams = new List<GeyserPrefabParams>(__result);
             }
         }
 
@@ -257,37 +121,8 @@ namespace OniExtract2024
         {
             private static void Postfix(ref GameObject __result)
             {
-                KPrefabID prefabID = __result.GetComponent<KPrefabID>();
-                BSeed bSeed = new BSeed(prefabID.PrefabID().Name, __result.GetComponent<KPrefabID>());
-                exportItem.AddSeed(__result, bSeed);
-            }
-        }
-
-        [HarmonyPatch(typeof(EquipmentConfigManager), "RegisterEquipment")]
-        internal class OniExtract_Game_Equipment_Entity
-        {
-            private static void Postfix(IEquipmentConfig config)
-            {
-                string[] requiredDlcIds = null;
-                string[] forbiddenDlcIds = null;
-                IHasDlcRestrictions hasDlcRestrictions = config as IHasDlcRestrictions;
-                if (hasDlcRestrictions != null)
-                {
-                    requiredDlcIds = hasDlcRestrictions.GetRequiredDlcIds();
-                    forbiddenDlcIds = hasDlcRestrictions.GetForbiddenDlcIds();
-                }
-
-                if (!DlcManager.IsCorrectDlcSubscribed(requiredDlcIds, forbiddenDlcIds))
-                {
-                    return;
-                }
-                EquipmentDef equipmentDef = config.CreateEquipmentDef();
-                GameObject gameObject = EntityTemplates.CreateLooseEntity(equipmentDef.Id, equipmentDef.Name, equipmentDef.RecipeDescription, equipmentDef.Mass, unitMass: true, equipmentDef.Anim, "object", Grid.SceneLayer.Ore, equipmentDef.CollisionShape, equipmentDef.width, equipmentDef.height, isPickupable: true, 0, equipmentDef.OutputElement);
-                config.DoPostConfigure(gameObject);
-                // Add Equipment
-                KPrefabID prefabID = gameObject.AddOrGet<KPrefabID>();
-                BEquipment bEquip = new BEquipment(prefabID.PrefabID().Name, gameObject.GetComponent<KPrefabID>());
-                exportItem.AddEquipment(gameObject, bEquip);
+                if (__result != null)
+                    CapturedSeeds.Add(__result);
             }
         }
 
@@ -299,6 +134,6 @@ namespace OniExtract2024
                 LocString.CreateLocStringKeys(typeof(ModStrings.Options));
             }
         }
-        
+
     }
 }
