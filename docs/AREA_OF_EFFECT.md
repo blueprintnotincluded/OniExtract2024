@@ -16,7 +16,7 @@ semantics, and what is deliberately out of scope.
 
 There is no single "range" system in ONI. Five separate mechanisms cover everything the
 game itself visualizes, and all five are readable from the `BuildingComplete` prefab at
-main-menu export time (each is configured in `ConfigureBuildingTemplate` /
+export time (each is configured in `ConfigureBuildingTemplate` /
 `DoPostConfigureComplete` — see GAME_INTERNALS.md "Building configuration lifecycle"):
 
 | Mechanism | Component on prefab | Example buildings | What defines the area |
@@ -173,7 +173,7 @@ picked up by the in-game export get their areas automatically** — e.g. a mod l
 
 ### Verification checklist (next game run)
 
-- [ ] Run the game → main-menu export → confirm `areasOfEffect` appears in
+- [ ] Load a colony → Esc → *Export Game Data* → confirm `areasOfEffect` appears in
       `building.json`.
 - [ ] Spot-check Deodorizer (13-cell diamond), Ceiling Light (cone, 55 cells incl.
       origin), Floor Lamp (circle at `(0,1)`, 49 cells), Robo-Miner (144-cell rect),

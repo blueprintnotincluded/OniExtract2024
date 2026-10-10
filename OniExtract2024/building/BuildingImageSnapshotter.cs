@@ -5,7 +5,7 @@
 //
 // Difference from ConnectionSpriteSnapshotter: one shot per building (build-complete
 // idle state), output cropped to the tightest opaque bbox rather than a cell-centred
-// square, and written to ui_image/ (same path as the main-menu atlas pass so the
+// square, and written to ui_image/ (same path as the game-data export's atlas icons so the
 // hi-res file lands exactly on top of the low-res one).
 
 using System.Collections;
