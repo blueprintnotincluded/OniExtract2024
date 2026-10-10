@@ -30,6 +30,17 @@ namespace OniExtract2024.building
             "Juicer",
         };
 
+        // True if the building has kanim art the sweep can draw at all. Every such building
+        // gets a hi-res render: through a real spawn when IsRenderable says that is safe,
+        // otherwise art-only (ExportBuildingImages.CreateArtOnly), which carries the kanim
+        // and none of the game logic that crashes outside its normal context. That second
+        // route is how rocket modules, rocket interiors and hidden or deprecated buildings
+        // are rendered; it does not exist to make IsRenderable any less strict.
+        internal static bool HasArt(BuildingDef def) =>
+            def != null && def.BuildingComplete != null
+            && def.AnimFiles != null && def.AnimFiles.Length > 0
+            && def.BuildingComplete.GetComponentInChildren<KBatchedAnimController>(true) != null;
+
         // True if the building can be spawned off in a normal world cell and rendered.
         internal static bool IsRenderable(BuildingDef def)
         {
