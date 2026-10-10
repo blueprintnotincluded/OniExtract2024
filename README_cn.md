@@ -44,7 +44,7 @@ download_depot <AppID> <DepotsID> <ManifestID>
 
 本仓库不发布 Releases，请按上面的“通过构建项目”从源码构建。
 
-在游戏中打开mod。重启游戏。导出数据将会放在`Documents\Klei\OxygenNotIncluded\export`。
+在游戏中打开mod并重启游戏。载入任意存档，按 Esc 打开暂停菜单，点击 **Export Game Data**。导出数据将会放在`Documents\Klei\OxygenNotIncluded\export`。
 
 ## 导出结果
 

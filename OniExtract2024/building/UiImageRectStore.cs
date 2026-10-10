@@ -12,10 +12,10 @@ namespace OniExtract2024.building
     ///
     /// Why this exists: a rect can only be measured from a live in-game render (the
     /// building-image sweep or an inspector touch-up), but building.json is authored
-    /// from scratch by the main-menu JSON pass on every game load. Without a durable
-    /// store the rects get clobbered each load while the hi-res images persist, so the
+    /// from scratch by the game-data export every time it runs. Without a durable
+    /// store the rects get clobbered each run while the hi-res images persist, so the
     /// website stretches a tight-cropped image to the footprint and squishes it (see
-    /// docs/archive/UIIMAGERECT_DURABILITY.md). The in-game pass writes here; the main-menu pass
+    /// docs/archive/UIIMAGERECT_DURABILITY.md). The image sweep writes here; the game-data export
     /// reads here, so building.json always carries the last-measured rects.
     /// </summary>
     public static class UiImageRectStore

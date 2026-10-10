@@ -50,14 +50,16 @@ from, [cnctemaR/OniExtract2024](https://github.com/cnctemaR/OniExtract2024), has
 the original mod, which predate the building-image and connection-sprite tools and the website
 contract described here.)
 
-Enable the mod in game. Restart game. Output will be in `Documents\Klei\OxygenNotIncluded\export`.
+Enable the mod in game and restart. Load any colony, open the pause screen (Esc) and click
+**Export Game Data**. Output will be in `Documents\Klei\OxygenNotIncluded\export`.
 
 ## What it exports
 
-The mod has three independent export paths:
+The mod has three independent export paths, each a button on the pause screen of a loaded
+colony. Nothing is exported when the game starts.
 
-1. **JSON data + UI icons** — runs automatically when the game reaches the main menu (no
-   save required). Writes 13 JSON files plus one PNG icon per building/item.
+1. **Game data** — pause screen → **Export Game Data**. Writes 13 JSON files plus one PNG
+   icon per building/item.
 2. **Building images** — a separate in-game tool (pause screen → **Export Building Images**)
    that re-renders every buildable building at 200 px/cell via live kanim camera snapshot,
    overwriting the low-res atlas icons from path 1. Run this *after* path 1. See
@@ -99,7 +101,7 @@ export
 │    ├─ EquippableFacades
 │    ├─ MonumentParts
 │    └─ StickerBombs
-├─ connection_sprites             written by the pause-screen tool, not the main-menu export
+├─ connection_sprites             written by the pause-screen tool, not the game-data export
 │      └─ {prefabId}
 │             ├─ 0.png ... 15.png  16 connection states per connectable
 ├─ ui_image_rects.json            measured icon rects, written by the building-image tool
@@ -115,13 +117,13 @@ Website-side guidance for the rocket-module stacking data and blueprint-setting 
 
 ## Building images
 
-The main-menu export writes `ui_image/` icons from the game's pre-baked UI atlas sprites —
+The game-data export writes `ui_image/` icons from the game's pre-baked UI atlas sprites —
 small menu thumbnails whose resolution cannot be improved by cropping. The building-images
 tool replaces them with live kanim renders at 200 px/cell.
 
-**Run order:** run the main-menu export first (all icons at low res), then run **Export
+**Run order:** run **Export Game Data** first (all icons at low res), then run **Export
 Building Images** in-game to overwrite the building PNGs with hi-res versions. Non-building
-icons (elements, items, critters, facades) are only written by the main-menu pass and are
+icons (elements, items, critters, facades) are only written by the game-data export and are
 not affected.
 
 To run: build + deploy the mod, launch ONI, load any colony or sandbox, open the pause

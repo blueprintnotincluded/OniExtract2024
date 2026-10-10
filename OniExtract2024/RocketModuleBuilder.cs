@@ -10,7 +10,7 @@ namespace OniExtract2024
     // another module (attachPoints), what a module must sit on (attachableTo /
     // attachablePosition), the per-module lift/burden stats and the module-select constraints
     // the game enforces. Everything here is read off BuildingDef / the BuildingComplete prefab
-    // at main-menu time; see docs/WEBSITE_ROCKET_MODULES.md for the website-side interpretation.
+    // at export time; see docs/WEBSITE_ROCKET_MODULES.md for the website-side interpretation.
     //
     // The pure helpers (AttachPointsFrom / LaunchPadAttachPoints / ConditionNames /
     // OrderModuleMenu) take plain game structs and lists, so the test project can exercise
