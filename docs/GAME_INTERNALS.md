@@ -24,6 +24,9 @@ writing export or Harmony patch code.
 > **Reflection alternative:** Doing deep reflection at runtime overflows the Unity stack.
 > Use ilspycmd for static analysis instead.
 
+For the game's *asset* files (textures, materials, kanims, DLC bundles) rather than its code,
+see [OFFLINE_ASSET_EXTRACTION.md](OFFLINE_ASSET_EXTRACTION.md).
+
 ---
 
 ## Building configuration lifecycle
@@ -275,6 +278,41 @@ Two traps for the export:
   `ManualPressureDoor` and `BunkerDoor` sit on `FoundationTile` but carry no `FloorTiles` tag,
   and no door sets a `ReplacementLayer`, so a door and a tile never replace each other. The
   same goes for `FarmTile` as the existing building: it has `FarmTiles`, not `FloorTiles`.
+
+---
+
+## Rocket interiors
+
+A habitat module's interior is its own small world (`WorldContainer.IsModuleInterior`), stamped
+from a template when the module is built:
+
+| Module | Template | Size |
+|---|---|---|
+| `HabitatModuleSmall` (nose cone) | `StreamingAssets/dlc/expansion1/templates/interiors/habitat_small.yaml` | 8×8 |
+| `HabitatModuleMedium` | `.../interiors/habitat_medium.yaml` | 12×11 |
+
+The templates are plain `TemplateContainer` YAML: `cells` (elements), `buildings`
+(`RocketWallTile`, `RocketEnvelopeWindowTile`, the four `RocketInterior{Gas,Liquid}{Input,Output}Port`s,
+`RocketControlStation`) and `otherEntities` (`ClustercraftInteriorDoor`). Locations are offsets
+from the template's centre.
+
+The backdrop behind the interior has two layers, back to front:
+
+- **Stars.** `TerrainBG` draws a full-screen quad with `Graphics.DrawMesh` (no `Renderer`) using
+  `starsMaterial_surface` while the craft is not `InFlight`, otherwise `starsMaterial_space`
+  (both branches of the adjacent-asteroid test pick `_space`). `starsMaterial_orbit` exists but
+  this code never selects it. Shader `Klei/Stars`; each material has a day set
+  (`_TexDay0..2`) and a night set (`_Tex0..2`).
+- **Moon.** `ClusterManager` / `OrbitalMechanics` give the craft an `OrbitalBG` entity whose
+  kanim comes from `Db.Get().OrbitalTypeCategories`: `landed` is `starmap_landed_surface_kanim`
+  (period 0, so it never moves; placed at 50% / 35% of the interior world; scale ×4), created
+  with the interior world. An `orbit` category (`starmap_orbit_kanim`) also exists, but no code
+  selects it by id; `OrbitalMechanics` can also create objects from a list of ids, so it may
+  come from data. It draws through `KAnimBatchManager`, so it is not a `Renderer` either.
+  Confirmed in-game for a `Grounded` craft only.
+
+The Spaced Out kanims live in `StreamingAssets/expansion1_bundle`, not in the `.assets` files.
+Extracting them: [OFFLINE_ASSET_EXTRACTION.md](OFFLINE_ASSET_EXTRACTION.md).
 
 ---
 

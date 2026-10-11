@@ -54,9 +54,12 @@ with the game installed has to confirm it.
 - **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
   with ONI installed. 48 tests.
-- **`tools/`** — PowerShell helpers that run outside the game. `Test-Export.ps1` validates an
+- **`tools/`** — Helpers that run outside the game. `Test-Export.ps1` validates an
   export and diffs it against a snapshot (see "Validating an export" below);
-  `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file. Mod buildings
+  `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file.
+  `AssetDump/` is a .NET 8 console tool that reads textures, materials and kanim files
+  straight from the game's Unity asset files and DLC bundles, offline; see
+  [docs/OFFLINE_ASSET_EXTRACTION.md](docs/OFFLINE_ASSET_EXTRACTION.md). Mod buildings
   need no tooling: run the normal export with the mods enabled and they are exported like any
   other building.
 
@@ -119,6 +122,9 @@ as well.
 `ilspycmd` is a dotnet global tool; use it to confirm field names and signatures before writing
 patch or export code. Runtime reflection overflows the Unity stack — decompile instead. Full
 recipe and a large body of findings: [docs/GAME_INTERNALS.md](docs/GAME_INTERNALS.md).
+For the game's *asset* files rather than its code, use `tools/AssetDump`
+([docs/OFFLINE_ASSET_EXTRACTION.md](docs/OFFLINE_ASSET_EXTRACTION.md)). Spaced Out and later DLC
+art is in `StreamingAssets/*_bundle`, not the `.assets` files.
 
 ## Gotchas that cost real time
 
@@ -188,6 +194,10 @@ Breaking one of these breaks the website silently — the site renders, just wro
   - [WEBSITE_ROCKET_MODULES.md](docs/WEBSITE_ROCKET_MODULES.md) — website handoff for
     rocket-module stacking and settings ranges. Still open: the importer does not read that
     data yet. A handoff moves to `docs/archive/` once the website has acted on it.
+  - [WEBSITE_ROCKET_INTERIORS.md](docs/WEBSITE_ROCKET_INTERIORS.md) — website handoff for
+    rocket-interior layouts and backdrop art, carried across once as a zip rather than exported.
+  - [OFFLINE_ASSET_EXTRACTION.md](docs/OFFLINE_ASSET_EXTRACTION.md) — reading the game's Unity
+    asset files offline with `tools/AssetDump`: setup, commands, where things live.
   - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.
 - **`docs/archive/`** — resolved diagnostics kept for provenance. **Not current state.** Their
   durable conclusions are already folded into `docs/` and the invariants above; read them only
