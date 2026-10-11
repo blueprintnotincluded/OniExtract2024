@@ -6,8 +6,8 @@ using UnityEngine;
 namespace OniExtract2024.connection
 {
     /// <summary>
-    /// Separate, in-game connection-sprite exporter. Independent of the main-menu JSON
-    /// export pipeline (Patches.OniExtract_Game_LegacyModMain) because connectables can
+    /// Separate, in-game connection-sprite exporter. Independent of the game-data
+    /// export (ExportGameData) because connectables can
     /// only be rendered inside a loaded game/sandbox: utilities need a placed instance
     /// plus the live KAnimBatchManager and camera; tiles need their texture atlas loaded.
     ///

@@ -7,7 +7,7 @@ namespace OniExtract2024.connection
 {
     /// <summary>
     /// Adds export buttons to the in-game pause screen. Kept separate from the
-    /// main-menu patches so in-game exports can be triggered from a loaded game.
+    /// data-collection patches in Patches.cs; every export runs from a loaded game.
     /// </summary>
     public class ConnectionExportPatches
     {
@@ -17,31 +17,21 @@ namespace OniExtract2024.connection
             public static void Postfix(ref KButtonMenu.ButtonInfo[] ___buttons)
             {
                 var list = new List<KButtonMenu.ButtonInfo>(___buttons);
-                // Insert just before the last entry (typically "Desktop"/quit).
+                // Insert just before the last entry (typically "Desktop"/quit), in the order
+                // they should be run: the image sweep patches building.json, so data first.
                 int index = list.Count > 0 ? list.Count - 1 : 0;
-
-                var buildingImagesButton = new KButtonMenu.ButtonInfo(
-                    "Export Building Images",
-                    global::Action.NumActions,
-                    new UnityAction(ExportBuildingImages.Start));
-                buildingImagesButton.isEnabled = true;
-                list.Insert(index, buildingImagesButton);
-
-                var connectionSpritesButton = new KButtonMenu.ButtonInfo(
-                    "Export Connection Sprites",
-                    global::Action.NumActions,
-                    new UnityAction(ExportConnectionSprites.Start));
-                connectionSpritesButton.isEnabled = true;
-                list.Insert(index, connectionSpritesButton);
-
-                var inspectButton = new KButtonMenu.ButtonInfo(
-                    "Inspect Building Poses",
-                    global::Action.NumActions,
-                    new UnityAction(BuildingPoseInspectorScreen.Open));
-                inspectButton.isEnabled = true;
-                list.Insert(index, inspectButton);
-
+                list.Insert(index++, Button("Export Game Data", ExportGameData.Start));
+                list.Insert(index++, Button("Export Building Images", ExportBuildingImages.Start));
+                list.Insert(index++, Button("Export Connection Sprites", ExportConnectionSprites.Start));
+                list.Insert(index++, Button("Inspect Building Poses", BuildingPoseInspectorScreen.Open));
                 ___buttons = list.ToArray();
+            }
+
+            private static KButtonMenu.ButtonInfo Button(string text, UnityAction onClick)
+            {
+                var button = new KButtonMenu.ButtonInfo(text, global::Action.NumActions, onClick);
+                button.isEnabled = true;
+                return button;
             }
         }
     }

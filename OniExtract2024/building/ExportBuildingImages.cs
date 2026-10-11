@@ -13,10 +13,10 @@ namespace OniExtract2024.building
     /// (see ConnectionExportPatches). Iterates Assets.BuildingDefs, spawns each
     /// building off-screen, renders it at 200 px/cell via BuildingImageSnapshotter,
     /// and writes ui_image/{prefabId}.png — overwriting the low-res atlas icons
-    /// produced by the main-menu pass. Also handles terrain features (geysers, vents,
+    /// produced by the game-data export. Also handles terrain features (geysers, vents,
     /// volcanoes) which export their icons but need rects measured in-game.
     ///
-    /// Run order: main-menu JSON+icon pass first (all icons), then this in-game
+    /// Run order: Export Game Data first (all icons), then this in-game
     /// pass (overwrites building icons with hi-res kanim renders, adds terrain rects).
     /// </summary>
     public static class ExportBuildingImages
@@ -241,7 +241,7 @@ namespace OniExtract2024.building
 
         // True when the PNG at pngPath is the render this rect was measured from. The contract
         // says the PNG maps linearly onto the rect, so its pixel aspect must equal w:h; an atlas
-        // icon or a missing file fails that. Lets the main-menu pass tell "my write would
+        // icon or a missing file fails that. Lets the game-data export tell "my write would
         // destroy a measured render" from "my write would restore a missing icon" without
         // trusting the rect key, which can name a different file than the one being written.
         public static bool PngMatchesRect(string pngPath, UiImageRect rect)
@@ -255,7 +255,7 @@ namespace OniExtract2024.building
         // The rect maps its PNG linearly onto the footprint, so w:h must equal the PNG's pixel
         // aspect. Because w/h are derived from the same crop that produced the PNG, a mismatch
         // means the file on disk is no longer that crop — i.e. something overwrote the render
-        // (historically the main-menu Def.GetUISprite pass, which put an atlas "ui" symbol there
+        // (historically the game-data export's Def.GetUISprite icon, which put an atlas "ui" symbol there
         // instead). Cheap header read, no texture decode. Logged, never fatal.
         private static void VerifyRectsMatchPngs(IDictionary<string, UiImageRect> rects)
         {
@@ -393,19 +393,19 @@ namespace OniExtract2024.building
         }
 
         // Merge the measured uiImageRect for each rendered building into the building.json
-        // the main-menu pass already wrote. Done as a post-pass (not in ExportBuilding)
+        // the game-data export already wrote. Done as a post-pass (not in ExportBuilding)
         // because the rect can only be measured from a live in-game render, which happens
-        // long after the no-save JSON export. The website reads uiImageRect off each
+        // in a separate run from the JSON export. The website reads uiImageRect off each
         // bBuildingDefList entry; buildings we did not render keep the legacy
         // stretch-to-footprint fallback (field omitted).
         private static void PatchBuildingJsonRects(IDictionary<string, UiImageRect> rects)
         {
             if (rects == null || rects.Count == 0) return;
 
-            // Persist to the durable sidecar first, so the rects survive the next game
-            // load even if the full sweep isn't re-run (the main-menu pass reads this).
+            // Persist to the durable sidecar first, so the rects survive the next data
+            // export even if the full sweep isn't re-run (the game-data export reads this).
             // The direct building.json patch below keeps the CURRENT export correct
-            // without waiting for a reload. See docs/archive/UIIMAGERECT_DURABILITY.md.
+            // without another data export. See docs/archive/UIIMAGERECT_DURABILITY.md.
             UiImageRectStore.SaveAll(rects);
 
             string dbDir = BaseExport.BuildExportPath(
@@ -414,7 +414,7 @@ namespace OniExtract2024.building
             if (!File.Exists(path))
             {
                 Debug.LogWarning("OniExtract: building.json not found at " + path +
-                    " — run the main-menu export first so uiImageRect can be merged in.");
+                    " — run Export Game Data first so uiImageRect can be merged in.");
                 return;
             }
 

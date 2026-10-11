@@ -23,7 +23,7 @@ namespace OniExtract2024
 
         // Rendered ui_image placement in footprint cells (see UiImageRect / the website
         // contract). Measured by the in-game building-image pass and carried here via the
-        // UiImageRectStore sidecar so it survives a main-menu-only export. Omitted when we
+        // UiImageRectStore sidecar so it survives a data-only export. Omitted when we
         // have no measurement for this building — that means "image == footprint" to the
         // website (do NOT emit null). See docs/archive/UIIMAGERECT_DURABILITY.md.
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]

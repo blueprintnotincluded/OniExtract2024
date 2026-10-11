@@ -7,10 +7,10 @@ Read before changing the render path, the pose selection, or how `uiImageRect` r
 
 Re-renders every buildable building, plus a fixed list of terrain features (geysers, vents,
 volcanoes, the oil reservoir; `TerrainFeaturePrefabNames`), as a hi-res icon from its **live
-kanim**, at 200 px/cell, and overwrites the low-res atlas sprites the main-menu JSON pass wrote
+kanim**, at 200 px/cell, and overwrites the low-res atlas sprites the game-data export wrote
 to `ui_image/`. Terrain features have no `Building`, so their footprint comes from
 `KBoxCollider2D` and their rect reaches the website only through `ui_image_rects.json`. It runs
-as a manual in-game tool (Esc → *Export Building Images*), not as part of the automatic export.
+as its own in-game tool (Esc → *Export Building Images*), separate from *Export Game Data*.
 
 | File | Role |
 |---|---|
@@ -61,24 +61,25 @@ attaches the cluster components to the world object. That predates art-only and 
 The subtlest failure in this subsystem, and one that has already shipped once.
 
 A rect can only be *measured* from a live render, but `building.json` is authored from scratch
-by the main-menu JSON pass **on every game load**. Patch the rect straight into `building.json`
-and it survives exactly until the next load, while the hi-res PNG on disk persists indefinitely.
+by the game-data export **every time it runs**. Patch the rect straight into `building.json`
+and it survives exactly until the next data export, while the hi-res PNG on disk persists
+indefinitely.
 The result is a tight-cropped tall image with no rect, which the website stretches to the
 footprint — the "steam turbine squished to 5×3" bug.
 
 So the flow is deliberately decoupled, mirroring `pose_overrides.json`:
 
-1. The in-game pass measures rects and calls `UiImageRectStore.SaveAll` →
+1. The image sweep measures rects and calls `UiImageRectStore.SaveAll` →
    `export/ui_image_rects.json`. It *also* patches `building.json` directly, for same-session
    immediacy only.
-2. The main-menu pass reads `UiImageRectStore` by `buildingDef.Tag.Name` and emits
+2. The game-data export reads `UiImageRectStore` by `buildingDef.Tag.Name` and emits
    `uiImageRect` on `BBuildingEntity`.
 
 Anything that makes the rect travel only through `building.json` reintroduces the bug. The
 field is **omitted when absent, never emitted as null**.
 
-The PNG has the same problem the other way round: the main-menu pass also writes
-`ui_image/{prefabId}.png` on every load, and an atlas icon written over a render leaves the
+The PNG has the same problem the other way round: the game-data export also writes
+`ui_image/{prefabId}.png` every time it runs, and an atlas icon written over a render leaves the
 rect describing an image that is no longer on disk. So `ExportUISprite` skips the icon write
 when `ExportBuildingImages.PngMatchesRect` says the file already there is the measured render.
 It checks the file itself, not just whether a rect exists, because the icon filename follows
@@ -99,7 +100,7 @@ the `SaveUIFileName` option and only matches the rect's prefab-tag key in ID mod
   because the sweep builds every def from `Unobtanium`. Cosmetic, deferred.
 - **Icons are named by prefab ID**, not player-facing name — the Auto-Sweeper is
   `SolidTransferArm`.
-- **Run order:** main-menu export first, then this sweep, so images and rects land together.
+- **Run order:** *Export Game Data* first, then this sweep, so images and rects land together.
   The sidecar removes the hard requirement but not the good practice.
 - Progress is logged to `Player.log` on lines prefixed `OniExtract:`.
 

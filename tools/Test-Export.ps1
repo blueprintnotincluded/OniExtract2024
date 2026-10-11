@@ -50,7 +50,7 @@ Copy ExportDir to BaselineDir and stop. Refuses to replace an existing baseline 
 
 .PARAMETER AllowPartialExport
 A complete export has ui_image_rects.json and connection_sprites, and their absence is a
-failure. Pass this when checking an export where only the main-menu pass has run, to have the
+failure. Pass this when checking an export where only Export Game Data has run, to have the
 missing pieces reported as skipped instead.
 
 .PARAMETER GameLibs
@@ -103,7 +103,7 @@ $exportFiles = @('ui_image_rects.json', 'pose_overrides.json')
 $imageDirs = @('ui_image', 'ui_image_facade', 'connection_sprites')
 
 if (-not (Test-Path (Join-Path $ExportDir 'database\building.json'))) {
-    throw "No database\building.json under $ExportDir -- wrong -ExportDir, or the main-menu export has not run."
+    throw "No database\building.json under $ExportDir -- wrong -ExportDir, or Export Game Data has not been run."
 }
 
 # --- snapshot -------------------------------------------------------------------------

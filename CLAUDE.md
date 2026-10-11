@@ -35,9 +35,12 @@ with the game installed has to confirm it.
 - **`OniExtract2024/`** — the mod itself (.NET Framework 4.8, Harmony patches, Unity types).
   Cannot be built or tested on CI.
   - `Mod.cs` — `KMod.UserMod2` entry point; registers PLib options.
-  - `Patches.cs` — the Harmony patches that drive the main-menu JSON pass. Transpilers inject
-    collection calls into the game's own registration methods (e.g.
-    `EntityConfigManager.RegisterEntity`).
+  - `Patches.cs` — load-time Harmony patches that only *capture* prefabs as the game registers
+    them (transpilers inject a call into e.g. `EntityConfigManager.RegisterEntity`). They read
+    nothing and write nothing; keep it that way, since a throw there strands the player on the
+    loading screen.
+  - `ExportGameData.cs` — path 1 below: reads what `Patches.cs` captured plus the game's own
+    registries and writes the JSON files, one exporter per frame.
   - `Export*.cs` — one exporter per output file, all deriving from `BaseExport`, which owns
     JSON serialization and path resolution.
   - `model/` — ~90 plain DTOs (`B*` = core records, `Out*` = per-component payloads). These
@@ -59,16 +62,18 @@ with the game installed has to confirm it.
 
 ### Three independent export paths
 
-They are separate, run at different times, and are easy to confuse:
+All three are buttons on the pause screen of a loaded colony. Nothing is exported at boot:
+exporting is something the player does on purpose, after the game has loaded far enough that
+a crash in the export is not a crash in the loading screen.
 
 | # | Path | Trigger | Writes |
 |---|---|---|---|
-| 1 | JSON data + UI icons | Automatic, when the game reaches the **main menu**. No save needed. | 13 JSON files in `export/database/`, one PNG per building/item in `export/ui_image/` |
+| 1 | Game data | Manual: load any colony, **Esc** → *Export Game Data* | 13 JSON files in `export/database/`, one PNG per building/item in `export/ui_image/` |
 | 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings and terrain features (geysers, vents, volcanoes) at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` |
 | 3 | Connection sprites | Manual: load any colony, **Esc** → *Export Connection Sprites* | `export/connection_sprites/{prefabId}/{0..15}.png` |
 
-Path 1 runs on **every game load** and authors `building.json` from scratch. Paths 2 and 3 are
-one-shot tools. Run 1 before 2.
+Path 1 authors `building.json` from scratch every time it runs. Run 1 before 2: path 2 patches
+`uiImageRect` into the `building.json` that path 1 wrote.
 
 ## Development Commands
 
@@ -104,7 +109,7 @@ The game overwrites the export in place, so the snapshot has to be taken first. 
 command checks the contract invariants below and the documented spot checks, then compares
 every JSON value and every PNG with the snapshot. A behaviour-neutral change should come back
 `RESULT: clean`. Renders are not byte-stable between runs, so images are compared by size,
-outline and colour rather than by hash. An export where only the main-menu pass has run fails
+outline and colour rather than by hash. An export where only path 1 has run fails
 the checks for `ui_image_rects.json` and `connection_sprites`; pass `-AllowPartialExport` if that
 is what you meant to check. When a new field gets a spot check in the docs, add it to the script
 as well.

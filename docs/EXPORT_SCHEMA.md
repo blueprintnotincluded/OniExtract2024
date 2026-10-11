@@ -1,6 +1,6 @@
 # OniExtract2024 — Export Schema Reference
 
-Field-level reference for the 13 JSON files written by the main-menu export, plus the
+Field-level reference for the 13 JSON files written by the game-data export, plus the
 `ui_image_rects.json` sidecar written by the building-image tool. For the overall output layout
 and the connection-sprite tool, see [README.md](../README.md).
 
@@ -302,7 +302,7 @@ Spot checks (run by `tools/Test-Export.ps1`; layers by name through `objectLayer
 
 ```jsonc
 {
-  "baseWattageRating": 240.0,   // watts consumed when active — sourced from BuildingDef.EnergyConsumptionWhenActive (not the component's runtime field, which is 0 at main-menu export)
+  "baseWattageRating": 240.0,   // watts consumed when active — sourced from BuildingDef.EnergyConsumptionWhenActive (not the component's runtime field, which is 0 on the prefab)
   "powerSortOrder": 0           // overlay sort priority
 }
 ```
@@ -992,7 +992,7 @@ Sprite metadata for UI icons.
 
 Not one of the 13 database files: it lives at the **export root**
 (`export\ui_image_rects.json`), carries none of the shared root metadata, and is written by
-the in-game building-image tool rather than the main-menu export.
+the in-game building-image tool rather than the game-data export.
 
 A flat map from prefab id to the rectangle its `ui_image/<prefabId>.png` occupies:
 
@@ -1013,9 +1013,9 @@ A flat map from prefab id to the rectangle its `ui_image/<prefabId>.png` occupie
 
 It has two readers:
 
-- **This mod.** `building.json` is rewritten from scratch on every game load, so the main-menu
+- **This mod.** `building.json` is rewritten from scratch on every game-data export, so that
   export reads this file to put `uiImageRect` back on each building. Without it the rects
-  would last only until the next launch. See
+  would last only until the next data export. See
   [OniExtract2024/building/CLAUDE.md](../OniExtract2024/building/CLAUDE.md).
 - **The website.** Terrain features (geysers, vents, volcanoes, the oil reservoir) are not
   buildings and have no `building.json` entry, so this file is the only place their rects
