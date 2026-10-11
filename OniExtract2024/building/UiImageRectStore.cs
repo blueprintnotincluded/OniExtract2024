@@ -85,7 +85,10 @@ namespace OniExtract2024.building
         // Drop every rect whose prefab is not in `keep` and write the store if anything
         // changed. The game-data export calls this with the loaded prefabs, so a rect for a
         // building from a mod that has since been disabled does not outlive the mod. Returns
-        // how many were removed.
+        // how many were removed. Throws if the pruned store could not be written: the
+        // in-memory store is then reloaded from disk so the stale entries are still there to
+        // be pruned by the next run, and the caller reports the step as failed rather than
+        // the export as clean.
         public static int PruneTo(IEnumerable<string> keep)
         {
             var keepSet = new HashSet<string>(keep);
@@ -93,10 +96,16 @@ namespace OniExtract2024.building
             foreach (string key in Runtime.Keys)
                 if (!keepSet.Contains(key))
                     stale.Add(key);
+            if (stale.Count == 0)
+                return 0;
             foreach (string key in stale)
                 Runtime.Remove(key);
-            if (stale.Count > 0)
-                Flush();
+            if (!Flush())
+            {
+                Load();
+                throw new IOException("could not write " + PersistPath + " after removing "
+                    + stale.Count + " stale rects");
+            }
             return stale.Count;
         }
 

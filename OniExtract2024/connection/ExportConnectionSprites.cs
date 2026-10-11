@@ -55,6 +55,8 @@ namespace OniExtract2024.connection
             // left by an earlier run for a connectable that is no longer loaded (a mod since
             // disabled) would otherwise ship to the website as current. A connectable this run
             // fails to write is then missing rather than stale, which the website notices.
+            // If the folder cannot be cleared (open in another program, say), writing into it
+            // would produce exactly the stale mix this exists to prevent, so stop here.
             try
             {
                 if (Directory.Exists(RootDir))
@@ -62,7 +64,10 @@ namespace OniExtract2024.connection
             }
             catch (Exception e)
             {
-                Debug.LogWarning("OniExtract: could not clear " + RootDir + ": " + e.Message);
+                Debug.LogError("OniExtract: could not clear " + RootDir + ": " + e.Message);
+                InGameExport.End("Connection sprites not exported: could not clear\n" + RootDir
+                    + "\nClose anything using it and run again. See Player.log.");
+                yield break;
             }
 
             int tileBuildings = 0, tileSprites = 0;

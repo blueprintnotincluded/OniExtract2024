@@ -33,13 +33,16 @@ public class ExportUISprite : BaseExport
 
     // Deletes every PNG in ui_image/ that no step of this run accounted for. Returns how many
     // went. Only meaningful after both the building and the UI-sprite steps have run, since
-    // between them they note every current icon; the caller checks that.
+    // between them they note every current icon; the caller checks that. Tries every file
+    // before giving up, then throws if any could not be deleted, so the run reports the
+    // stale icon rather than a clean export.
     public static int PruneStaleIcons()
     {
         string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
         if (!Directory.Exists(dir)) return 0;
         List<string> stale = ExportPruning.Stale(Directory.GetFiles(dir, "*.png"), s_currentIcons);
         int removed = 0;
+        var kept = new List<string>();
         foreach (string path in stale)
         {
             try
@@ -50,9 +53,12 @@ public class ExportUISprite : BaseExport
             }
             catch (Exception e)
             {
-                Debug.LogWarning("OniExtract: could not remove stale icon " + path + ": " + e.Message);
+                Debug.LogError("OniExtract: could not remove stale icon " + path + ": " + e.Message);
+                kept.Add(Path.GetFileName(path));
             }
         }
+        if (kept.Count > 0)
+            throw new IOException(kept.Count + " stale icons could not be removed: " + string.Join(", ", kept.ToArray()));
         return removed;
     }
 
@@ -87,9 +93,6 @@ public class ExportUISprite : BaseExport
                 }
             }
             var formattedName = GetFormatedUIImageFileName(prefab);
-            // Noted whether or not a sprite is found below: a building with no atlas icon can
-            // still have a hi-res render under this name, and that render is current.
-            NoteCurrentIcon(formattedName);
             // A stored uiImageRect means the in-game pass already rendered this prefab at
             // 200 px/cell and the rect was measured against THAT crop. Def.GetUISprite returns
             // something else entirely — the kanim's authored "ui" build symbol, an atlas
@@ -108,12 +111,19 @@ public class ExportUISprite : BaseExport
                 OniExtract2024.building.UiImageRectStore.TryGet(prefab.PrefabTag.Name, out var storedRect)
                 && OniExtract2024.building.ExportBuildingImages.PngMatchesRect(
                     Path.Combine(ExportIconDir, formattedName + ".png"), storedRect);
+            // The file under formattedName is current if this run writes it, or if it is the
+            // measured render the sidecar vouches for. A PNG neither of those accounts for is
+            // left from an earlier run and is pruned at the end (PruneStaleIcons).
+            bool accounted = hasMeasuredRender;
             Element element = ElementLoader.GetElement(prefab.PrefabTag);
             if (element != null)
             {
                 var tupleUISprite = Def.GetUISprite(element);
                 if (!hasMeasuredRender)
+                {
                     AnimTool.WriteUISpriteToFile(tupleUISprite.first, ExportIconDir, formattedName, tupleUISprite.second);
+                    accounted = true;
+                }
                 this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
             }
             else
@@ -133,11 +143,16 @@ public class ExportUISprite : BaseExport
                     if (UISprite != null && UISprite != Assets.GetSprite("unknown"))
                     {
                         if (!hasMeasuredRender)
+                        {
                             AnimTool.WriteUISpriteToFile(UISprite, ExportIconDir, formattedName);
+                            accounted = true;
+                        }
                         this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
                     }
                 }
             }
+            if (accounted)
+                NoteCurrentIcon(formattedName);
         }
         string[] facadeSetIds = new string[] {
             Db.Get().Permits.BuildingFacades.Id,

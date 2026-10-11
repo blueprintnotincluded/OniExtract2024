@@ -434,7 +434,7 @@ namespace OniExtract2024.building
                 return;
             }
 
-            int placed = 0;
+            int placed = 0, removed = 0;
             foreach (JObject entry in list)
             {
                 string name = (string)entry["name"];
@@ -449,10 +449,18 @@ namespace OniExtract2024.building
                     };
                     placed++;
                 }
+                else if (replaceStore && entry.Remove("uiImageRect"))
+                {
+                    // A full sweep that produced no rect for this building wrote no PNG for
+                    // it either, so a rect left from an earlier sweep describes an image this
+                    // run does not vouch for. The sidecar no longer has it; neither may this.
+                    removed++;
+                }
             }
 
             File.WriteAllText(path, root.ToString(Formatting.Indented));
-            Debug.Log("OniExtract: buildings with uiImageRect placement: " + placed + " / " + list.Count);
+            Debug.Log("OniExtract: buildings with uiImageRect placement: " + placed + " / " + list.Count
+                + (removed > 0 ? ", " + removed + " stale rects removed" : ""));
         }
 
         // 4 decimals ≈ 0.02 px at 200 px/cell — finer than the render — while keeping the
