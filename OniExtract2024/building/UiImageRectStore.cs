@@ -59,9 +59,9 @@ namespace OniExtract2024.building
 
         public static int Count => Runtime.Count;
 
-        // Merge a batch of freshly measured rects and write the whole store to disk, so a
-        // crash mid-sweep never loses more than the in-flight entry. Values are rounded so
-        // the sidecar and building.json show identical clean numbers. Returns true on a
+        // Merge a batch of freshly measured rects into the store and write it to disk. For a
+        // touch-up of one building; the full sweep uses ReplaceAll. Values are rounded so the
+        // sidecar and building.json show identical clean numbers. Returns true on a
         // successful disk write.
         public static bool SaveAll(IDictionary<string, UiImageRect> rects)
         {
@@ -69,6 +69,44 @@ namespace OniExtract2024.building
             foreach (var kv in rects)
                 Runtime[kv.Key] = Rounded(kv.Value);
             return Flush();
+        }
+
+        // Make the store exactly these rects. For the full sweep, which measures every prefab
+        // it can render: a rect it did not produce describes a PNG it did not write, either a
+        // prefab that is no longer loaded or a render that failed this time. Merging kept
+        // both, and the first kind reached the website as a current building.
+        public static bool ReplaceAll(IDictionary<string, UiImageRect> rects)
+        {
+            if (rects == null || rects.Count == 0) return false;
+            s_runtime = new Dictionary<string, UiImageRect>();
+            return SaveAll(rects);
+        }
+
+        // Drop every rect whose prefab is not in `keep` and write the store if anything
+        // changed. The game-data export calls this with the loaded prefabs, so a rect for a
+        // building from a mod that has since been disabled does not outlive the mod. Returns
+        // how many were removed. Throws if the pruned store could not be written: the
+        // in-memory store is then reloaded from disk so the stale entries are still there to
+        // be pruned by the next run, and the caller reports the step as failed rather than
+        // the export as clean.
+        public static int PruneTo(IEnumerable<string> keep)
+        {
+            var keepSet = new HashSet<string>(keep);
+            var stale = new List<string>();
+            foreach (string key in Runtime.Keys)
+                if (!keepSet.Contains(key))
+                    stale.Add(key);
+            if (stale.Count == 0)
+                return 0;
+            foreach (string key in stale)
+                Runtime.Remove(key);
+            if (!Flush())
+            {
+                Load();
+                throw new IOException("could not write " + PersistPath + " after removing "
+                    + stale.Count + " stale rects");
+            }
+            return stale.Count;
         }
 
         private static bool Flush()

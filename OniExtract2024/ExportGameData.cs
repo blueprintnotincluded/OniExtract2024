@@ -49,6 +49,7 @@ namespace OniExtract2024
                 if (options.Geyser) steps.Add(Step("Geysers", WriteGeysers));
 
                 Debug.Log("OniExtract: game data export started, " + steps.Count + " steps.");
+                ExportUISprite.BeginIconRun();
                 // Let the banner draw before the first step holds the frame.
                 yield return null;
 
@@ -68,6 +69,29 @@ namespace OniExtract2024
                     }
                     yield return null;
                 }
+
+                // The export is written in place, so icons and rects of prefabs that are no
+                // longer loaded (a mod since disabled) would otherwise stay on disk and ship
+                // as current. Pruning needs the complete picture of what is current, which
+                // only the building and UI-sprite steps together provide; if either did not
+                // run or failed, leave the folder alone rather than delete what they missed.
+                bool iconsComplete = options.Building && options.UISprintInfo
+                    && !failed.Contains("Buildings") && !failed.Contains("UI sprites");
+                if (iconsComplete)
+                {
+                    Debug.Log("OniExtract: Prune stale output");
+                    try
+                    {
+                        PruneStaleOutput();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError("OniExtract: pruning stale output failed: " + e);
+                        failed.Add("Prune stale output");
+                    }
+                }
+                else
+                    Debug.LogWarning("OniExtract: stale icons not pruned; the building and UI sprite steps must both run and succeed.");
 
                 Debug.Log("OniExtract: game data export complete, " + failed.Count + " steps failed.");
                 summary = failed.Count == 0
@@ -227,6 +251,22 @@ namespace OniExtract2024
             var export = new ExportGeyser();
             export.AddGeyserPrefabParams(Patches.CapturedGeyserParams);
             export.ExportJsonFile();
+        }
+
+        // Removes what earlier runs left for prefabs that are not loaded now: their icons in
+        // ui_image/ and their entries in ui_image_rects.json. The rect store is keyed by
+        // prefab tag, so the loaded prefabs are the keep list; icons are judged by the names
+        // the steps above noted. connection_sprites/ is the connection-sprite tool's and is
+        // cleared by that tool.
+        private static void PruneStaleOutput()
+        {
+            int icons = ExportUISprite.PruneStaleIcons();
+            var loaded = new HashSet<string>();
+            foreach (KPrefabID kpid in Assets.Prefabs)
+                if (kpid != null && kpid.PrefabTag.Name != null)
+                    loaded.Add(kpid.PrefabTag.Name);
+            int rects = OniExtract2024.building.UiImageRectStore.PruneTo(loaded);
+            Debug.Log("OniExtract: pruned " + icons + " stale icons and " + rects + " stale rects.");
         }
     }
 }

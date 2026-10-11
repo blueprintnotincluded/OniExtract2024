@@ -111,6 +111,12 @@ export
 `ui_image_rects.json` is part of what the website reads (it is the only place terrain features'
 rects live). `pose_overrides.json` is an input to this mod, not something the website consumes.
 
+The folder is written in place, and each tool prunes its output to the prefabs loaded when it
+ran: the game-data export deletes `ui_image/` PNGs and `ui_image_rects.json` entries that no
+loaded prefab accounts for, the building-image tool replaces `ui_image_rects.json` with what it
+measured, and the connection-sprite tool clears `connection_sprites/` before writing. Disable a
+mod and its buildings are gone from the next export, not carried along as current.
+
 Field-level schema for every JSON file: see [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md).
 Website-side guidance for the rocket-module stacking data and blueprint-setting ranges in
 `building.json`: [docs/WEBSITE_ROCKET_MODULES.md](docs/WEBSITE_ROCKET_MODULES.md).

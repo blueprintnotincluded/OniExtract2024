@@ -132,7 +132,11 @@ namespace OniExtract2024.connection
                 written++;
             }
 
-            UnityEngine.Object.Destroy(readable);
+            // `readable` belongs to AnimTool's per-texture cache and is shared by every tile
+            // drawn from the same atlas (GlassTile and RocketEnvelopeWindowTile both use
+            // tiles_glass). Destroying it here left the next sharer a dead texture, which reads
+            // as null and returned 0 above without a word, so that tile silently kept the
+            // sprites of an older run. The cache lives for the session; leave it alone.
 
             if (written == 0)
                 Debug.LogWarning("OniExtract: tile " + def.PrefabID + " matched no atlas items (atlas=" +

@@ -266,7 +266,9 @@ covered — their port geometry isn't derivable from this export. The real fix i
 `electrical_disconnected`, `logicInput`, `logicOutput`, `logicResetUpdate`,
 `logic_ribbon_all_in`, `logic_ribbon_all_out`) are resolved by id in
 `ConnectionHelper.getConnectionSprite` (tint applied at draw time, no spriteModifier). Since
-U59 the export ships each as its own flat PNG in `ui_image/<name>.png`, so the converter
+U59 the export ships each as its own flat PNG in `ui_image/<name>.png`, and `building.json`
+lists the set at its root as `utilityIndicators` so the converter can read it rather than
+hardcode it (the names themselves do not change). The converter
 registers all 8 as whole-image sprites (`uvMin 0,0`, `uvSize` = the PNG's real size) and
 copies the PNGs into the SpriteInfo image root (`frontend/src/assets/images/`) — `SpriteInfo`
 resolves `textureName` there, not under `ui_image/`. `drawPixiUtility` forces a fixed

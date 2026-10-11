@@ -19,6 +19,49 @@ public class ExportUISprite : BaseExport
     {
     }
 
+    // Icon file names (without .png) that belong to the game-data run in progress: every
+    // prefab whose icon the run wrote, or kept because the file holds a measured render, plus
+    // the port indicators. Anything else in ui_image/ was left by an earlier run for a prefab
+    // that is not loaded now, and PruneStaleIcons removes it at the end of the run. Compared
+    // ignoring case because the file system does.
+    private static readonly HashSet<string> s_currentIcons =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    public static void BeginIconRun() => s_currentIcons.Clear();
+
+    public static void NoteCurrentIcon(string fileName) => s_currentIcons.Add(fileName);
+
+    // Deletes every PNG in ui_image/ that no step of this run accounted for. Returns how many
+    // went. Only meaningful after both the building and the UI-sprite steps have run, since
+    // between them they note every current icon; the caller checks that. Tries every file
+    // before giving up, then throws if any could not be deleted, so the run reports the
+    // stale icon rather than a clean export.
+    public static int PruneStaleIcons()
+    {
+        string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
+        if (!Directory.Exists(dir)) return 0;
+        List<string> stale = ExportPruning.Stale(Directory.GetFiles(dir, "*.png"), s_currentIcons);
+        int removed = 0;
+        var kept = new List<string>();
+        foreach (string path in stale)
+        {
+            try
+            {
+                File.Delete(path);
+                removed++;
+                Debug.Log("OniExtract: removed stale icon " + Path.GetFileName(path));
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("OniExtract: could not remove stale icon " + path + ": " + e.Message);
+                kept.Add(Path.GetFileName(path));
+            }
+        }
+        if (kept.Count > 0)
+            throw new IOException(kept.Count + " stale icons could not be removed: " + string.Join(", ", kept.ToArray()));
+        return removed;
+    }
+
     public void AddUISpriteInfo(KPrefabID prefabID, Tuple<Sprite, Color> tupleUISprite, string properName)
     {
         this.uiSpriteInfos[prefabID.PrefabTag.Name] = new BUISprite(prefabID.name, tupleUISprite.first, tupleUISprite.second) {
@@ -68,12 +111,19 @@ public class ExportUISprite : BaseExport
                 OniExtract2024.building.UiImageRectStore.TryGet(prefab.PrefabTag.Name, out var storedRect)
                 && OniExtract2024.building.ExportBuildingImages.PngMatchesRect(
                     Path.Combine(ExportIconDir, formattedName + ".png"), storedRect);
+            // The file under formattedName is current if this run writes it, or if it is the
+            // measured render the sidecar vouches for. A PNG neither of those accounts for is
+            // left from an earlier run and is pruned at the end (PruneStaleIcons).
+            bool accounted = hasMeasuredRender;
             Element element = ElementLoader.GetElement(prefab.PrefabTag);
             if (element != null)
             {
                 var tupleUISprite = Def.GetUISprite(element);
                 if (!hasMeasuredRender)
+                {
                     AnimTool.WriteUISpriteToFile(tupleUISprite.first, ExportIconDir, formattedName, tupleUISprite.second);
+                    accounted = true;
+                }
                 this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
             }
             else
@@ -93,11 +143,16 @@ public class ExportUISprite : BaseExport
                     if (UISprite != null && UISprite != Assets.GetSprite("unknown"))
                     {
                         if (!hasMeasuredRender)
+                        {
                             AnimTool.WriteUISpriteToFile(UISprite, ExportIconDir, formattedName);
+                            accounted = true;
+                        }
                         this.AddUISpriteInfo(prefab, tupleUISprite, GetProperName(prefab));
                     }
                 }
             }
+            if (accounted)
+                NoteCurrentIcon(formattedName);
         }
         string[] facadeSetIds = new string[] {
             Db.Get().Permits.BuildingFacades.Id,

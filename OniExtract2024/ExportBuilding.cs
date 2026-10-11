@@ -27,6 +27,10 @@ public class ExportBuilding : BaseExport
     // (objectLayer, tileLayer, replacementLayer, replacementCandidateLayers) without tracking
     // the game's numbering. The enum is contiguous from 0; its last name is NumLayers.
     public string[] objectLayerNames = Enum.GetNames(typeof(ObjectLayer));
+    // File names (without .png) of the port-indicator sprites in ui_image/ that utilities[]
+    // entries are drawn with: the ones ExportPortIcons found and wrote this run, so the website
+    // can read the set instead of asserting it. See the sprite-name map on OutUtilityPort.
+    public List<string> utilityIndicators = new List<string>();
     // PrefabIDs of the RocketModuleCluster buildings seen by AddNewBuildingEntity; input to
     // ExportRocketModuleMenu. Not serialized.
     [Newtonsoft.Json.JsonIgnore]
@@ -219,8 +223,9 @@ public class ExportBuilding : BaseExport
         this.bBuildingDefList.Add(bBuild);
     }
 
-    // Exports the ~8 generic port indicator icons (same for every building) to ui_image/.
-    // sprite names match what Assets.GetSprite() returns in-game.
+    // Exports the 8 generic port indicator icons (same for every building) to ui_image/ and
+    // lists them in utilityIndicators. Sprite names match what Assets.GetSprite() returns
+    // in-game; the website looks the PNGs up by these exact names, so they never change.
     public void ExportPortIcons()
     {
         string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
@@ -232,11 +237,16 @@ public class ExportBuilding : BaseExport
             "logicInput", "logicOutput", "logicResetUpdate",
             "logic_ribbon_all_in", "logic_ribbon_all_out",
         };
+        this.utilityIndicators.Clear();
         foreach (string name in names)
         {
             Sprite sprite = Assets.GetSprite(name);
             if (sprite != null)
+            {
                 AnimTool.WriteUISpriteToFile(sprite, dir, name);
+                ExportUISprite.NoteCurrentIcon(name);
+                this.utilityIndicators.Add(name);
+            }
             else
                 Debug.LogWarning("OniExtract: port icon sprite not found: " + name);
         }

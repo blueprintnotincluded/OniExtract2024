@@ -78,6 +78,11 @@ a crash in the export is not a crash in the loading screen.
 Path 1 authors `building.json` from scratch every time it runs. Run 1 before 2: path 2 patches
 `uiImageRect` into the `building.json` that path 1 wrote.
 
+The export folder is written in place, so each path prunes its output to the prefabs loaded
+when it ran: path 1 deletes `ui_image/` PNGs and `ui_image_rects.json` entries no loaded prefab
+accounts for, path 2 replaces `ui_image_rects.json` with what it measured, and path 3 clears
+`connection_sprites/` before writing. Otherwise a disabled mod's buildings would ship as current.
+
 ## Development Commands
 
 ### Build and deploy
