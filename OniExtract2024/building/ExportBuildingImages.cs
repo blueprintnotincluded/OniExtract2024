@@ -201,7 +201,9 @@ namespace OniExtract2024.building
                 if (notRendered.Count > 0)
                     Debug.LogWarning("OniExtract: spawned but not rendered (no image written): " + string.Join(", ", notRendered));
 
-                PatchBuildingJsonRects(Rects);
+                // This sweep measured everything it can render, so its rects replace the
+                // store rather than merge into it: see UiImageRectStore.ReplaceAll.
+                PatchBuildingJsonRects(Rects, replaceStore: true);
                 VerifyRectsMatchPngs(Rects);
 
                 summary = "Building images exported: " + exported + " buildings and "
@@ -334,7 +336,7 @@ namespace OniExtract2024.building
             var rects = new Dictionary<string, UiImageRect>();
             BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
             if (rects.Count > 0)
-                PatchBuildingJsonRects(rects);
+                PatchBuildingJsonRects(rects, replaceStore: false);
         }
 
         // A stand-in for a building that cannot be spawned for real (rocket modules need a
@@ -398,7 +400,10 @@ namespace OniExtract2024.building
         // in a separate run from the JSON export. The website reads uiImageRect off each
         // bBuildingDefList entry; buildings we did not render keep the legacy
         // stretch-to-footprint fallback (field omitted).
-        private static void PatchBuildingJsonRects(IDictionary<string, UiImageRect> rects)
+        //
+        // replaceStore: true when `rects` is a full sweep's output and so becomes the whole
+        // sidecar; false for a single touch-up, which merges into it.
+        private static void PatchBuildingJsonRects(IDictionary<string, UiImageRect> rects, bool replaceStore)
         {
             if (rects == null || rects.Count == 0) return;
 
@@ -406,7 +411,10 @@ namespace OniExtract2024.building
             // export even if the full sweep isn't re-run (the game-data export reads this).
             // The direct building.json patch below keeps the CURRENT export correct
             // without another data export. See docs/archive/UIIMAGERECT_DURABILITY.md.
-            UiImageRectStore.SaveAll(rects);
+            if (replaceStore)
+                UiImageRectStore.ReplaceAll(rects);
+            else
+                UiImageRectStore.SaveAll(rects);
 
             string dbDir = BaseExport.BuildExportPath(
                 Util.RootFolder(), "database", DlcManager.IsExpansion1Active());

@@ -69,11 +69,14 @@ footprint — the "steam turbine squished to 5×3" bug.
 
 So the flow is deliberately decoupled, mirroring `pose_overrides.json`:
 
-1. The image sweep measures rects and calls `UiImageRectStore.SaveAll` →
-   `export/ui_image_rects.json`. It *also* patches `building.json` directly, for same-session
-   immediacy only.
+1. The image sweep measures rects and calls `UiImageRectStore.ReplaceAll` →
+   `export/ui_image_rects.json`: the sweep measured everything it can render, so its rects
+   *are* the file. Merging kept rects of prefabs no longer loaded (a disabled mod), which
+   reached the website as current buildings. The inspector's single touch-up merges with
+   `SaveAll`. The sweep *also* patches `building.json` directly, for same-session immediacy only.
 2. The game-data export reads `UiImageRectStore` by `buildingDef.Tag.Name` and emits
-   `uiImageRect` on `BBuildingEntity`.
+   `uiImageRect` on `BBuildingEntity`, then calls `UiImageRectStore.PruneTo` with the loaded
+   prefabs and deletes `ui_image/` PNGs no step of the run accounted for.
 
 Anything that makes the rect travel only through `building.json` reintroduces the bug. The
 field is **omitted when absent, never emitted as null**.

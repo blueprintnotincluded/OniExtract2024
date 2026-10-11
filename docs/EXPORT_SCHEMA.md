@@ -8,6 +8,13 @@ Documented against game version **U59-737790-SCA**, 4 active DLCs (includes `EXP
 Spaced Out). Counts below reflect that version and shift as the game updates.
 Export path: `%USERPROFILE%\Documents\Klei\OxygenNotIncluded\export\database\`
 
+The export is written in place, and each tool prunes its output to the prefabs loaded when it
+ran: the game-data export removes every `ui_image/` PNG and every `ui_image_rects.json` entry
+that no loaded prefab accounts for, the building-image tool replaces `ui_image_rects.json`
+with what it measured, and the connection-sprite tool clears `connection_sprites/` before it
+writes. A building from a mod that has since been disabled leaves nothing behind, so the
+output describes exactly the game that produced it.
+
 Every file shares these root-level metadata fields:
 
 | Field | Type | Example |
@@ -81,6 +88,7 @@ All buildable structures, the build menu hierarchy, and room/skill mappings.
 | `mods` | array | 0+ | Source-mod roster: `{ id, title, buildings[] }` per enabled mod that contributed buildings; `id` = Steam workshop id (or local-mod folder name), matching each entry's `mod` field. Empty for a vanilla-only export. |
 | `rocketModuleMenu` | string[] | 32 (Spaced Out) | Prefab ids of every Spaced Out rocket module (`RocketModuleCluster` buildings) in the order the game's rocket-platform module screen lists them (`SelectModuleSideScreen.moduleButtonSortOrder`), then any modded modules the game list does not know, in name order. These buildings have `showInBuildMenu: false` and appear in no `buildingAndSubcategoryDataPairs` category, so this is the only menu source for them. Empty without the DLC. See WEBSITE_ROCKET_MODULES.md. |
 | `objectLayerNames` | string[] | 46 | The game's `ObjectLayer` enum names, indexed by value: `objectLayerNames[1]` is `Building`. Decodes every per-building layer int (`objectLayer`, `tileLayer`, `replacementLayer`, `replacementCandidateLayers`). The last entry is `NumLayers`, the game's "unset", which the per-building fields never emit. |
+| `utilityIndicators` | string[] | 8 | File names (without `.png`) of the port-indicator sprites in `ui_image/` that `utilities[]` entries are drawn with: `input`, `output`, `electrical_disconnected`, `logicInput`, `logicOutput`, `logicResetUpdate`, `logic_ribbon_all_in`, `logic_ribbon_all_out`. Lists what the run found and wrote, so the website can read the set instead of asserting it. The names are fixed; which one goes with which port type is in the `utilities[]` notes. |
 
 ### bBuildingDefList entry
 
@@ -1010,6 +1018,10 @@ A flat map from prefab id to the rectangle its `ui_image/<prefabId>.png` occupie
   `SteamTurbine2` above has a 5×3 footprint: its art hangs two cells below it.
 - The PNG maps linearly onto the rect, so `w:h` equals the PNG's pixel aspect. The tool checks
   this at the end of every run and the website's importer fails on a mismatch.
+- The file holds exactly what the last building-image run measured: one entry per rendered
+  building plus terrain feature. That run replaces the file rather than merging into it, and
+  the game-data export drops any entry whose prefab is not loaded, so nothing survives from an
+  earlier mod set. Only the pose inspector's single-building touch-up merges.
 
 It has two readers:
 

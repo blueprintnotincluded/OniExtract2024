@@ -19,6 +19,43 @@ public class ExportUISprite : BaseExport
     {
     }
 
+    // Icon file names (without .png) that belong to the game-data run in progress: every
+    // prefab whose icon the run wrote, or kept because the file holds a measured render, plus
+    // the port indicators. Anything else in ui_image/ was left by an earlier run for a prefab
+    // that is not loaded now, and PruneStaleIcons removes it at the end of the run. Compared
+    // ignoring case because the file system does.
+    private static readonly HashSet<string> s_currentIcons =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    public static void BeginIconRun() => s_currentIcons.Clear();
+
+    public static void NoteCurrentIcon(string fileName) => s_currentIcons.Add(fileName);
+
+    // Deletes every PNG in ui_image/ that no step of this run accounted for. Returns how many
+    // went. Only meaningful after both the building and the UI-sprite steps have run, since
+    // between them they note every current icon; the caller checks that.
+    public static int PruneStaleIcons()
+    {
+        string dir = Path.Combine(Util.RootFolder(), "export", "ui_image");
+        if (!Directory.Exists(dir)) return 0;
+        List<string> stale = ExportPruning.Stale(Directory.GetFiles(dir, "*.png"), s_currentIcons);
+        int removed = 0;
+        foreach (string path in stale)
+        {
+            try
+            {
+                File.Delete(path);
+                removed++;
+                Debug.Log("OniExtract: removed stale icon " + Path.GetFileName(path));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("OniExtract: could not remove stale icon " + path + ": " + e.Message);
+            }
+        }
+        return removed;
+    }
+
     public void AddUISpriteInfo(KPrefabID prefabID, Tuple<Sprite, Color> tupleUISprite, string properName)
     {
         this.uiSpriteInfos[prefabID.PrefabTag.Name] = new BUISprite(prefabID.name, tupleUISprite.first, tupleUISprite.second) {
@@ -50,6 +87,9 @@ public class ExportUISprite : BaseExport
                 }
             }
             var formattedName = GetFormatedUIImageFileName(prefab);
+            // Noted whether or not a sprite is found below: a building with no atlas icon can
+            // still have a hi-res render under this name, and that render is current.
+            NoteCurrentIcon(formattedName);
             // A stored uiImageRect means the in-game pass already rendered this prefab at
             // 200 px/cell and the rect was measured against THAT crop. Def.GetUISprite returns
             // something else entirely — the kanim's authored "ui" build symbol, an atlas

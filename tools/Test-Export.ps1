@@ -13,7 +13,8 @@ that used to be done by hand after every in-game run.
   2. Invariants and spot checks (always run, on -ExportDir alone):
        - the export-contract invariants from CLAUDE.md (utilities[] present with known types,
          viewMode a game overlay name or null, uiImageRect never null, an icon for every
-         building, 16 sprites per connectable, every rect matching its PNG's aspect);
+         building, 16 sprites per connectable, every rect matching its PNG's aspect, the
+         utilityIndicators set complete, no icon or rect left over from an earlier run);
        - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
          "Replacement fields");
        - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
@@ -397,6 +398,12 @@ public static class OniExportCheck
         "replacementCandidateLayers", "replacementTags", "runtimeTags" };
     static readonly string[] OmittedNotFalse = { "isRocketModule", "userNameable", "prioritizable" };
 
+    // The port-indicator sprites utilities[] entries are drawn with (OutUtilityPort.cs). The
+    // website looks each up by this exact file name and fails its import when one is missing.
+    static readonly string[] Indicators = {
+        "input", "output", "electrical_disconnected", "logicInput", "logicOutput", "logicResetUpdate",
+        "logic_ribbon_all_in", "logic_ribbon_all_out" };
+
     static readonly string[] RocketKeys = {
         "isRocketModule", "attachPoints", "attachableTo", "rocketModulePerformance", "moduleBuildConditions" };
     static readonly string[] SettingsKeys = {
@@ -657,6 +664,42 @@ public static class OniExportCheck
         r.Add("invariant", "every building has ui_image/<name>.png", noIcon.Count == 0, Sample(noIcon));
         r.Add("invariant", "every uiImageRect matches its PNG's aspect within 2%", badRect.Count == 0, Sample(badRect));
 
+        // The indicator set is declared in building.json so the website can read it rather
+        // than assert it; the eight names are the contract and each needs its PNG.
+        var indicators = root["utilityIndicators"] as JArray;
+        var indicatorNames = new List<string>();
+        if (indicators != null)
+            foreach (var t in indicators) { string s = Str(t); if (s != null) indicatorNames.Add(s); }
+        var missingIndicators = new List<string>();
+        foreach (string n in Indicators)
+            if (!indicatorNames.Contains(n) || !File.Exists(Path.Combine(uiDir, n + ".png"))) missingIndicators.Add(n);
+        r.Add("invariant", "utilityIndicators names the 8 indicator sprites and each has ui_image/<name>.png",
+            indicators != null && missingIndicators.Count == 0, indicators == null ? "missing" : Sample(missingIndicators));
+
+        // Each run prunes ui_image/ and ui_image_rects.json to the prefabs loaded at the time,
+        // so a PNG or a rect that no current prefab accounts for was left by an earlier run
+        // with a different mod set, and would reach the website as current. uiSpriteInfos
+        // keys every prefab that has an icon, buildings and terrain features included.
+        HashSet<string> known = null;
+        string spriteInfoPath = Path.Combine(exportDir, "database", "uiSpriteInfo.json");
+        if (File.Exists(spriteInfoPath))
+        {
+            known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string n in r.ByName.Keys) known.Add(n);
+            foreach (string n in Indicators) known.Add(n);
+            foreach (string n in indicatorNames) known.Add(n);
+            var infos = ((JObject)Load(spriteInfoPath))["uiSpriteInfos"] as JObject;
+            if (infos != null) foreach (var p in infos.Properties()) known.Add(p.Name);
+            var orphanIcons = new List<string>();
+            if (Directory.Exists(uiDir))
+                foreach (string f in Directory.GetFiles(uiDir, "*.png"))
+                {
+                    string n = Path.GetFileNameWithoutExtension(f);
+                    if (!known.Contains(n)) orphanIcons.Add(n);
+                }
+            r.Add("invariant", "every ui_image PNG is a building, a uiSpriteInfos prefab or a utility indicator", orphanIcons.Count == 0, Sample(orphanIcons));
+        }
+
         // The sidecar: buildings must agree with building.json, and every entry (terrain
         // features included) must describe the PNG that is actually on disk.
         string sidecarPath = Path.Combine(exportDir, "ui_image_rects.json");
@@ -665,6 +708,7 @@ public static class OniExportCheck
             var sidecar = (JObject)Load(sidecarPath);
             var disagree = new List<string>();
             var sidecarBad = new List<string>();
+            var orphanRects = new List<string>();
             foreach (var p in sidecar.Properties())
             {
                 JObject b;
@@ -674,9 +718,12 @@ public static class OniExportCheck
                 }
                 string why;
                 if (!RectMatchesPng(p.Value, Path.Combine(uiDir, p.Name + ".png"), out why)) sidecarBad.Add(p.Name + " (" + why + ")");
+                if (known != null && !known.Contains(p.Name)) orphanRects.Add(p.Name);
             }
             r.Add("invariant", "ui_image_rects.json agrees with building.json for every building in both", disagree.Count == 0, Sample(disagree));
             r.Add("invariant", "every ui_image_rects.json entry matches its PNG's aspect within 2%", sidecarBad.Count == 0, Sample(sidecarBad));
+            if (known != null)
+                r.Add("invariant", "every ui_image_rects.json entry is a building or a uiSpriteInfos prefab", orphanRects.Count == 0, Sample(orphanRects));
             r.Out.Add(new OniCheck { Group = "info", Name = "ui_image_rects.json entries", Status = "PASS", Detail = sidecar.Count.ToString() });
         }
         else
