@@ -167,6 +167,10 @@ namespace OniExtract2024
         private static void WriteMultiEntities()
         {
             var export = new ExportMultiEntity();
+            // Before the entities: LoadEntityComponent attaches each cluster meteor shower to
+            // its event by looking it up in this map.
+            foreach (OutMeteorShowerEvent meteorShowerEvent in Patches.CapturedMeteorShowerEvents)
+                export.addNewMeteorShowerEvent(meteorShowerEvent);
             foreach (var captured in Patches.CapturedMultiEntities)
             {
                 GameObject gameObject = captured.Key;
@@ -181,8 +185,6 @@ namespace OniExtract2024
                 export.LoadEntityComponent(gameObject, bMultiEntity);
                 export.multiEntities.Add(bMultiEntity);
             }
-            foreach (OutMeteorShowerEvent meteorShowerEvent in Patches.CapturedMeteorShowerEvents)
-                export.addNewMeteorShowerEvent(meteorShowerEvent);
             export.updateAllMeteorShowEvent();
             export.ExportJsonFile();
         }
