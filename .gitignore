@@ -15,3 +15,6 @@ export-2023.zip
 
 # Per-machine MSBuild overrides (game install path, mod folder)
 Directory.Build.user.props
+
+# Unity type-tree database for tools/AssetDump; fetched by Get-ClassData.ps1, not committed
+tools/AssetDump/classdata.tpk
