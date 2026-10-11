@@ -13,7 +13,8 @@ website handoff is [WEBSITE_ROCKET_INTERIORS.md](WEBSITE_ROCKET_INTERIORS.md).
 
 ## Setup
 
-Requires the .NET 8 SDK or newer and the GitHub CLI (`gh`), signed in.
+Requires the .NET 8 SDK or newer and the GitHub CLI (`gh`), signed in. The tool targets
+net8.0 but rolls forward to the newest installed runtime, so a .NET 8 runtime is not needed.
 
 ```powershell
 .\tools\AssetDump\Get-ClassData.ps1      # once, and again after the game moves to a new Unity version
@@ -46,7 +47,9 @@ $dump = 'dotnet run --no-build --project tools\AssetDump --'
 `<file>` is relative to `OxygenNotIncluded_Data`, for example `sharedassets2.assets` or
 `StreamingAssets/expansion1_bundle`. `all` searches every `.assets` file, every `level*` scene
 and every `StreamingAssets/*_bundle`; start with `list all <regex>` when you do not know where
-something lives. `--data <dir>` points at a different install (default: Steam's), and
+something lives. Asset names are not unique (`sharedassets0.assets` alone has four
+`outline_0` textures), so when a name repeats within one run the later files get its path id
+appended, as in `outline_0__1261.png`, rather than overwriting the first. `--data <dir>` points at a different install (default: Steam's), and
 `--tpk <file>` at a different class database.
 
 ```powershell

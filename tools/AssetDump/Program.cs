@@ -35,13 +35,26 @@ if (positional.Count < 2)
 
 string command = positional[0];
 string dataDir = options.GetValueOrDefault("data", DefaultData);
-string tpk = options.GetValueOrDefault("tpk", Path.Combine(AppContext.BaseDirectory, "classdata.tpk"));
-if (!File.Exists(tpk))
-    tpk = Path.Combine(Directory.GetCurrentDirectory(), "tools", "AssetDump", "classdata.tpk");
-if (!File.Exists(tpk))
+string tpk;
+if (options.TryGetValue("tpk", out var explicitTpk))
 {
-    Console.Error.WriteLine("classdata.tpk not found. Run tools/AssetDump/Get-ClassData.ps1 first, or pass --tpk.");
-    return 2;
+    tpk = explicitTpk;
+    if (!File.Exists(tpk))
+    {
+        Console.Error.WriteLine("--tpk " + tpk + " not found.");
+        return 2;
+    }
+}
+else
+{
+    tpk = Path.Combine(AppContext.BaseDirectory, "classdata.tpk");
+    if (!File.Exists(tpk))
+        tpk = Path.Combine(Directory.GetCurrentDirectory(), "tools", "AssetDump", "classdata.tpk");
+    if (!File.Exists(tpk))
+    {
+        Console.Error.WriteLine("classdata.tpk not found. Run tools/AssetDump/Get-ClassData.ps1 first, or pass --tpk.");
+        return 2;
+    }
 }
 var nameFilter = new Regex(positional.Count > 2 ? positional[2] : ".*");
 string outDir = positional.Count > 3 ? positional[3] : null;
@@ -56,6 +69,10 @@ if ((command == "textures" || command == "textassets") && outDir == null)
 }
 if (outDir != null)
     Directory.CreateDirectory(outDir);
+
+// Output file stems already written this run. Asset names are not unique across files (or even
+// within one), so a repeat gets its path id appended instead of overwriting the first.
+var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 var am = new AssetsManager();
 am.LoadClassPackage(tpk);
@@ -95,16 +112,28 @@ foreach (var (file, inst) in ResolveFiles(dataDir, positional[1])
                 PrintMaterial(am, inst, file, name, field);
                 break;
             case "textures":
-                SaveTexture(inst, name, field, outDir, options.ContainsKey("alpha"));
+                SaveTexture(inst, name, OutputStem(name, info.PathId, written), field, outDir, options.ContainsKey("alpha"));
                 break;
             case "textassets":
-                File.WriteAllBytes(Path.Combine(outDir, name + ".bytes"), field["m_Script"].AsByteArray);
-                Console.WriteLine($"{name}.bytes");
+                string stem = OutputStem(name, info.PathId, written);
+                File.WriteAllBytes(Path.Combine(outDir, stem + ".bytes"), field["m_Script"].AsByteArray);
+                Console.WriteLine($"{stem}.bytes");
                 break;
         }
     }
 }
 return 0;
+
+static string OutputStem(string name, long pathId, HashSet<string> written)
+{
+    string stem = string.Concat(name.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+    if (!written.Add(stem))
+    {
+        stem += "__" + pathId;
+        written.Add(stem);
+    }
+    return stem;
+}
 
 static IEnumerable<string> ResolveFiles(string dataDir, string spec)
 {
@@ -159,7 +188,7 @@ static void PrintMaterial(AssetsManager am, AssetsFileInstance inst, string file
 // (colour multiplied by alpha) and <name>.alpha.png (alpha as greyscale): ONI's layered
 // textures carry their shapes in alpha and leave junk colour where alpha is 0, so the plain
 // PNG looks wrong in most viewers.
-static void SaveTexture(AssetsFileInstance inst, string name, AssetTypeValueField field, string outDir, bool alphaViews)
+static void SaveTexture(AssetsFileInstance inst, string name, string safe, AssetTypeValueField field, string outDir, bool alphaViews)
 {
     TextureFile tf = TextureFile.ReadTextureFile(field);
     byte[] encoded = tf.FillPictureData(inst);
@@ -168,7 +197,6 @@ static void SaveTexture(AssetsFileInstance inst, string name, AssetTypeValueFiel
         Console.WriteLine($"{name}: no pixel data");
         return;
     }
-    string safe = string.Concat(name.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
     if (!tf.DecodeTextureImage(encoded, Path.Combine(outDir, safe + ".png"), ImageExportType.Png))
     {
         Console.WriteLine($"{name}: cannot decode texture format {tf.m_TextureFormat}");

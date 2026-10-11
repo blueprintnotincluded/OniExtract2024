@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 
 $runId = gh run list --repo AssetRipper/Tpk --branch master --workflow 'Type Tree Tpk' `
     --status success --limit 1 --json databaseId --jq '.[0].databaseId'
+if ($LASTEXITCODE -ne 0) { throw 'gh run list failed. Check that gh is installed and signed in (gh auth status).' }
 if (-not $runId) { throw 'No successful Type Tree Tpk run found on AssetRipper/Tpk.' }
 
 $staging = Join-Path ([IO.Path]::GetTempPath()) "assetdump-tpk-$runId"
