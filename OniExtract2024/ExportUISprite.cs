@@ -160,7 +160,13 @@ public class ExportUISprite : BaseExport
     public static string GetProperName(KPrefabID prefab)
     {
         var properName = TagManager.GetProperName(prefab.PrefabID(), true);
-        if (!properName.Equals("")) return properName;
+        // Game.OnSpawn (TagManager.FillMissingProperNames) fills every tag registered without
+        // a name with its STRINGS.MISC.TAGS entry, which is usually "MISSING.STRINGS..." and
+        // otherwise a tag description ("Beds" for the Cot). Treat a filled-in name as no name,
+        // so the export run from a loaded colony falls back to the prefab's own name, as it
+        // did when it ran at boot.
+        if (!properName.Equals("") && properName != TagDescriptions.GetDescription(prefab.PrefabID()))
+            return properName;
         var instance = Assets.GetPrefab(prefab.PrefabTag);
         return instance == null ? prefab.PrefabTag.Name : UI.StripLinkFormatting(instance.GetProperName());
     }
