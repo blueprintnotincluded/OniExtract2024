@@ -703,8 +703,66 @@ public static class OniExportCheck
     // Buildings that show up in the outlier scan for a reason a human has looked at and
     // accepted, with that reason. They are still listed, apart from the new ones, so a change
     // to one of them is not lost.
+    // Reviewed against the 2026-10-18 export (four in-game runs), image by image.
+    const string SmallArt = "the art is smaller than its footprint";
+    const string BigArt = "the art reaches past its footprint, as in game";
+    const string Bridge = "a bridge: thin art across its span";
+    const string JointPlate = "a joint plate: 1x1 in building.json, art spans the wall it crosses";
+    const string Deprecated = "deprecated, art-only, narrower than its footprint";
     static readonly Dictionary<string, string> KnownOutliers = new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        { "AirBorneCritterCondo", SmallArt },
+        { "BottleEmptierConduitLiquid", SmallArt },
+        { "CeilingLight", SmallArt },
+        { "CreatureAirTrap", BigArt },
+        { "CreatureGroundTrap", "working_loop pose; the trap is lower than its footprint" },
+        { "CreatureTrap", Deprecated },
+        { "CrownMoulding", "decor moulding: a strip wider than its cell" },
+        { "FirePole", BigArt },
+        { "FishFeeder", "hangs below its footprint, as in game" },
+        { "GasConduitOverflow", Deprecated },
+        { "GasConduitPreferentialFlow", Deprecated },
+        { "LiquidConduitOverflow", Deprecated },
+        { "LiquidConduitPreferentialFlow", Deprecated },
+        { "GravitasBathroomStall", "Gravitas prop, art-only" },
+        { "GravitasPedestal", SmallArt },
+        { "HotTub", SmallArt },
+        { "HydrogenGenerator", SmallArt },
+        { "ItemPedestal", SmallArt },
+        { "Juicer", SmallArt },
+        { "LiquidConduitBridge", Bridge },
+        { "LogicWireBridge", Bridge },
+        { "SolidConduitBridge", Bridge },
+        { "WireRubberBridge", Bridge },
+        { "WireBridgeHighWattage", JointPlate },
+        { "WireRefinedBridgeHighWattage", JointPlate },
+        { "TravelTubeWallBridge", JointPlate },
+        { "LiquidCooledFan", "deprecated, art-only: its water jug is the meter placeholder, hidden as in game" },
+        { "LogicLightSensor", BigArt },
+        { "LogicPowerRelay", SmallArt },
+        { "LogicSwitch", SmallArt },
+        { "MissileLauncher", SmallArt },
+        { "MonumentMiddle", "the monument's middle is wider than its footprint; clipped before 2026-10-18" },
+        { "NoseconeHarvest", "rocket module, art-only" },
+        { "ObjectDispenser", BigArt },
+        { "Outhouse", SmallArt },
+        { "OxyliteRefinery", SmallArt },
+        { "Oxysconce", SmallArt },
+        { "RadiationLight", "its only active anim draws the light cone" },
+        { "RationBox", SmallArt },
+        { "ReefGenerator", SmallArt },
+        { "Shelf", SmallArt },
+        { "SolidLogicValve", BigArt },
+        { "SolidTransferArm", "the sweeper's reach is a child controller" },
+        { "SpaceHeater", SmallArt },
+        { "SpecialCargoBayCluster", "partial art: art-only shows the window strip only; needs a pose override" },
+        { "StaterpillarGenerator", "partial art: the building is the egg; the critter is not part of it" },
+        { "StaterpillarGasConnector", "partial art: the building is the egg; the critter is not part of it" },
+        { "StaterpillarLiquidConnector", "partial art: the building is the egg; the critter is not part of it" },
+        { "TravelTube", "corner fillets past the cell; connection_sprite_cells.json declares the cell" },
+        { "UnderwaterVentDrill", "idle pose: the drill hangs above the bottom of its footprint" },
+        { "WallToilet", "wall-mounted: the bowl stands out of the wall" },
+        { "WaterCooler", SmallArt },
     };
 
     // An image this much smaller or larger than its footprint, on either axis, is worth a look:
