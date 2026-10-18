@@ -30,16 +30,6 @@ namespace OniExtract2024.building
         // than in the starting/retracting pose at frame 0.
         private const float PoseFramePercent = 0.5f;
 
-        // Substrings that mark an animation as a non-active state — never snapshot these.
-        // Includes construction/placement/teardown anims ("place", "construct", "install",
-        // "demo") since those are never the working pose we want for an icon.
-        private static readonly string[] InactiveMarkers =
-        {
-            "off", "broken", "error", "dead", "disabled", "outofnetwork",
-            "no_power", "nopower", "unpowered", "closed", "empty", "ui",
-            "place", "construct", "install", "demo",
-        };
-
         // Fallback probe order if the build's anim list can't be enumerated.
         private static readonly string[] ActiveAnimFallback =
         {
@@ -78,7 +68,7 @@ namespace OniExtract2024.building
 
                 if (kpid != null && kbac != null)
                 {
-                    string pose = PoseActive(kbac, kpid.PrefabTag.Name);
+                    string pose = PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH);
                     var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH);
                     if (entry != null && report != null)
                     {
@@ -245,30 +235,36 @@ namespace OniExtract2024.building
             if (anim == null) return false;
 
             Vector3 origin = kbac.PositionIncludingOffset;
-            Vector3 scale = kbac.transform.lossyScale;
             originX = origin.x - footprint.x;
             originY = origin.y - footprint.y;
+            HalfExtent(kbac, anim, out halfW, out halfH);
+            return RenderCanvas.IsUsableHalfExtent(halfW, halfH);
+        }
+
+        // An anim's authored half-extent in world units (cells) as this controller draws it.
+        private static void HalfExtent(KBatchedAnimController kbac, KAnim.Anim anim, out float halfW, out float halfH)
+        {
+            Vector3 scale = kbac.transform.lossyScale;
             halfW = anim.unScaledSize.x * kbac.animScale * Mathf.Abs(kbac.animWidth * scale.x);
             halfH = anim.unScaledSize.y * kbac.animScale * Mathf.Abs(kbac.animHeight * scale.y);
             // A rotated controller can reach the box's corner distance in any direction.
             if (kbac.Rotation != 0f)
                 halfW = halfH = Mathf.Sqrt(halfW * halfW + halfH * halfH);
-            return RenderCanvas.IsUsableHalfExtent(halfW, halfH);
         }
 
         // Pose the building's main kanim in the most "active" state. Checks
-        // BuildingPoseOverrides first; falls back to the auto-scorer unchanged.
+        // BuildingPoseOverrides first; falls back to ChooseActiveAnim.
         // ONLY the root controller is posed — driving child controllers stamps
         // a full extra copy of the building at each child's transform offset.
-        // Returns where the pose came from, for the report.
-        private string PoseActive(KBatchedAnimController rootKbac, string prefabId)
+        // cellW/cellH as for StartExport. Returns where the pose came from, for the report.
+        private string PoseActive(KBatchedAnimController rootKbac, string prefabId, int cellW, int cellH)
         {
             if (BuildingPoseOverrides.TryGet(prefabId, out var pose))
             {
                 PoseController(rootKbac, pose.Anim, pose.Frame);
                 return "override";
             }
-            string anim = ChooseActiveAnim(rootKbac);
+            string anim = ChooseActiveAnim(rootKbac, cellW, cellH);
             PoseController(rootKbac, anim, -1);
             return anim != null ? "auto" : "default";
         }
@@ -310,29 +306,33 @@ namespace OniExtract2024.building
             return numFrames;
         }
 
-        // Returns the highest-scoring active animation the controller actually has, or
-        // null to leave the spawned default untouched. Exposed internal so the inspector
-        // can seed its anim picker with the same default the exporter would choose.
-        internal static string ChooseActiveAnim(KBatchedAnimController kbac)
+        // Returns the active animation to pose the controller in (ActivePose.Choose: the most
+        // active state whose authored extent is close to the footprint's, so effects art does
+        // not decide the pose), or null to leave the spawned default untouched. cellW/cellH
+        // give the footprint; pass -1 to read it from the Building. Exposed internal so the
+        // inspector can seed its anim picker with the same default the exporter would choose.
+        internal static string ChooseActiveAnim(KBatchedAnimController kbac, int cellW = -1, int cellH = -1)
         {
             List<string> names = GetAnimNames(kbac);
             if (names == null || names.Count == 0)
                 return ProbeFallback(kbac);
 
-            string best = null;
-            int bestScore = 0;
+            var building = kbac.GetComponent<Building>();
+            if (cellW <= 0) cellW = building != null ? building.Def.WidthInCells : 1;
+            if (cellH <= 0) cellH = building != null ? building.Def.HeightInCells : 1;
+
+            var candidates = new List<AnimCandidate>(names.Count);
             foreach (string name in names)
             {
                 if (string.IsNullOrEmpty(name) || !kbac.HasAnimation(name))
                     continue;
-                int score = ScoreAnim(name);
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    best = name;
-                }
+                KAnim.Anim anim = kbac.GetAnim(name);
+                float halfW = float.NaN, halfH = float.NaN;
+                if (anim != null)
+                    HalfExtent(kbac, anim, out halfW, out halfH);
+                candidates.Add(new AnimCandidate(name, halfW, halfH));
             }
-            return best ?? ProbeFallback(kbac);
+            return ActivePose.Choose(candidates, cellW, cellH) ?? ProbeFallback(kbac);
         }
 
         // Returns the readable names of every animation this controller can actually play.
@@ -368,30 +368,6 @@ namespace OniExtract2024.building
                 if (kbac.HasAnimation(name))
                     return name;
             return null;
-        }
-
-        private static int ScoreAnim(string name)
-        {
-            string n = name.ToLowerInvariant();
-            foreach (string bad in InactiveMarkers)
-                if (n.Contains(bad))
-                    return -1;
-
-            int score;
-            if (n.Contains("working") || n.Contains("generating") || n.Contains("dispensing")
-                || n.Contains("channeling") || n.Contains("emitting") || n.Contains("charged")
-                || n.Contains("running") || n.Contains("deployed"))
-                score = 100;
-            else if (n == "on" || n.StartsWith("on_") || n.EndsWith("_on") || n.Contains("powered"))
-                score = 50;
-            else if (n.Contains("idle"))
-                score = 20;
-            else
-                return 0;
-
-            if (n.Contains("loop")) score += 10;
-            if (n.EndsWith("_pre") || n.EndsWith("_pst")) score -= 8;
-            return score;
         }
     }
 }
