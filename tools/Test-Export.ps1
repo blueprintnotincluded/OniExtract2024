@@ -15,6 +15,9 @@ that used to be done by hand after every in-game run.
          viewMode a game overlay name or null, uiImageRect never null, an icon for every
          building, 16 sprites per connectable, every rect matching its PNG's aspect, the
          utilityIndicators set complete, no icon or rect left over from an earlier run);
+       - connection_sprite_cells.json: one entry per connectable, its canvas the PNGs' size, and
+         the all-connected state (15.png) covering the declared cell. Overhang past the cell is
+         listed, not failed;
        - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
          "Replacement fields");
        - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
@@ -50,8 +53,8 @@ Where the snapshot lives. Default: Documents\Klei\OxygenNotIncluded\export-basel
 Copy ExportDir to BaselineDir and stop. Refuses to replace an existing baseline without -Force.
 
 .PARAMETER AllowPartialExport
-A complete export has ui_image_rects.json and connection_sprites, and their absence is a
-failure. Pass this when checking an export where only Export Game Data has run, to have the
+A complete export has ui_image_rects.json, connection_sprites and connection_sprite_cells.json,
+and their absence is a failure. Pass this when checking an export where only Export Game Data has run, to have the
 missing pieces reported as skipped instead.
 
 .PARAMETER GameLibs
@@ -100,7 +103,7 @@ $GameLibs = Resolve-FullPath $GameLibs
 # What an export consists of. `images\` and building.pre-mod-merge.json, which older runs left
 # in the same folder, are not written by the current mod and are left out.
 $exportDirs = @('database', 'ui_image', 'ui_image_facade', 'connection_sprites')
-$exportFiles = @('ui_image_rects.json', 'pose_overrides.json')
+$exportFiles = @('ui_image_rects.json', 'pose_overrides.json', 'connection_sprite_cells.json')
 $imageDirs = @('ui_image', 'ui_image_facade', 'connection_sprites')
 
 if (-not (Test-Path (Join-Path $ExportDir 'database\building.json'))) {
@@ -366,6 +369,28 @@ public static class OniExportCheck
         }
     }
 
+    // The opaque bounding box of a PNG, in pixels with y down, using the mod's own crop
+    // threshold (alpha > 0.03, i.e. 8 or more out of 255). False when nothing is opaque.
+    public static bool OpaqueBox(string path, out int minX, out int minY, out int maxX, out int maxY)
+    {
+        minX = minY = int.MaxValue; maxX = maxY = -1;
+        using (var bmp = new Bitmap(path))
+        {
+            int[] px = Pixels(bmp);
+            int w = bmp.Width;
+            for (int i = 0; i < px.Length; i++)
+            {
+                if (((px[i] >> 24) & 255) < 8) continue;
+                int x = i % w, y = i / w;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+        return maxX >= 0;
+    }
+
     public static bool PngSize(string path, out int w, out int h)
     {
         w = 0; h = 0;
@@ -415,6 +440,7 @@ public static class OniExportCheck
     {
         public List<OniCheck> Out = new List<OniCheck>();
         public Dictionary<string, JObject> ByName = new Dictionary<string, JObject>(StringComparer.Ordinal);
+        public List<string> SpriteOverhang = new List<string>();
 
         public void Add(string group, string name, bool ok, string detail)
         {
@@ -551,6 +577,75 @@ public static class OniExportCheck
         double off = Math.Abs(pngAspect - rw / rh) / pngAspect;
         if (off > 0.02) { detail = string.Format("png {0}x{1} vs rect {2}x{3}, {4:P0} off", w, h, rw, rh, off); return false; }
         return true;
+    }
+
+    // Anti-aliasing softens the cell edge by a pixel or so on either side.
+    const int CellTolerancePx = 2;
+    // Wires and pipes draw a few pixels of outline past the cell; only overhang beyond this
+    // share of the cell is worth a human's look.
+    const double OverhangFraction = 0.1;
+
+    // connection_sprite_cells.json declares where the cell sits on each connectable's PNGs; the
+    // website scales and anchors the sprites from it. Its canvas must be the PNGs' size, and the
+    // all-connected state (15.png) must cover the whole cell, because every edge of that state
+    // joins a neighbour. Art past the cell is overhang: allowed, and reported, because that is
+    // what used to break the website's measuring (the transit tube's corner fillets).
+    static void CheckSpriteCells(Run r, string exportDir, string[] dirs, bool allowPartial)
+    {
+        string path = Path.Combine(exportDir, "connection_sprite_cells.json");
+        if (!File.Exists(path))
+        {
+            r.Missing("connection_sprite_cells.json is present", "absent: written by the connection-sprite tool since 2026-10", allowPartial);
+            return;
+        }
+        var cells = (JObject)Load(path);
+        var unmatched = new List<string>();
+        var badSize = new List<string>();
+        var uncovered = new List<string>();
+        var overhang = new List<string>();
+        var names = new HashSet<string>(dirs.Select(d => Path.GetFileName(d)), StringComparer.Ordinal);
+        foreach (var p in cells.Properties())
+            if (!names.Contains(p.Name)) unmatched.Add(p.Name + " (no directory)");
+        foreach (string d in dirs)
+        {
+            string id = Path.GetFileName(d);
+            var c = cells[id] as JObject;
+            if (c == null) { unmatched.Add(id + " (no entry)"); continue; }
+            double cw, ch, x, y, w, h;
+            if (!Number(c["canvas"], "w", out cw) || !Number(c["canvas"], "h", out ch)
+                || !Number(c["cell"], "x", out x) || !Number(c["cell"], "y", out y)
+                || !Number(c["cell"], "w", out w) || !Number(c["cell"], "h", out h) || w <= 0 || h <= 0)
+            {
+                badSize.Add(id + " (malformed entry)");
+                continue;
+            }
+            for (int i = 0; i < 16; i++)
+            {
+                int pw, ph;
+                if (PngSize(Path.Combine(d, i + ".png"), out pw, out ph) && (pw != (int)cw || ph != (int)ch))
+                {
+                    badSize.Add(id + " (" + i + ".png " + pw + "x" + ph + ", declared " + cw + "x" + ch + ")");
+                    break;
+                }
+            }
+            string all = Path.Combine(d, "15.png");
+            int minX, minY, maxX, maxY;
+            if (!File.Exists(all)) continue;
+            if (!OpaqueBox(all, out minX, out minY, out maxX, out maxY)) { uncovered.Add(id + " (15.png is empty)"); continue; }
+            string box = (maxX - minX + 1) + "x" + (maxY - minY + 1) + " at (" + minX + "," + minY + ")";
+            string cell = w + "x" + h + " at (" + x + "," + y + ")";
+            if (minX > x + CellTolerancePx || minY > y + CellTolerancePx
+                || maxX + 1 < x + w - CellTolerancePx || maxY + 1 < y + h - CellTolerancePx)
+                uncovered.Add(id + " (15.png opaque " + box + ", cell " + cell + ")");
+            else if (minX < x - w * OverhangFraction || minY < y - h * OverhangFraction
+                || maxX + 1 > x + w * (1 + OverhangFraction) || maxY + 1 > y + h * (1 + OverhangFraction))
+                overhang.Add(id + " (" + box + " around the " + cell + " cell)");
+        }
+        r.Add("invariant", "connection_sprite_cells.json has an entry for exactly the connection_sprites directories", unmatched.Count == 0, Sample(unmatched));
+        r.Add("invariant", "every connectable's PNGs are the canvas size connection_sprite_cells.json declares", badSize.Count == 0, Sample(badSize));
+        r.Add("invariant", "every connectable's 15.png covers its declared cell", uncovered.Count == 0, Sample(uncovered));
+        r.SpriteOverhang.AddRange(overhang);
+        r.Out.Add(new OniCheck { Group = "info", Name = "connectables whose 15.png overhangs the cell", Status = "PASS", Detail = Sample(overhang) });
     }
 
     public static List<OniCheck> Check(string exportDir, bool allowPartial)
@@ -751,6 +846,7 @@ public static class OniExportCheck
             r.Add("invariant", "every connection_sprites directory has 0.png .. 15.png", incomplete.Count == 0, Sample(incomplete));
             r.Add("invariant", "every connection_sprites directory is a tile or utility building", notConnectable.Count == 0, Sample(notConnectable));
             r.Out.Add(new OniCheck { Group = "info", Name = "connection_sprites directories", Status = "PASS", Detail = dirs.Length.ToString() });
+            CheckSpriteCells(r, exportDir, dirs, allowPartial);
         }
         else
         {

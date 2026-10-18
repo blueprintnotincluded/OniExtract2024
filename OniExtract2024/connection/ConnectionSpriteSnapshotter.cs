@@ -28,9 +28,17 @@ namespace OniExtract2024.connection
         private RenderTexture targetTexture;
         private static readonly int DrawLayer = 30;
 
+        // The snapshot scale, and the empty margin the camera leaves around the footprint
+        // before CropAndWrite trims it.
+        private const int PixelsPerCell = 100;
+        private const int PaddingPx = 100;
+
         // True once this building's sprites are on disk. A plain field, so the caller can
         // still read it after ExportThenDestroy has destroyed the host object.
         public bool WroteSprites { get; private set; }
+
+        // Where the cell sits on the written PNGs; set together with WroteSprites.
+        public ConnectionSpriteCell Cell { get; private set; }
 
         public IEnumerator ExportThenDestroy()
         {
@@ -77,7 +85,14 @@ namespace OniExtract2024.connection
                 shots[i] = SnapShot();
             }
 
-            WroteSprites = CropAndWrite(dir, shots);
+            WroteSprites = CropAndWrite(prefabId, dir, shots, out int side);
+            if (WroteSprites)
+            {
+                var building = GetComponent<Building>();
+                Cell = ConnectionSpriteCell.ForCentredSquare(side,
+                    building != null ? building.Def.WidthInCells : 1,
+                    building != null ? building.Def.HeightInCells : 1, PixelsPerCell);
+            }
 
             foreach (var t in shots)
             {
@@ -91,9 +106,11 @@ namespace OniExtract2024.connection
         // centred on the frame centre (where the cell sits) and just large enough to
         // hold the largest state's content. Cropping the whole set identically - rather
         // than per-state bounding boxes - preserves the cell anchor so the sprites still
-        // tile against each other. Returns false when there was nothing to write.
-        private static bool CropAndWrite(string dir, Texture2D[] shots)
+        // tile against each other. Returns false when there was nothing to write; `side` is
+        // the written square's edge in pixels.
+        private static bool CropAndWrite(string prefabId, string dir, Texture2D[] shots, out int side)
         {
+            side = 0;
             int w = 0, h = 0;
             foreach (var t in shots)
             {
@@ -128,11 +145,15 @@ namespace OniExtract2024.connection
             }
 
             half += CropMargin;
+            // Art reaching the frame edge was cut off by the camera, so the sprite is clipped.
+            if (half >= Mathf.Min(cx, cy))
+                Debug.LogWarning("OniExtract: connection sprites for " + prefabId
+                    + " reach the edge of the snapshot frame and are clipped.");
             half = Mathf.Min(half, Mathf.Min(cx, cy)); // stay within the frame
             if (half < 1)
                 return false;
 
-            int side = 2 * half;
+            side = 2 * half;
             int sx0 = cx - half, sy0 = cy - half;
             bool wrote = false;
             for (int k = 0; k < shots.Length; k++)
@@ -206,10 +227,8 @@ namespace OniExtract2024.connection
             int widthInt = building != null ? building.Def.WidthInCells : 1;
             int heightInt = building != null ? building.Def.HeightInCells : 1;
 
-            const float pixelsPerUnit = 100f;
-            const float paddingPx = 100f;
-            int textureWidth = Mathf.CeilToInt(widthInt * pixelsPerUnit + 2 * paddingPx);
-            int textureHeight = Mathf.CeilToInt(heightInt * pixelsPerUnit + 2 * paddingPx);
+            int textureWidth = widthInt * PixelsPerCell + 2 * PaddingPx;
+            int textureHeight = heightInt * PixelsPerCell + 2 * PaddingPx;
 
             targetTexture = new RenderTexture(textureWidth, textureHeight, 24);
             targetTexture.Create();
@@ -228,7 +247,7 @@ namespace OniExtract2024.connection
             if (widthInt % 2 == 0)
                 pos.x += 0.5f;
             snapshotCamera.transform.position = pos;
-            snapshotCamera.orthographicSize = textureHeight / (2f * pixelsPerUnit);
+            snapshotCamera.orthographicSize = textureHeight / (2f * PixelsPerCell);
             snapshotCamera.aspect = (float)textureWidth / textureHeight;
         }
 
