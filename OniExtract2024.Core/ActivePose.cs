@@ -4,9 +4,11 @@ using System.Collections.Generic;
 namespace OniExtract2024.building
 {
     /// <summary>
-    /// One anim a building's controller can play, with its authored half-extent in cells about
-    /// the anim origin (KAnim.Anim.unScaledSize scaled to world units). An extent that
-    /// <see cref="RenderCanvas.IsUsableHalfExtent"/> rejects marks an anim whose size is unknown.
+    /// One anim a building's controller can play, with its half-extent in cells about the anim
+    /// origin: how far its art reaches over every frame, the measure the game stores as
+    /// KAnim.Anim.unScaledSize (BuildingImageSnapshotter measures it from the frames). An extent
+    /// that <see cref="RenderCanvas.IsUsableHalfExtent"/> rejects marks an anim whose size is
+    /// unknown.
     /// </summary>
     public struct AnimCandidate
     {
@@ -41,7 +43,7 @@ namespace OniExtract2024.building
         };
 
         /// <summary>
-        /// How far, in cells summed over both axes, an anim's authored extent may be from the
+        /// How far, in cells summed over both axes, an anim's extent may be from the
         /// footprint's beyond the closest candidate's and still win on score. Small enough that
         /// steam, sparks and light cones lose to the body; large enough that a pump arm or a
         /// slightly larger working frame does not.
@@ -92,7 +94,7 @@ namespace OniExtract2024.building
         /// The anim to pose a <paramref name="cellW"/> x <paramref name="cellH"/> building in,
         /// or null when no anim scores above 0.
         ///
-        /// Among the anims that score, the one whose authored extent is closest to the
+        /// Among the anims that score, the one whose extent is closest to the
         /// footprint's wins, unless a higher-scoring one is within <see cref="ToleranceCells"/>
         /// of it. Effects (steam, wind, light cones, a stray swoosh frame) are drawn outside the
         /// body and only in some states, so the state without them is the closest; with no

@@ -50,8 +50,8 @@ most active one. `pose_overrides.json` is read first, as before.
 
 Small overlay anims (`light_on`, `meter`) are far *smaller* than the footprint, so the
 two-sided distance keeps them out; an excess-only measure picked them in an offline
-simulation. Introducing this rule changed about 100 icons once, nearly all from `working_loop`
-to `on`.
+simulation. Introducing this rule changed about 70 icons once (2026-10-18), nearly all from
+`working_loop` to `on`; the export's handoff, docs/WEBSITE_SIZE_CONSISTENCY.md, lists them.
 
 ## How far an anim reaches: measured from its frames
 
@@ -124,8 +124,9 @@ the renderer only draws kanim batches.
 
 Written by the sweep beside `ui_image_rects.json`, one entry per rendered prefab: the anim and
 frame rendered, where the pose came from (`auto`, `override`, `default`), `spawned` or
-`artOnly`, the canvas size, the authored extent in `uiImageRect` space, clipping, and the edges
-the canvas grew at. Field reference: [docs/EXPORT_SCHEMA.md](../../docs/EXPORT_SCHEMA.md). The
+`artOnly`, the canvas size, the box its controllers' frames cover in `uiImageRect` space,
+clipping, the edges the canvas grew at, and for an auto pose the candidate states with their
+measured sizes. Field reference: [docs/EXPORT_SCHEMA.md](../../docs/EXPORT_SCHEMA.md). The
 website does not read it. It exists so that the diff between two exports explains itself:
 "its pose went from `working_loop` to `on`" instead of a pixel diff that renders' jitter can
 fool. Read it first when an image changed.

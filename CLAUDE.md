@@ -126,7 +126,7 @@ the checks for `ui_image_rects.json`, `building_image_report.json`, `connection_
 When a new field gets a spot check in the docs, add it to the script as well.
 
 The script also prints a short list of **outliers** for a human to look at, failing nothing:
-icons far off their footprint's size, icons past their anim's authored extent, clipped icons,
+icons far off their footprint's size, icons past the box their anims cover, clipped icons,
 connection sprites overhanging their cell. Accepted ones live in its `KnownOutliers` table with
 the reason, so a new one stands out. When an image changes, read `building_image_report.json`'s
 diff first: it says which anim, frame and canvas produced it.
@@ -214,6 +214,10 @@ Breaking one of these breaks the website silently — the site renders, just wro
     data yet. A handoff moves to `docs/archive/` once the website has acted on it.
   - [WEBSITE_ROCKET_INTERIORS.md](docs/WEBSITE_ROCKET_INTERIORS.md) — website handoff for
     rocket-interior layouts and backdrop art, carried across once as a zip rather than exported.
+  - [WEBSITE_SIZE_CONSISTENCY.md](docs/WEBSITE_SIZE_CONSISTENCY.md) — website handoff for
+    `connection_sprite_cells.json` (read it instead of measuring `15.png`), the pinned icons to
+    delete, and why each icon changed in the 2026-10-18 export. Still open until the importer
+    reads the sidecar.
   - [OFFLINE_ASSET_EXTRACTION.md](docs/OFFLINE_ASSET_EXTRACTION.md) — reading the game's Unity
     asset files offline with `tools/AssetDump`: setup, commands, where things live.
   - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.

@@ -39,7 +39,7 @@ namespace OniExtract2024.building
         };
 
         // How much margin a side gains when the art reaches it, and how many times, before the
-        // render is reported clipped. The authored extent sized the canvas already; this
+        // render is reported clipped. The drawn box sized the canvas already; this
         // catches what it does not cover, such as child controllers (meters and the like) and
         // anims whose extent is garbage.
         private const float GrowCells = 4f;

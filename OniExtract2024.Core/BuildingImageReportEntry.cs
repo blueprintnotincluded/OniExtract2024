@@ -37,10 +37,11 @@ namespace OniExtract2024.building
         public PixelSize canvasPx;
 
         /// <summary>
-        /// The anim's authored extent in cells, in uiImageRect's space (footprint-relative,
-        /// bottom-left origin, +y up). The game stores it as a half-extent about the anim origin,
-        /// so the box is symmetric about that point and usually reaches below the footprint
-        /// further than any art does. Null when the anim carries no usable extent.
+        /// The box the drawn controllers' anims cover over every frame, in cells, in
+        /// uiImageRect's space (footprint-relative, bottom-left origin, +y up): measured from
+        /// the frames' geometry for the root and its children, falling back to the game's
+        /// authored half-extent for a controller where nothing resolves. Null when nothing gives
+        /// a usable box.
         /// </summary>
         public UiImageRect? animBBoxCells;
 
