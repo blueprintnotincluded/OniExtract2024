@@ -401,10 +401,14 @@ namespace OniExtract2024.building
             kbac.animScale = source.animScale;
             go.SetActive(true);
 
+            // A spawned building's art is centred on its footprint: BuildingComplete.OnPrefabInit
+            // (or Rotatable.OnSpawn, the same value at neutral orientation) gives the controller
+            // def.GetVisualizerOffset(), half a cell right for an even width. Neither runs here,
+            // and the prefab's own controller does not carry the offset, so copying it left every
+            // even-width art-only render half a cell left of its footprint, rect included.
             // Offset's setter re-registers the controller with the batcher, so set it once
             // the controller is live rather than on the inactive clone.
-            if (source.Offset != Vector3.zero)
-                kbac.Offset = source.Offset;
+            kbac.Offset = def.GetVisualizerOffset();
             return go;
         }
 
