@@ -712,6 +712,7 @@ public static class OniExportCheck
     static readonly Dictionary<string, string> KnownOutliers = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         { "AirBorneCritterCondo", SmallArt },
+        { "BatteryMedium", "0.12 cells of its charge meter (hidden on the root, drawn by the meter child) fall outside the measured box; the image is right" },
         { "BottleEmptierConduitLiquid", SmallArt },
         { "CeilingLight", SmallArt },
         { "CreatureAirTrap", BigArt },
