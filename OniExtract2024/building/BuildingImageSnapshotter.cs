@@ -179,6 +179,28 @@ namespace OniExtract2024.building
             };
         }
 
+        // The placeholder symbol a building's art carries where a meter attaches. The game's
+        // MeterController hides it on the building's controller whenever it builds a meter
+        // (every constructor does, by this name unless the building names another), so it is
+        // never seen in game. Art-only renders build no meters and showed it, as a bar on
+        // WallToilet and others.
+        private const string MeterTargetSymbol = "meter_target";
+
+        // Puts a posed object's controllers into the state the game would draw them in: the
+        // meter placeholder hidden, and every hidden symbol written back to the controller's
+        // GPU data, so nothing the pose step did can leave a hidden symbol showing. Called by
+        // every render path (sweep, touch-up, inspector preview) right before drawing.
+        internal static void PrepareForSnapshot(IEnumerable<KBatchedAnimController> kbacs)
+        {
+            foreach (var kbac in kbacs)
+            {
+                if (kbac == null || !kbac.batchGroupID.IsValid || kbac.batchGroupID == KAnimBatchManager.NO_BATCH)
+                    continue;
+                kbac.SetSymbolVisiblity(MeterTargetSymbol, false);
+                kbac.UpdateAllHiddenSymbols();
+            }
+        }
+
         // Draws every controller on the object into a canvas laid out as `canvas` and returns
         // the pixels, bottom row first.
         private static Color32[] RenderPixels(GameObject go, RenderCanvas canvas, Vector3 footprint)
@@ -191,7 +213,8 @@ namespace OniExtract2024.building
             {
                 CameraController.Instance.baseCamera.enabled = false;
                 var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
-                    .OrderBy(k => k.transform.position.z);
+                    .OrderBy(k => k.transform.position.z).ToList();
+                PrepareForSnapshot(kbacs);
                 renderer.Render(kbacs);
                 raw = renderer.ReadPixels();
             }

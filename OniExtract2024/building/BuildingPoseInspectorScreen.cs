@@ -474,9 +474,10 @@ namespace OniExtract2024.building
             if (s_renderer == null || s_tempBuilding == null || s_tempBuilding.IsNullOrDestroyed()) return;
 
             var kbacs = s_tempBuilding.GetComponentsInChildren<KBatchedAnimController>()
-                .OrderBy(k => k.transform.position.z);
+                .OrderBy(k => k.transform.position.z).ToList();
 
             CameraController.Instance.baseCamera.enabled = false;
+            BuildingImageSnapshotter.PrepareForSnapshot(kbacs);
             s_renderer.Render(kbacs);
             CameraController.Instance.baseCamera.enabled = true;
 
