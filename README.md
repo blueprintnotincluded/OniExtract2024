@@ -110,9 +110,11 @@ export
 └─ pose_overrides.json            pose choices saved from the pose inspector (only if used)
 ```
 
-`ui_image_rects.json` and `connection_sprite_cells.json` are part of what the website reads
-(the first is the only place terrain features' rects live). `building_image_report.json` is for
-checking an export; `pose_overrides.json` is an input to this mod. The website consumes neither.
+`ui_image_rects.json` is part of what the website reads (the only place terrain features' rects
+live). `connection_sprite_cells.json` is written for the website's importer, which does not read
+it yet: see [docs/WEBSITE_SIZE_CONSISTENCY.md](docs/WEBSITE_SIZE_CONSISTENCY.md).
+`building_image_report.json` is for checking an export; `pose_overrides.json` is an input to
+this mod. The website consumes neither.
 
 The folder is written in place, and each tool prunes its output to the prefabs loaded when it
 ran: the game-data export deletes `ui_image/` PNGs and `ui_image_rects.json` entries that no

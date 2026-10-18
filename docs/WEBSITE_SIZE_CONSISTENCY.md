@@ -102,7 +102,7 @@ in one of these classes; nothing else changed.
 **Effects no longer pick the pose (58 icons, plus 5 in the next class).** Icons used to be posed
 in the most active state (`working_loop`), whose art includes steam, smoke, sparks, bubbles,
 light cones and musical notes, and the crop and rect grew to include them. The export now
-measures how far each state's art reaches, from the anim's own frames, and takes the most
+measures how far each state's art reaches, from the animation's own frames, and takes the most
 active state whose reach is close to the footprint: usually `on`. Rects shrink to the body;
 some images look calmer (the Electrolyzer's tank shows empty, because the water only appears
 while working). AdvancedApothecary, AirFilter, AlgaeHabitat, ArtifactAnalysisStation (now
@@ -130,8 +130,8 @@ MassiveHeatSink, MechanicalSurfboard, OrbitalResearchCenter, OxygenMaskStation,
 POIDlc2ShowroomDoor, POIFacilityDoor, PropBeachChair, PropGravitasLabWall,
 PropGravitasLabWindow, RocketControlStation, RoleStation, Shower, SodaFountain,
 WarpConduitReceiver, WarpConduitSender, WashSink, WaterCooler. Shifted and re-posed: AtomicGarden,
-FilteredGasPump, Headquarters, HeatCompressor, TeleportalPad. Shifted and meter placeholder
-hidden: Bed, FlushToilet, Outhouse, RationBox.
+FilteredGasPump, Headquarters, HeatCompressor, TeleportalPad. Shifted, with the meter
+placeholder hidden: Bed, FlushToilet, Outhouse, RationBox.
 
 **Meter placeholders hidden on art-only renders (18 icons).** A building's art carries a
 `meter_target` symbol where a meter attaches; the game hides it when it builds the meter, which
@@ -190,9 +190,9 @@ it in one line.
   (`canvasPx`): between two runs of the same build, exactly the icons whose canvas changed
   differed in bytes (9 of 13). Your perceptual comparison already keeps these from being
   rewritten; this is the volume to expect in this one import, and far fewer after.
-- The 16 tile and 15 utility sprite directories are byte-identical to the previous export
-  except for 73 re-encoded but equivalent PNGs; nothing for the content-aware mirror to copy
-  beyond that.
+- The 16 tile and 15 utility sprite directories are content-identical to the previous export:
+  423 PNGs are byte-identical and 73 were re-encoded but are equivalent, so the content-aware
+  mirror has nothing to copy there.
 
 ---
 
