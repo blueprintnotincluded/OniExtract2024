@@ -109,6 +109,19 @@ namespace OniExtract2024.Core.Tests
         }
 
         [Fact]
+        public void Ties_GoToNameOrder_WhateverOrderTheAnimsComeIn()
+        {
+            // LogicHammer: on_hit and on_miss score the same and are equally close.
+            var a = new List<AnimCandidate> { A("on_miss", 1.19f, 1.58f), A("on_hit", 1.19f, 1.58f) };
+            var b = new List<AnimCandidate> { A("on_hit", 1.19f, 1.58f), A("on_miss", 1.19f, 1.58f) };
+            Assert.Equal("on_hit", ActivePose.Choose(a, 1, 1));
+            Assert.Equal("on_hit", ActivePose.Choose(b, 1, 1));
+
+            var unsized = new List<AnimCandidate> { A("working_b", float.NaN, 1f), A("working_a", float.NaN, 1f) };
+            Assert.Equal("working_a", ActivePose.Choose(unsized, 1, 1));
+        }
+
+        [Fact]
         public void NothingScores_ReturnsNull()
         {
             var anims = new List<AnimCandidate> { A("off", 1f, 1f), A("meter", 0.2f, 0.8f) };

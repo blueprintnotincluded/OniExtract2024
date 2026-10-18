@@ -125,7 +125,9 @@ namespace OniExtract2024.building
             return MostActive(sized.FindAll(a => cost(a) <= best + ToleranceCells));
         }
 
-        // The highest-scoring name; the first one listed wins a tie.
+        // The highest-scoring name, ties going to the first in ordinal name order. Not the
+        // order the anims came in: that is the controller's dictionary order, which shifts
+        // when Klei adds an anim to the file, and would flip the pose with it.
         private static string MostActive(List<AnimCandidate> anims)
         {
             string pick = null;
@@ -133,7 +135,7 @@ namespace OniExtract2024.building
             foreach (var a in anims)
             {
                 int s = Score(a.name);
-                if (s > pickScore)
+                if (s > pickScore || (s == pickScore && string.CompareOrdinal(a.name, pick) < 0))
                 {
                     pick = a.name;
                     pickScore = s;
