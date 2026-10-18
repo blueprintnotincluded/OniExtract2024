@@ -18,6 +18,8 @@ that used to be done by hand after every in-game run.
        - connection_sprite_cells.json: one entry per connectable, its canvas the PNGs' size, and
          the all-connected state (15.png) covering the declared cell. Overhang past the cell is
          listed, not failed;
+       - building_image_report.json: the same prefabs as ui_image_rects.json, and no image
+         clipped at the canvas edge;
        - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
          "Replacement fields");
        - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
@@ -53,8 +55,8 @@ Where the snapshot lives. Default: Documents\Klei\OxygenNotIncluded\export-basel
 Copy ExportDir to BaselineDir and stop. Refuses to replace an existing baseline without -Force.
 
 .PARAMETER AllowPartialExport
-A complete export has ui_image_rects.json, connection_sprites and connection_sprite_cells.json,
-and their absence is a failure. Pass this when checking an export where only Export Game Data has run, to have the
+A complete export has ui_image_rects.json, building_image_report.json, connection_sprites and
+connection_sprite_cells.json, and their absence is a failure. Pass this when checking an export where only Export Game Data has run, to have the
 missing pieces reported as skipped instead.
 
 .PARAMETER GameLibs
@@ -103,7 +105,7 @@ $GameLibs = Resolve-FullPath $GameLibs
 # What an export consists of. `images\` and building.pre-mod-merge.json, which older runs left
 # in the same folder, are not written by the current mod and are left out.
 $exportDirs = @('database', 'ui_image', 'ui_image_facade', 'connection_sprites')
-$exportFiles = @('ui_image_rects.json', 'pose_overrides.json', 'connection_sprite_cells.json')
+$exportFiles = @('ui_image_rects.json', 'pose_overrides.json', 'connection_sprite_cells.json', 'building_image_report.json')
 $imageDirs = @('ui_image', 'ui_image_facade', 'connection_sprites')
 
 if (-not (Test-Path (Join-Path $ExportDir 'database\building.json'))) {
@@ -441,6 +443,7 @@ public static class OniExportCheck
         public List<OniCheck> Out = new List<OniCheck>();
         public Dictionary<string, JObject> ByName = new Dictionary<string, JObject>(StringComparer.Ordinal);
         public List<string> SpriteOverhang = new List<string>();
+        public JObject Report;
 
         public void Add(string group, string name, bool ok, string detail)
         {
@@ -648,6 +651,45 @@ public static class OniExportCheck
         r.Out.Add(new OniCheck { Group = "info", Name = "connectables whose 15.png overhangs the cell", Status = "PASS", Detail = Sample(overhang) });
     }
 
+    // building_image_report.json says how the building-image sweep made each image. The sweep
+    // writes it and ui_image_rects.json from the same renders, so they cover the same prefabs.
+    // An image whose art reached the canvas edge was cut off, and its rect describes the cut
+    // rather than the building.
+    static void CheckImageReport(Run r, string exportDir, JObject rects, bool allowPartial)
+    {
+        string path = Path.Combine(exportDir, "building_image_report.json");
+        if (!File.Exists(path))
+        {
+            r.Missing("building_image_report.json is present", "absent: written by the building-image tool since 2026-10", allowPartial);
+            return;
+        }
+        var report = (JObject)Load(path);
+        r.Report = report;
+        var unmatched = new List<string>();
+        foreach (var p in rects.Properties())
+            if (report[p.Name] == null) unmatched.Add(p.Name + " (no report entry)");
+        foreach (var p in report.Properties())
+            if (rects[p.Name] == null) unmatched.Add(p.Name + " (no rect)");
+        var clipped = new List<string>();
+        var grown = new List<string>();
+        var noExtent = new List<string>();
+        int artOnly = 0;
+        foreach (var p in report.Properties())
+        {
+            var e = p.Value as JObject;
+            if (e == null) continue;
+            if (IsTrue(e["clipped"])) clipped.Add(p.Name + " (" + Short(e["clippedEdges"]) + " of " + Short(e["canvasPx"]) + ")");
+            if (e["canvasGrownEdges"] != null) grown.Add(p.Name + " " + Short(e["canvasGrownEdges"]));
+            if (e["animBBoxCells"] == null) noExtent.Add(p.Name + " (" + (Str(e["anim"]) ?? "no anim") + ")");
+            if (Str(e["render"]) == "artOnly") artOnly++;
+        }
+        r.Add("invariant", "building_image_report.json and ui_image_rects.json cover the same prefabs", unmatched.Count == 0, Sample(unmatched));
+        r.Add("invariant", "no building image is clipped at the canvas edge", clipped.Count == 0, Sample(clipped));
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images rendered art-only", Status = "PASS", Detail = artOnly.ToString() });
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images re-rendered on a wider canvas", Status = "PASS", Detail = Sample(grown) });
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images whose anim has no usable authored extent", Status = "PASS", Detail = Sample(noExtent) });
+    }
+
     public static List<OniCheck> Check(string exportDir, bool allowPartial)
     {
         var r = new Run();
@@ -820,6 +862,7 @@ public static class OniExportCheck
             if (known != null)
                 r.Add("invariant", "every ui_image_rects.json entry is a building or a uiSpriteInfos prefab", orphanRects.Count == 0, Sample(orphanRects));
             r.Out.Add(new OniCheck { Group = "info", Name = "ui_image_rects.json entries", Status = "PASS", Detail = sidecar.Count.ToString() });
+            CheckImageReport(r, exportDir, sidecar, allowPartial);
         }
         else
         {

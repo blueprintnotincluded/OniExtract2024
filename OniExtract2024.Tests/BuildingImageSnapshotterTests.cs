@@ -67,6 +67,42 @@ namespace OniExtract2024.Tests
             Assert.Equal(3, minY);
         }
 
+        [Fact]
+        public void FindOpaqueBBox32_SameThresholdAsFloat()
+        {
+            // alpha 7/255 = 0.0275 is under 0.03, 8/255 = 0.0314 is over it.
+            var px = new Color32[4 * 4];
+            px[1 * 4 + 1] = new Color32(255, 255, 255, 7);
+            px[2 * 4 + 3] = new Color32(255, 255, 255, 8);
+
+            bool found = ImageCrop.FindOpaqueBBox(px, 4, 4,
+                out int minX, out int minY, out int maxX, out int maxY);
+
+            Assert.True(found);
+            Assert.Equal(3, minX);
+            Assert.Equal(2, minY);
+            Assert.Equal(3, maxX);
+            Assert.Equal(2, maxY);
+        }
+
+        [Fact]
+        public void CropPixels32_ExtractsCorrectRegion()
+        {
+            int w = 3, h = 3;
+            var px = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    px[y * w + x] = new Color32((byte)(x + 1), (byte)(y + 1), 0, 255);
+
+            Color32[] cropped = ImageCrop.CropPixels(px, w, 1, 1, 2, 2);
+
+            Assert.Equal(4, cropped.Length);
+            Assert.Equal(new Color32(2, 2, 0, 255), cropped[0]);
+            Assert.Equal(new Color32(3, 2, 0, 255), cropped[1]);
+            Assert.Equal(new Color32(2, 3, 0, 255), cropped[2]);
+            Assert.Equal(new Color32(3, 3, 0, 255), cropped[3]);
+        }
+
         // UiImageRect.FromCrop geometry is unit-tested in OniExtract2024.Core.Tests
         // (Unity-free, runs in CI). The crop helpers below need UnityEngine.Color, so they
         // stay here in the game-coupled test project.

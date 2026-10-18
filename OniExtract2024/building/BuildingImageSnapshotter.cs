@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HarmonyLib;
+using OniExtract2024.connection;
 using UnityEngine;
 
 namespace OniExtract2024.building
@@ -46,17 +47,27 @@ namespace OniExtract2024.building
             "channeling", "dispensing", "on_loop", "on", "idle_loop", "idle",
         };
 
+        // How much margin a side gains when the art reaches it, and how many times, before the
+        // render is reported clipped. The authored extent sized the canvas already; this
+        // catches what it does not cover, such as child controllers (meters and the like) and
+        // anims whose extent is garbage.
+        private const float GrowCells = 4f;
+        private const int MaxGrowAttempts = 3;
+
         // cellW/cellH override the footprint derived from the Building component. Terrain
         // features (geysers, vents, volcanoes) are not BuildingDefs and carry no Building,
         // so the caller passes their KBoxCollider2D extents; pass -1 to derive as usual.
+        // `report` receives how the image was made, keyed like `rects`; `render` says whether
+        // this object is a real spawn or an art-only stand-in.
         public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null,
-            int cellW = -1, int cellH = -1)
+            int cellW = -1, int cellH = -1,
+            IDictionary<string, BuildingImageReportEntry> report = null, string render = "spawned")
         {
-            StartCoroutine(DoExport(outputDir, rects, cellW, cellH));
+            StartCoroutine(DoExport(outputDir, rects, cellW, cellH, report, render));
         }
 
         private IEnumerator DoExport(string outputDir, IDictionary<string, UiImageRect> rects,
-            int cellW, int cellH)
+            int cellW, int cellH, IDictionary<string, BuildingImageReportEntry> report, string render)
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
@@ -67,8 +78,14 @@ namespace OniExtract2024.building
 
                 if (kpid != null && kbac != null)
                 {
-                    PoseActive(kbac, kpid.PrefabTag.Name);
-                    RenderAndWrite(gameObject, outputDir, rects, cellW, cellH);
+                    string pose = PoseActive(kbac, kpid.PrefabTag.Name);
+                    var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH);
+                    if (entry != null && report != null)
+                    {
+                        entry.pose = pose;
+                        entry.render = render;
+                        report[kpid.PrefabTag.Name] = entry;
+                    }
                 }
             }
             finally
@@ -84,14 +101,20 @@ namespace OniExtract2024.building
         // pixel-identical output. Static so the inspector can reuse it without an attached
         // snapshotter component on the temp building.
         //
+        // The canvas is sized from the posed anim's authored extent (see RenderCanvas). If the
+        // art still reaches an edge, that side is widened and the building drawn again; art
+        // that reaches an edge even then is reported clipped, both in Player.log and in the
+        // returned entry. Returns how the image was made, with `pose` and `render` left for
+        // the caller, or null when nothing was written.
+        //
         // overrideCellW/H supply the footprint for objects with no Building component (terrain
         // features); pass -1 to derive it from the Building as usual.
-        public static void RenderAndWrite(GameObject go, string outputDir,
+        public static BuildingImageReportEntry RenderAndWrite(GameObject go, string outputDir,
             IDictionary<string, UiImageRect> rects = null,
             int overrideCellW = -1, int overrideCellH = -1)
         {
             var kpid = go.GetComponent<KPrefabID>();
-            if (kpid == null) return;
+            if (kpid == null) return null;
 
             SelectTool.Instance.Select(null);
 
@@ -99,8 +122,69 @@ namespace OniExtract2024.building
             int cellW = overrideCellW > 0 ? overrideCellW : (building != null ? building.Def.WidthInCells : 1);
             int cellH = overrideCellH > 0 ? overrideCellH : (building != null ? building.Def.HeightInCells : 1);
 
+            var rootKbac = go.GetComponent<KBatchedAnimController>();
+            Vector3 footprint = BuildingKanimRenderer.FootprintBottomLeft(go.transform.GetPosition(), cellW);
+            bool hasExtent = TryGetAuthoredExtent(rootKbac, footprint,
+                out float originX, out float originY, out float halfW, out float halfH);
+            RenderCanvas canvas = hasExtent
+                ? RenderCanvas.ForArt(cellW, cellH, BuildingKanimRenderer.PixelsPerCell, originX, originY, halfW, halfH)
+                : RenderCanvas.Default(cellW, cellH, BuildingKanimRenderer.PixelsPerCell);
+
+            Color32[] px = null;
+            int minX = 0, minY = 0, maxX = -1, maxY = -1;
+            CanvasEdge touched = CanvasEdge.None, grown = CanvasEdge.None;
+            for (int attempt = 0; ; attempt++)
+            {
+                px = RenderPixels(go, canvas, footprint);
+                if (px == null) return null;
+                if (!ImageCrop.FindOpaqueBBox(px, canvas.Width, canvas.Height, out minX, out minY, out maxX, out maxY))
+                    return null;
+                touched = canvas.TouchedBy(minX, minY, maxX - minX + 1, maxY - minY + 1);
+                if (touched == CanvasEdge.None || attempt >= MaxGrowAttempts || canvas.AtMaximum(touched))
+                    break;
+                grown |= touched;
+                canvas = canvas.Grow(touched, GrowCells);
+            }
+
+            int cw = maxX - minX + 1, ch = maxY - minY + 1;
+            var cropped = new Texture2D(cw, ch);
+            cropped.SetPixels32(ImageCrop.CropPixels(px, canvas.Width, minX, minY, cw, ch));
+            cropped.Apply();
+
+            Directory.CreateDirectory(outputDir);
+            string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
+            string filePath = Path.Combine(outputDir, fileName + ".png");
+            File.WriteAllBytes(filePath, cropped.EncodeToPNG());
+            UnityEngine.Object.Destroy(cropped);
+            Debug.Log("OniExtract: building image -> " + filePath);
+            if (touched != CanvasEdge.None)
+                Debug.LogWarning("OniExtract: building image for " + kpid.PrefabTag.Name + " is clipped: its art reaches the "
+                    + string.Join(", ", RenderCanvas.EdgeNames(touched)) + " edge of a " + canvas.Width + "x" + canvas.Height + " canvas.");
+
+            if (rects != null)
+                rects[kpid.PrefabTag.Name] = canvas.RectOf(minX, minY, cw, ch);
+
+            return new BuildingImageReportEntry
+            {
+                anim = rootKbac != null && rootKbac.CurrentAnim != null ? rootKbac.CurrentAnim.name : null,
+                frame = rootKbac != null ? Mathf.Max(0, rootKbac.currentFrame) : 0,
+                frameCount = rootKbac != null ? rootKbac.GetCurrentNumFrames() : 0,
+                canvasPx = new PixelSize { w = canvas.Width, h = canvas.Height },
+                animBBoxCells = hasExtent
+                    ? new UiImageRect { x = originX - halfW, y = originY - halfH, w = 2f * halfW, h = 2f * halfH }
+                    : (UiImageRect?)null,
+                clipped = touched != CanvasEdge.None,
+                clippedEdges = touched != CanvasEdge.None ? RenderCanvas.EdgeNames(touched) : null,
+                canvasGrownEdges = grown != CanvasEdge.None ? RenderCanvas.EdgeNames(grown) : null,
+            };
+        }
+
+        // Draws every controller on the object into a canvas laid out as `canvas` and returns
+        // the pixels, bottom row first.
+        private static Color32[] RenderPixels(GameObject go, RenderCanvas canvas, Vector3 footprint)
+        {
             var renderer = new BuildingKanimRenderer();
-            renderer.Init(cellW, cellH, go.transform.GetPosition());
+            renderer.Init(canvas, footprint);
 
             Texture2D raw = null;
             try
@@ -118,33 +202,52 @@ namespace OniExtract2024.building
                 CameraController.Instance.baseCamera.enabled = true;
                 renderer.Cleanup();
             }
-            if (raw == null) return;
-
-            Texture2D cropped = TrimToOpaqueBBox(raw, out int minX, out int minY, out int cw, out int ch);
+            if (raw == null) return null;
+            Color32[] px = raw.GetPixels32();
             UnityEngine.Object.Destroy(raw);
-            if (cropped == null) return;
+            return px;
+        }
 
-            Directory.CreateDirectory(outputDir);
-            string fileName = ExportUISprite.GetFormatedUIImageFileName(kpid);
-            string filePath = Path.Combine(outputDir, fileName + ".png");
-            File.WriteAllBytes(filePath, cropped.EncodeToPNG());
-            UnityEngine.Object.Destroy(cropped);
-            Debug.Log("OniExtract: building image -> " + filePath);
+        // The current anim's authored extent: KAnim.Anim.unScaledSize is the largest distance
+        // from the anim origin, over every frame, that its frame bounds reach (KGlobalAnimParser
+        // computes it at load), in kanim pixels. The controller scales those into world units
+        // and draws them about PositionIncludingOffset. Origin and half-extents come back in
+        // cells, the origin measured from the footprint's bottom-left. False when the anim has
+        // no usable extent: see RenderCanvas.IsUsableHalfExtent.
+        private static bool TryGetAuthoredExtent(KBatchedAnimController kbac, Vector3 footprint,
+            out float originX, out float originY, out float halfW, out float halfH)
+        {
+            originX = originY = halfW = halfH = 0f;
+            KAnim.Anim anim = kbac != null ? kbac.CurrentAnim : null;
+            if (anim == null) return false;
 
-            if (rects != null)
-                rects[kpid.PrefabTag.Name] = ComputeRect(minX, minY, cw, ch, cellW, cellH);
+            Vector3 origin = kbac.PositionIncludingOffset;
+            Vector3 scale = kbac.transform.lossyScale;
+            originX = origin.x - footprint.x;
+            originY = origin.y - footprint.y;
+            halfW = anim.unScaledSize.x * kbac.animScale * Mathf.Abs(kbac.animWidth * scale.x);
+            halfH = anim.unScaledSize.y * kbac.animScale * Mathf.Abs(kbac.animHeight * scale.y);
+            // A rotated controller can reach the box's corner distance in any direction.
+            if (kbac.Rotation != 0f)
+                halfW = halfH = Mathf.Sqrt(halfW * halfW + halfH * halfH);
+            return RenderCanvas.IsUsableHalfExtent(halfW, halfH);
         }
 
         // Pose the building's main kanim in the most "active" state. Checks
         // BuildingPoseOverrides first; falls back to the auto-scorer unchanged.
         // ONLY the root controller is posed — driving child controllers stamps
         // a full extra copy of the building at each child's transform offset.
-        private void PoseActive(KBatchedAnimController rootKbac, string prefabId)
+        // Returns where the pose came from, for the report.
+        private string PoseActive(KBatchedAnimController rootKbac, string prefabId)
         {
             if (BuildingPoseOverrides.TryGet(prefabId, out var pose))
+            {
                 PoseController(rootKbac, pose.Anim, pose.Frame);
-            else
-                PoseController(rootKbac, ChooseActiveAnim(rootKbac), -1);
+                return "override";
+            }
+            string anim = ChooseActiveAnim(rootKbac);
+            PoseController(rootKbac, anim, -1);
+            return anim != null ? "auto" : "default";
         }
 
         // Poses an off-screen controller at a specific anim + frame so the chosen frame
@@ -267,30 +370,5 @@ namespace OniExtract2024.building
             if (n.EndsWith("_pre") || n.EndsWith("_pst")) score -= 8;
             return score;
         }
-
-        private static Texture2D TrimToOpaqueBBox(Texture2D tex, out int minX, out int minY, out int cw, out int ch)
-        {
-            int w = tex.width, h = tex.height;
-            Color[] px = tex.GetPixels();
-
-            cw = 0; ch = 0;
-            if (!ImageCrop.FindOpaqueBBox(px, w, h, out minX, out minY, out int maxX, out int maxY))
-                return null;
-
-            cw = maxX - minX + 1;
-            ch = maxY - minY + 1;
-            Color[] outPx = ImageCrop.CropPixels(px, w, minX, minY, cw, ch);
-
-            Texture2D result = new Texture2D(cw, ch);
-            result.SetPixels(outPx);
-            result.Apply();
-            return result;
-        }
-
-        private static UiImageRect ComputeRect(int minX, int minY, int cw, int ch, int cellW, int cellH) =>
-            UiImageRect.FromCrop(minX, minY, cw, ch,
-                Mathf.CeilToInt(cellW * BuildingKanimRenderer.PixelsPerCell + 2 * BuildingKanimRenderer.PaddingPx),
-                Mathf.CeilToInt(cellH * BuildingKanimRenderer.PixelsPerCell + 2 * BuildingKanimRenderer.PaddingPx),
-                cellW, cellH, BuildingKanimRenderer.PixelsPerCell);
     }
 }

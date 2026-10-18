@@ -72,6 +72,10 @@ namespace OniExtract2024.building
         private static readonly Dictionary<string, UiImageRect> Rects =
             new Dictionary<string, UiImageRect>();
 
+        // How each of those images was made; becomes building_image_report.json.
+        private static readonly Dictionary<string, BuildingImageReportEntry> Report =
+            new Dictionary<string, BuildingImageReportEntry>();
+
         public static void Start()
         {
             if (InGameExport.TryBegin(ExportName))
@@ -85,6 +89,7 @@ namespace OniExtract2024.building
             try
             {
                 Rects.Clear();
+                Report.Clear();
                 Debug.Log("OniExtract: building-image export started -> " + OutputDir);
 
                 // Rocket modules need a CraftModuleInterface ancestor to find on spawn.
@@ -133,7 +138,8 @@ namespace OniExtract2024.building
                     // The footprint is passed explicitly because an art-only object has no
                     // Building to derive it from; for a real spawn it is the same value.
                     var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                    snapshotter.StartExport(OutputDir, Rects, def.WidthInCells, def.HeightInCells);
+                    snapshotter.StartExport(OutputDir, Rects, def.WidthInCells, def.HeightInCells,
+                        Report, spawned ? "spawned" : "artOnly");
                     // Wait for the snapshotter to destroy the temp building. Unity defers
                     // Destroy to end-of-frame, so IsNullOrDestroyed becomes true one frame
                     // after KDestroyGameObject — the while loop handles this robustly.
@@ -186,7 +192,7 @@ namespace OniExtract2024.building
                     temp.SetActive(true);
 
                     var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                    snapshotter.StartExport(OutputDir, Rects, cellW, cellH);
+                    snapshotter.StartExport(OutputDir, Rects, cellW, cellH, Report, "spawned");
                     while (!temp.IsNullOrDestroyed())
                         yield return null;
                     if (Rects.ContainsKey(prefabName))
@@ -206,10 +212,25 @@ namespace OniExtract2024.building
                 PatchBuildingJsonRects(Rects, replaceStore: true);
                 VerifyRectsMatchPngs(Rects);
 
+                var clipped = new List<string>();
+                int grown = 0;
+                foreach (var kv in Report)
+                {
+                    if (kv.Value.clipped) clipped.Add(kv.Key);
+                    if (kv.Value.canvasGrownEdges != null) grown++;
+                }
+                bool reportWritten = BuildingImageReport.ReplaceAll(Report);
+                Debug.Log("OniExtract: building image report -> " + BuildingImageReport.PersistPath + " ("
+                    + Report.Count + " entries, " + grown + " re-rendered on a wider canvas, " + clipped.Count + " clipped)");
+                if (clipped.Count > 0)
+                    Debug.LogWarning("OniExtract: clipped at the canvas edge: " + string.Join(", ", clipped));
+
                 summary = "Building images exported: " + exported + " buildings and "
                     + terrainExported + " terrain features rendered"
                     + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
-                    + ".\n" + OutputDir;
+                    + (clipped.Count > 0 ? ", " + clipped.Count + " clipped" : "")
+                    + ".\n" + OutputDir
+                    + (reportWritten ? "" : "\nbuilding_image_report.json could not be written. See Player.log.");
             }
             finally
             {
@@ -334,9 +355,17 @@ namespace OniExtract2024.building
         {
             if (posedBuilding == null || posedBuilding.IsNullOrDestroyed()) return;
             var rects = new Dictionary<string, UiImageRect>();
-            BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
+            var entry = BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
             if (rects.Count > 0)
                 PatchBuildingJsonRects(rects, replaceStore: false);
+            if (entry != null)
+            {
+                // The inspector saves the pose as an override before calling this, and only
+                // inspects buildings it can spawn.
+                entry.pose = "override";
+                entry.render = "spawned";
+                BuildingImageReport.Merge(posedBuilding.GetComponent<KPrefabID>().PrefabTag.Name, entry);
+            }
         }
 
         // A stand-in for a building that cannot be spawned for real (rocket modules need a
