@@ -477,7 +477,7 @@ namespace OniExtract2024.building
                 .OrderBy(k => k.transform.position.z).ToList();
 
             CameraController.Instance.baseCamera.enabled = false;
-            BuildingImageSnapshotter.PrepareForSnapshot(kbacs);
+            BuildingImageSnapshotter.PrepareForSnapshot(kbacs, artOnly: false);
             s_renderer.Render(kbacs);
             CameraController.Instance.baseCamera.enabled = true;
 

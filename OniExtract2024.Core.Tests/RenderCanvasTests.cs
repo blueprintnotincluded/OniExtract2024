@@ -18,48 +18,73 @@ namespace OniExtract2024.Core.Tests
             Assert.Equal(1.5f, c.CentreY, 3);
         }
 
-        [Fact]
-        public void ForArt_SmallArt_KeepsTheDefaultMargin()
-        {
-            // A 2x2 building whose anim reaches 1.1 cells either side of its bottom-centre and
-            // 1.7 up and down: with the 0.25-cell allowance nothing passes the two-cell margin,
-            // so the canvas is what it always was.
-            var c = RenderCanvas.ForArt(2, 2, Ppc, 1f, 0f, 1.1f, 1.7f);
+        private static UiImageRect Box(float x0, float x1, float y0, float y1) =>
+            new UiImageRect { x = x0, y = y0, w = x1 - x0, h = y1 - y0 };
 
-            Assert.Equal(RenderCanvas.Default(2, 2, Ppc).Width, c.Width);
-            Assert.Equal(RenderCanvas.Default(2, 2, Ppc).Height, c.Height);
+        [Fact]
+        public void ForBox_ArtInsideTheMargin_KeepsTheDefault()
+        {
+            // VerticalWindTunnel's on anim (5x6): -0.21..5.24 by -1.71..7.66. With the 0.25-cell
+            // allowance nothing passes the two-cell margin, so the canvas is what it always was.
+            var c = RenderCanvas.ForBox(5, 6, Ppc, Box(-0.21f, 5.24f, -1.71f, 7.66f));
+
+            Assert.Equal(RenderCanvas.Default(5, 6, Ppc).Width, c.Width);
+            Assert.Equal(RenderCanvas.Default(5, 6, Ppc).Height, c.Height);
         }
 
         [Fact]
-        public void ForArt_MonumentMiddle_WidensBothSides()
+        public void ForBox_MonumentMiddle_WidensOnlyTheSidesTheArtReaches()
         {
-            // option_a reaches 4.89 cells either side of the centre of a 5-wide footprint: 2.39
-            // past each edge, more than the 2-cell margin that clipped it.
-            var c = RenderCanvas.ForArt(5, 5, Ppc, 2.5f, 0f, 4.89f, 6.24f);
+            // option_a reaches 2.39 cells past each side of a 5-wide footprint, more than the
+            // 2-cell margin that clipped it, and 1.24 above it.
+            var c = RenderCanvas.ForBox(5, 5, Ppc, Box(-2.39f, 7.39f, -0.07f, 6.24f));
 
             Assert.Equal(528, c.padLeft);   // (2.39 + 0.25) * 200, rounded up
             Assert.Equal(528, c.padRight);
-            Assert.Equal(1298, c.padBottom); // symmetric box: 6.24 below the origin too
-            Assert.Equal(400, c.padTop);     // 6.24 - 5 + 0.25 = 1.49 < 2
+            Assert.Equal(400, c.padBottom);
+            Assert.Equal(400, c.padTop);    // 1.24 + 0.25 = 1.49 < 2
         }
 
         [Fact]
-        public void ForArt_UnusableExtent_FallsBackToDefault()
+        public void ForBox_SteamFarBelow_WidensTheBottom()
+        {
+            // SteamTurbine2's working_loop: steam 4.36 cells below the footprint.
+            var c = RenderCanvas.ForBox(5, 3, Ppc, Box(-0.26f, 5.32f, -4.36f, 4.54f));
+
+            Assert.Equal(922, c.padBottom); // (4.36 + 0.25) * 200, rounded up
+            Assert.Equal(400, c.padTop);
+        }
+
+        [Fact]
+        public void ForBox_UnusableBox_FallsBackToDefault()
         {
             var expected = RenderCanvas.Default(5, 6, Ppc);
-            foreach (float bad in new[] { 536870.92f, float.NaN, float.PositiveInfinity, 0f, -1f })
+            var bad = new[]
             {
-                var c = RenderCanvas.ForArt(5, 6, Ppc, 2.5f, 0f, bad, 7.59f);
+                Box(float.NaN, 1f, 0f, 1f), Box(0f, float.PositiveInfinity, 0f, 1f),
+                Box(-536868f, 536873f, 0f, 1f), Box(1f, 1f, 0f, 1f), Box(0f, 1f, 2f, 1f),
+            };
+            foreach (var box in bad)
+            {
+                var c = RenderCanvas.ForBox(5, 6, Ppc, box);
                 Assert.Equal(expected.Width, c.Width);
                 Assert.Equal(expected.Height, c.Height);
-                Assert.False(RenderCanvas.IsUsableHalfExtent(bad, 7.59f));
+                Assert.False(RenderCanvas.IsUsableBox(box));
             }
         }
 
         [Fact]
-        public void ForArt_CapsTheMargin()
+        public void IsUsableHalfExtent_RejectsGarbage()
         {
-            var c = RenderCanvas.ForArt(1, 1, Ppc, 0.5f, 0f, 19.5f, 19.5f);
+            foreach (float bad in new[] { 536870.92f, float.NaN, float.PositiveInfinity, 0f, -1f })
+                Assert.False(RenderCanvas.IsUsableHalfExtent(bad, 7.59f));
+            Assert.True(RenderCanvas.IsUsableHalfExtent(2.66f, 7.59f));
+        }
+
+        [Fact]
+        public void ForBox_CapsTheMargin()
+        {
+            var c = RenderCanvas.ForBox(1, 1, Ppc, Box(-19f, 20f, -19f, 20f));
 
             Assert.Equal((int)(RenderCanvas.MaxPaddingCells * Ppc), c.padLeft);
             Assert.Equal((int)(RenderCanvas.MaxPaddingCells * Ppc), c.padBottom);

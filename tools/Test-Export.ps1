@@ -21,9 +21,10 @@ that used to be done by hand after every in-game run.
        - building_image_report.json: the same prefabs as ui_image_rects.json, and no image
          clipped at the canvas edge;
        - an outlier scan, which fails nothing: images much smaller or larger than their
-         footprint (outside 0.85-1.6 of it on either axis), images reaching past their anim's
-         authored extent, clipped images, and connection sprites overhanging their cell. Those a
-         human has accepted are listed in KnownOutliers with the reason, apart from new ones;
+         footprint (outside 0.85-1.6 of it on either axis), images reaching past the box their
+         anim's frames cover (child controllers, surroundings), clipped images, and connection
+         sprites overhanging their cell. Those a human has accepted are listed in KnownOutliers
+         with the reason, apart from new ones;
        - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
          "Replacement fields");
        - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
@@ -694,7 +695,7 @@ public static class OniExportCheck
         r.Add("invariant", "no building image is clipped at the canvas edge", clipped.Count == 0, Sample(clipped));
         r.Out.Add(new OniCheck { Group = "info", Name = "building images rendered art-only", Status = "PASS", Detail = artOnly.ToString() });
         r.Out.Add(new OniCheck { Group = "info", Name = "building images re-rendered on a wider canvas", Status = "PASS", Detail = Sample(grown) });
-        r.Out.Add(new OniCheck { Group = "info", Name = "building images whose anim has no usable authored extent", Status = "PASS", Detail = Sample(noExtent) });
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images whose anim has no measurable extent", Status = "PASS", Detail = Sample(noExtent) });
     }
 
     // ---- outliers ----
@@ -709,8 +710,8 @@ public static class OniExportCheck
     // An image this much smaller or larger than its footprint, on either axis, is worth a look:
     // partial art (a bare egg for StaterpillarGenerator), effects (a light cone on a 1x1 lamp).
     const double FillMin = 0.85, FillMax = 1.6;
-    // Slack when comparing an image's rect with its anim's authored extent: the extent is
-    // stored in whole kanim pixels at 0.005 cells each, and anti-aliasing adds a fringe.
+    // Slack when comparing an image's rect with the box its anim's frames cover: the box comes
+    // from symbol boxes in kanim pixels at 0.005 cells each, and anti-aliasing adds a fringe.
     const double ExtentToleranceCells = 0.05;
 
     // A short list of images and sprites whose geometry is unusual, for a human to eyeball
@@ -755,7 +756,7 @@ public static class OniExportCheck
                     continue;
                 double t = ExtentToleranceCells;
                 if (x < bx - t || y < by - t || x + w > bx + bw + t || y + h > by + bh + t)
-                    add(p.Name, string.Format("image ({0:F2},{1:F2} {2:F2}x{3:F2}) reaches past the authored extent of {4} ({5:F2},{6:F2} {7:F2}x{8:F2})",
+                    add(p.Name, string.Format("image ({0:F2},{1:F2} {2:F2}x{3:F2}) reaches past the frame box of {4} ({5:F2},{6:F2} {7:F2}x{8:F2})",
                         x, y, w, h, Str(e["anim"]) ?? "its anim", bx, by, bw, bh));
             }
         }

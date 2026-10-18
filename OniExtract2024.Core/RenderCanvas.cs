@@ -23,24 +23,24 @@ namespace OniExtract2024.building
     /// footprint's edges always fall on pixel boundaries and a render is the same image
     /// whatever the margins are, only with more or less empty space around it.
     ///
-    /// The margins come from the art: the posed anim's authored extent
-    /// (<c>KAnim.Anim.unScaledSize</c>, the largest frame bounds over the whole anim), which the
-    /// game computes when it loads the kanim. Before this the margin was a fixed two cells, and
-    /// art past it was cut off with the crop edge landing on the canvas edge (SteamTurbine2's
-    /// steam, VerticalWindTunnel, FishFeeder, MonumentMiddle).
+    /// The margins come from the art: the box the posed anim's frames cover, over the whole anim
+    /// (BuildingImageSnapshotter computes it from the frames' geometry). Before this the margin
+    /// was a fixed two cells, and art past it was cut off with the crop edge landing on the
+    /// canvas edge (SteamTurbine2's steam, VerticalWindTunnel, FishFeeder, MonumentMiddle).
     /// </summary>
     public struct RenderCanvas
     {
         /// <summary>The margin every render had before, and still the least it gets.</summary>
         public const float DefaultPaddingCells = 2f;
 
-        /// <summary>Room past the authored extent, so the outermost pixels cannot sit on the edge.</summary>
+        /// <summary>Room past the anim's box, so the outermost pixels cannot sit on the edge.</summary>
         public const float MarginCells = 0.25f;
 
         /// <summary>
-        /// Authored half-extents above this are not art but garbage: wind_tunnel's working
-        /// anims report 536870 cells, MicrobeMusher's working_loop 37003, MiniFridge's working
-        /// NaN. An anim like that is sized with the default margin instead.
+        /// Extents above this are not art but garbage. The authored extents some anims carry
+        /// are: wind_tunnel's working anims report 536870 cells, MicrobeMusher's working_loop
+        /// 37003, MiniFridge's working and every anim of the Wall Pumps mod NaN. An anim like
+        /// that is sized with the default margin instead.
         /// </summary>
         public const float MaxAuthoredHalfExtentCells = 20f;
 
@@ -92,23 +92,32 @@ namespace OniExtract2024.building
             !float.IsNaN(v) && !float.IsInfinity(v) && v > 0f && v <= MaxAuthoredHalfExtentCells;
 
         /// <summary>
-        /// The layout for art whose anim origin sits at (<paramref name="originX"/>,
-        /// <paramref name="originY"/>) cells from the footprint's bottom-left and which reaches
-        /// at most <paramref name="halfW"/> by <paramref name="halfH"/> cells from that origin in
-        /// every direction. Each side gets the default margin or what the art needs plus
-        /// <see cref="MarginCells"/>, whichever is larger, so no canvas is smaller than it was.
-        /// An unusable extent yields <see cref="Default"/>.
+        /// True when <paramref name="box"/> (cells, footprint-relative, as
+        /// <see cref="UiImageRect"/>) describes art: finite, non-empty, and no edge further than
+        /// <see cref="MaxAuthoredHalfExtentCells"/> from the footprint.
         /// </summary>
-        public static RenderCanvas ForArt(int cellW, int cellH, int pixelsPerCell,
-            float originX, float originY, float halfW, float halfH)
+        public static bool IsUsableBox(UiImageRect box) =>
+            Finite(box.x) && Finite(box.y) && Finite(box.w) && Finite(box.h) && box.w > 0f && box.h > 0f
+            && box.x >= -MaxAuthoredHalfExtentCells && box.y >= -MaxAuthoredHalfExtentCells
+            && box.x + box.w <= MaxAuthoredHalfExtentCells * 2 && box.y + box.h <= MaxAuthoredHalfExtentCells * 2;
+
+        private static bool Finite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
+
+        /// <summary>
+        /// The layout for art that stays inside <paramref name="box"/>: cells, footprint-relative,
+        /// bottom-left origin, as <see cref="UiImageRect"/>. Each side gets the default margin or
+        /// what the art needs plus <see cref="MarginCells"/>, whichever is larger, so no canvas
+        /// is smaller than it was. An unusable box yields <see cref="Default"/>.
+        /// </summary>
+        public static RenderCanvas ForBox(int cellW, int cellH, int pixelsPerCell, UiImageRect box)
         {
             var c = Default(cellW, cellH, pixelsPerCell);
-            if (!IsUsableHalfExtent(halfW, halfH))
+            if (!IsUsableBox(box))
                 return c;
-            c.padLeft = Need(halfW - originX, pixelsPerCell);
-            c.padRight = Need(originX + halfW - cellW, pixelsPerCell);
-            c.padBottom = Need(halfH - originY, pixelsPerCell);
-            c.padTop = Need(originY + halfH - cellH, pixelsPerCell);
+            c.padLeft = Need(-box.x, pixelsPerCell);
+            c.padRight = Need(box.x + box.w - cellW, pixelsPerCell);
+            c.padBottom = Need(-box.y, pixelsPerCell);
+            c.padTop = Need(box.y + box.h - cellH, pixelsPerCell);
             return c;
         }
 

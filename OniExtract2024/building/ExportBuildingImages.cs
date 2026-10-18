@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -106,6 +107,11 @@ namespace OniExtract2024.building
                 for (int i = 0; i < 12; i++)
                     cell = Grid.CellDownLeft(cell);
                 Vector3 spawnPos = Grid.CellToPos(cell);
+                string spawnProblem = CheckSpawnArea(cell);
+                if (spawnProblem != null)
+                    Debug.LogWarning("OniExtract: spawn area is not clear, so images may show their surroundings: " + spawnProblem);
+                else
+                    Debug.Log("OniExtract: spawn area check -> solid floor, nothing built nearby.");
 
                 // notRendered: spawned, but gone or empty by the time the snapshot ran, so no
                 // image was written (a mod that deletes its own building on spawn, say).
@@ -230,12 +236,60 @@ namespace OniExtract2024.building
                     + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
                     + (clipped.Count > 0 ? ", " + clipped.Count + " clipped" : "")
                     + ".\n" + OutputDir
-                    + (reportWritten ? "" : "\nbuilding_image_report.json could not be written. See Player.log.");
+                    + (reportWritten ? "" : "\nbuilding_image_report.json could not be written. See Player.log.")
+                    + (spawnProblem == null ? "" : "\nThe spawn area was not clear, so some images may show their surroundings."
+                        + " Point the camera so that 12 cells down and left of the centre is a solid floor with nothing built around it. See Player.log.");
             }
             finally
             {
                 InGameExport.End(summary);
             }
+        }
+
+        // How far either side of the spawn cell the floor must be solid (the widest footprint
+        // is 7 cells, origin in the middle), and the box around it that must hold nothing drawn
+        // by kanim: canvases reach a few cells past the art, and rarely more.
+        private const int FloorHalfWidth = 4;
+        private const int ClearSide = 12, ClearBelow = 6, ClearAbove = 14;
+
+        // A spawned building draws some parts from its surroundings: a pitcher pump or a
+        // brackene fountain shows as much pipe as there is open space below it
+        // (LiquidPumpingStation and BuildingPointStraw hide pipe/straw symbols by depth), a
+        // glass or drywall panel joins its neighbouring backwalls (AnimTileable), and a building
+        // of the colony in view is drawn into the image when it shares a render batch
+        // (RenderBatch draws whole 32-cell batches). An icon should show the building alone, so
+        // the spawn cell should sit on a solid floor with nothing built around it. Returns what
+        // is wrong with the area, or null when it is clear.
+        private static string CheckSpawnArea(int cell)
+        {
+            var problems = new List<string>();
+            int open = 0;
+            for (int dx = -FloorHalfWidth; dx <= FloorHalfWidth; dx++)
+            {
+                int below = Grid.OffsetCell(cell, dx, -1);
+                if (!Grid.IsValidCell(below) || !Grid.Solid[below]) open++;
+            }
+            if (open > 0)
+                problems.Add(open + " of the " + (2 * FloorHalfWidth + 1) + " cells under the spawn point are not solid");
+
+            var nearby = new SortedSet<string>(StringComparer.Ordinal);
+            for (int dx = -ClearSide; dx <= ClearSide; dx++)
+            {
+                for (int dy = -ClearBelow; dy <= ClearAbove; dy++)
+                {
+                    int c = Grid.OffsetCell(cell, dx, dy);
+                    if (!Grid.IsValidCell(c)) continue;
+                    for (int layer = 0; layer < (int)ObjectLayer.NumLayers; layer++)
+                    {
+                        GameObject go = Grid.Objects[c, layer];
+                        if (go != null && go.GetComponent<KBatchedAnimController>() != null)
+                            nearby.Add(go.PrefabID().Name);
+                    }
+                }
+            }
+            if (nearby.Count > 0)
+                problems.Add("built nearby: " + string.Join(", ", nearby.Take(10)) + (nearby.Count > 10 ? ", ..." : ""));
+            return problems.Count == 0 ? null : string.Join("; ", problems);
         }
 
         // Relative aspect deviation past which a PNG is considered not to be the crop its

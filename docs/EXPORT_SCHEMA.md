@@ -1083,8 +1083,8 @@ clipping and containment without decoding images.
   "SteamTurbine2": {
     "anim": "on", "frame": 2, "frameCount": 4,
     "pose": "auto", "render": "spawned",
-    "canvasPx": { "w": 1800, "h": 1660 },
-    "animBBoxCells": { "x": -0.09, "y": -3.05, "w": 5.18, "h": 6.1 },
+    "canvasPx": { "w": 1800, "h": 1400 },
+    "animBBoxCells": { "x": -0.2, "y": -1.35, "w": 5.31, "h": 4.44 },
     "clipped": false
   }
 }
@@ -1096,7 +1096,7 @@ clipping and containment without decoding images.
 | `pose` | `auto` (chosen by `ActivePose.Choose`), `override` (from `pose_overrides.json` or `BuildingPoseOverrides`), or `default` (no anim scored, so the one it spawned with). |
 | `render` | `spawned` (a real instance) or `artOnly` (its kanim on an effect entity; buildings that cannot be spawned safely). |
 | `canvasPx` | The canvas the opaque crop was taken from, in pixels at 200 px/cell. |
-| `animBBoxCells` | The anim's authored extent (`KAnim.Anim.unScaledSize`) in `uiImageRect`'s space: cells, footprint-relative, bottom-left origin, `+y` up. The game stores it as a half-extent about the anim origin (the footprint's bottom centre), so it is symmetric about that point and reaches as far below the building as above. Omitted when the anim's extent is unusable: some anims carry 536870 cells or NaN. |
+| `animBBoxCells` | The box the anim's frames cover over the whole anim, in `uiImageRect`'s space: cells, footprint-relative, bottom-left origin, `+y` up. Measured from the frames' geometry (each visible element's symbol box through its transform), falling back to the game's authored half-extent (`KAnim.Anim.unScaledSize`, symmetric about the anim origin) when no element resolves. It covers the root controller only, so art past it comes from child controllers or the surroundings. Omitted when neither gives a usable box. |
 | `clipped`, `clippedEdges` | Whether the art still reached the canvas edge after the canvas was widened, and which edges (`left`, `right`, `bottom`, `top`). A clipped image's rect describes the cut, not the building. |
 | `canvasGrownEdges` | Edges the canvas was widened at, because the first render's art reached them. Omitted when the first render fitted. |
 

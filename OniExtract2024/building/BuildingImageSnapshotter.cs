@@ -8,6 +8,7 @@
 // square, and written to ui_image/ (same path as the game-data export's atlas icons so the
 // hi-res file lands exactly on top of the low-res one).
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -69,7 +70,8 @@ namespace OniExtract2024.building
                 if (kpid != null && kbac != null)
                 {
                     string pose = PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH);
-                    var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH);
+                    var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH,
+                        artOnly: render == "artOnly");
                     if (entry != null && report != null)
                     {
                         entry.pose = pose;
@@ -91,17 +93,18 @@ namespace OniExtract2024.building
         // pixel-identical output. Static so the inspector can reuse it without an attached
         // snapshotter component on the temp building.
         //
-        // The canvas is sized from the posed anim's authored extent (see RenderCanvas). If the
-        // art still reaches an edge, that side is widened and the building drawn again; art
-        // that reaches an edge even then is reported clipped, both in Player.log and in the
-        // returned entry. Returns how the image was made, with `pose` and `render` left for
-        // the caller, or null when nothing was written.
+        // The canvas is sized from the box the posed anim's frames cover (see RenderCanvas and
+        // TryGetAnimBox). If the art still reaches an edge, that side is widened and the
+        // building drawn again; art that reaches an edge even then is reported clipped, both in
+        // Player.log and in the returned entry. Returns how the image was made, with `pose` and
+        // `render` left for the caller, or null when nothing was written.
         //
         // overrideCellW/H supply the footprint for objects with no Building component (terrain
-        // features); pass -1 to derive it from the Building as usual.
+        // features); pass -1 to derive it from the Building as usual. artOnly marks a stand-in
+        // that never ran OnSpawn (see PrepareForSnapshot).
         public static BuildingImageReportEntry RenderAndWrite(GameObject go, string outputDir,
             IDictionary<string, UiImageRect> rects = null,
-            int overrideCellW = -1, int overrideCellH = -1)
+            int overrideCellW = -1, int overrideCellH = -1, bool artOnly = false)
         {
             var kpid = go.GetComponent<KPrefabID>();
             if (kpid == null) return null;
@@ -114,10 +117,9 @@ namespace OniExtract2024.building
 
             var rootKbac = go.GetComponent<KBatchedAnimController>();
             Vector3 footprint = BuildingKanimRenderer.FootprintBottomLeft(go.transform.GetPosition(), cellW);
-            bool hasExtent = TryGetAuthoredExtent(rootKbac, footprint,
-                out float originX, out float originY, out float halfW, out float halfH);
-            RenderCanvas canvas = hasExtent
-                ? RenderCanvas.ForArt(cellW, cellH, BuildingKanimRenderer.PixelsPerCell, originX, originY, halfW, halfH)
+            bool hasBox = TryGetFootprintBox(rootKbac, rootKbac != null ? rootKbac.CurrentAnim : null, footprint, out UiImageRect animBox);
+            RenderCanvas canvas = hasBox
+                ? RenderCanvas.ForBox(cellW, cellH, BuildingKanimRenderer.PixelsPerCell, animBox)
                 : RenderCanvas.Default(cellW, cellH, BuildingKanimRenderer.PixelsPerCell);
 
             Color32[] px = null;
@@ -125,7 +127,7 @@ namespace OniExtract2024.building
             CanvasEdge touched = CanvasEdge.None, grown = CanvasEdge.None;
             for (int attempt = 0; ; attempt++)
             {
-                px = RenderPixels(go, canvas, footprint);
+                px = RenderPixels(go, canvas, footprint, artOnly);
                 if (px == null) return null;
                 if (!ImageCrop.FindOpaqueBBox(px, canvas.Width, canvas.Height, out minX, out minY, out maxX, out maxY))
                     return null;
@@ -163,8 +165,8 @@ namespace OniExtract2024.building
                 frame = rootKbac != null ? Mathf.Max(0, rootKbac.currentFrame) : 0,
                 frameCount = rootKbac != null ? rootKbac.GetCurrentNumFrames() : 0,
                 canvasPx = new PixelSize { w = canvas.Width, h = canvas.Height },
-                animBBoxCells = hasExtent
-                    ? new UiImageRect { x = Round(originX - halfW), y = Round(originY - halfH), w = Round(2f * halfW), h = Round(2f * halfH) }
+                animBBoxCells = hasBox
+                    ? new UiImageRect { x = Round(animBox.x), y = Round(animBox.y), w = Round(animBox.w), h = Round(animBox.h) }
                     : (UiImageRect?)null,
                 clipped = touched != CanvasEdge.None,
                 clippedEdges = touched != CanvasEdge.None ? RenderCanvas.EdgeNames(touched) : null,
@@ -173,23 +175,26 @@ namespace OniExtract2024.building
         }
 
         // The placeholder symbol a building's art carries where a meter attaches. The game's
-        // MeterController hides it on the building's controller whenever it builds a meter
-        // (every constructor does, by this name unless the building names another), so it is
-        // never seen in game. Art-only renders build no meters and showed it, as a bar on
+        // MeterController hides it on the building's controller whenever it builds a meter, in
+        // OnSpawn (every constructor does, by this name unless the building names another), so
+        // it is not seen in game. Art-only renders never run OnSpawn and showed it, as a bar on
         // WallToilet and others.
         private const string MeterTargetSymbol = "meter_target";
 
-        // Puts a posed object's controllers into the state the game would draw them in: the
-        // meter placeholder hidden, and every hidden symbol written back to the controller's
-        // GPU data, so nothing the pose step did can leave a hidden symbol showing. Called by
-        // every render path (sweep, touch-up, inspector preview) right before drawing.
-        internal static void PrepareForSnapshot(IEnumerable<KBatchedAnimController> kbacs)
+        // Puts a posed object's controllers into the state the game would draw them in: every
+        // hidden symbol written back to the controller's GPU data, so nothing the pose step did
+        // can leave a hidden symbol showing, and, on an art-only stand-in, the meter placeholder
+        // hidden as OnSpawn would have. A real spawn keeps the visibility its own OnSpawn chose:
+        // Polymerizer shows meter_target again after building its meter. Called by every render
+        // path (sweep, touch-up, inspector preview) right before drawing.
+        internal static void PrepareForSnapshot(IEnumerable<KBatchedAnimController> kbacs, bool artOnly)
         {
             foreach (var kbac in kbacs)
             {
                 if (kbac == null || !kbac.batchGroupID.IsValid || kbac.batchGroupID == KAnimBatchManager.NO_BATCH)
                     continue;
-                kbac.SetSymbolVisiblity(MeterTargetSymbol, false);
+                if (artOnly)
+                    kbac.SetSymbolVisiblity(MeterTargetSymbol, false);
                 kbac.UpdateAllHiddenSymbols();
             }
         }
@@ -199,7 +204,7 @@ namespace OniExtract2024.building
 
         // Draws every controller on the object into a canvas laid out as `canvas` and returns
         // the pixels, bottom row first.
-        private static Color32[] RenderPixels(GameObject go, RenderCanvas canvas, Vector3 footprint)
+        private static Color32[] RenderPixels(GameObject go, RenderCanvas canvas, Vector3 footprint, bool artOnly)
         {
             var renderer = new BuildingKanimRenderer();
             renderer.Init(canvas, footprint);
@@ -210,7 +215,7 @@ namespace OniExtract2024.building
                 CameraController.Instance.baseCamera.enabled = false;
                 var kbacs = go.GetComponentsInChildren<KBatchedAnimController>()
                     .OrderBy(k => k.transform.position.z).ToList();
-                PrepareForSnapshot(kbacs);
+                PrepareForSnapshot(kbacs, artOnly);
                 renderer.Render(kbacs);
                 raw = renderer.ReadPixels();
             }
@@ -227,35 +232,115 @@ namespace OniExtract2024.building
             return px;
         }
 
-        // The current anim's authored extent: KAnim.Anim.unScaledSize is the largest distance
-        // from the anim origin, over every frame, that its frame bounds reach (KGlobalAnimParser
-        // computes it at load), in kanim pixels. The controller scales those into world units
-        // and draws them about PositionIncludingOffset. Origin and half-extents come back in
-        // cells, the origin measured from the footprint's bottom-left. False when the anim has
-        // no usable extent: see RenderCanvas.IsUsableHalfExtent.
-        private static bool TryGetAuthoredExtent(KBatchedAnimController kbac, Vector3 footprint,
-            out float originX, out float originY, out float halfW, out float halfH)
+        // The box `anim` covers as this controller draws it, in uiImageRect's space: cells from
+        // the footprint's bottom-left. False when there is no usable box (see TryGetAnimBox).
+        private static bool TryGetFootprintBox(KBatchedAnimController kbac, KAnim.Anim anim, Vector3 footprint,
+            out UiImageRect box)
         {
-            originX = originY = halfW = halfH = 0f;
-            KAnim.Anim anim = kbac != null ? kbac.CurrentAnim : null;
-            if (anim == null) return false;
-
+            box = default(UiImageRect);
+            if (!TryGetAnimBox(kbac, anim, out float minX, out float maxX, out float minY, out float maxY))
+                return false;
             Vector3 origin = kbac.PositionIncludingOffset;
-            originX = origin.x - footprint.x;
-            originY = origin.y - footprint.y;
-            HalfExtent(kbac, anim, out halfW, out halfH);
-            return RenderCanvas.IsUsableHalfExtent(halfW, halfH);
+            box = new UiImageRect
+            {
+                x = origin.x - footprint.x + minX,
+                y = origin.y - footprint.y + minY,
+                w = maxX - minX,
+                h = maxY - minY,
+            };
+            return RenderCanvas.IsUsableBox(box);
         }
 
-        // An anim's authored half-extent in world units (cells) as this controller draws it.
-        private static void HalfExtent(KBatchedAnimController kbac, KAnim.Anim anim, out float halfW, out float halfH)
+        // The box every frame of `anim` covers as this controller draws it, in cells about the
+        // anim origin (PositionIncludingOffset), +y up. Computed from the frames the way the GPU
+        // places their vertices: each visible element's symbol-frame box through the element's
+        // transform, then the controller's scale and flips.
+        //
+        // The game also stores an authored extent, KAnim.Anim.unScaledSize, but it is a
+        // half-extent (symmetric about the origin, so as deep below a floor building as it is
+        // tall) and some kanims carry garbage there: NaN in every anim of the Wall Pumps mod,
+        // 536870 cells in wind_tunnel's working anims. It is the fallback, used only when no
+        // element resolves. Offline, the frame box matched the authored extent of the base game's
+        // building anims to within about 0.1 cell wherever the latter was sane.
+        private static bool TryGetAnimBox(KBatchedAnimController kbac, KAnim.Anim anim,
+            out float minX, out float maxX, out float minY, out float maxY)
         {
+            minX = minY = float.MaxValue;
+            maxX = maxY = float.MinValue;
+            if (kbac == null || anim == null) return false;
+
             Vector3 scale = kbac.transform.lossyScale;
-            halfW = anim.unScaledSize.x * kbac.animScale * Mathf.Abs(kbac.animWidth * scale.x);
-            halfH = anim.unScaledSize.y * kbac.animScale * Mathf.Abs(kbac.animHeight * scale.y);
-            // A rotated controller can reach the box's corner distance in any direction.
+            float sx = kbac.animScale * kbac.animWidth * scale.x * (kbac.FlipX ? -1f : 1f);
+            // Kanim pixels run y-down; the controller flips them (GetTransformMatrix).
+            float sy = -kbac.animScale * kbac.animHeight * scale.y * (kbac.FlipY ? -1f : 1f);
+
+            bool any = false;
+            try
+            {
+                KBatchGroupData data = anim.animFile != null
+                    ? KAnimBatchManager.Instance().GetBatchGroupData(anim.animFile.animBatchTag)
+                    : null;
+                int elementCount = data != null ? data.frameElements.Count : 0;
+                for (int f = 0; data != null && f < anim.numFrames; f++)
+                {
+                    if (!data.TryGetFrame(anim.firstFrameIdx + f, out KAnim.Anim.Frame frame))
+                        continue;
+                    int end = Mathf.Min(frame.firstElementIdx + frame.numElements, elementCount);
+                    for (int i = frame.firstElementIdx; i < end; i++)
+                    {
+                        KAnim.Anim.FrameElement element = data.GetFrameElement(i);
+                        if (element.multAlpha <= 0f || !kbac.GetSymbolVisiblity(element.symbol))
+                            continue;
+                        KAnim.Build.Symbol symbol = data.GetSymbol(element.symbol);
+                        if (symbol == null || symbol.frameLookup == null)
+                            continue;
+                        KAnim.Build.SymbolFrameInstance symbolFrame = symbol.GetFrame(element.frame);
+                        if (symbolFrame.symbolIdx < 0)
+                            continue;
+                        Vector2 lo = symbolFrame.bboxMin, hi = symbolFrame.bboxMax;
+                        Include(element.transform, lo.x, lo.y, sx, sy, ref minX, ref maxX, ref minY, ref maxY);
+                        Include(element.transform, hi.x, lo.y, sx, sy, ref minX, ref maxX, ref minY, ref maxY);
+                        Include(element.transform, lo.x, hi.y, sx, sy, ref minX, ref maxX, ref minY, ref maxY);
+                        Include(element.transform, hi.x, hi.y, sx, sy, ref minX, ref maxX, ref minY, ref maxY);
+                        any = true;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("OniExtract: could not measure " + anim.name + "'s frames: " + e.Message);
+                any = false;
+            }
+
+            if (!any)
+            {
+                minX = minY = float.MaxValue;
+                maxX = maxY = float.MinValue;
+                float halfW = Mathf.Abs(anim.unScaledSize.x * sx), halfH = Mathf.Abs(anim.unScaledSize.y * sy);
+                if (!RenderCanvas.IsUsableHalfExtent(halfW, halfH))
+                    return false;
+                minX = -halfW; maxX = halfW; minY = -halfH; maxY = halfH;
+            }
+
+            // A rotated controller can reach its box's farthest corner in any direction.
             if (kbac.Rotation != 0f)
-                halfW = halfH = Mathf.Sqrt(halfW * halfW + halfH * halfH);
+            {
+                float r = Mathf.Sqrt(Mathf.Max(minX * minX, maxX * maxX) + Mathf.Max(minY * minY, maxY * maxY));
+                minX = minY = -r;
+                maxX = maxY = r;
+            }
+            return true;
+        }
+
+        private static void Include(Matrix2x3 m, float x, float y, float sx, float sy,
+            ref float minX, ref float maxX, ref float minY, ref float maxY)
+        {
+            Vector3 p = m.MultiplyPoint(new Vector3(x, y, 0f));
+            float wx = p.x * sx, wy = p.y * sy;
+            if (wx < minX) minX = wx;
+            if (wx > maxX) maxX = wx;
+            if (wy < minY) minY = wy;
+            if (wy > maxY) maxY = wy;
         }
 
         // Pose the building's main kanim in the most "active" state. Checks
@@ -332,10 +417,15 @@ namespace OniExtract2024.building
             {
                 if (string.IsNullOrEmpty(name) || !kbac.HasAnimation(name))
                     continue;
+                // ActivePose compares half-extents about the anim origin, the measure the game
+                // stores as unScaledSize; take them from the frame box.
                 KAnim.Anim anim = kbac.GetAnim(name);
                 float halfW = float.NaN, halfH = float.NaN;
-                if (anim != null)
-                    HalfExtent(kbac, anim, out halfW, out halfH);
+                if (TryGetAnimBox(kbac, anim, out float minX, out float maxX, out float minY, out float maxY))
+                {
+                    halfW = Mathf.Max(-minX, maxX);
+                    halfH = Mathf.Max(-minY, maxY);
+                }
                 candidates.Add(new AnimCandidate(name, halfW, halfH));
             }
             return ActivePose.Choose(candidates, cellW, cellH) ?? ProbeFallback(kbac);

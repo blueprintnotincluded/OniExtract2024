@@ -38,10 +38,10 @@ building is fully deployed rather than caught at the start of its timeline. `"ui
 Effects are drawn outside the body and only in some states: steam (SteamTurbine2), wind
 (VerticalWindTunnel), sparks, bubbles, light cones, a stray swoosh frame (FairGasWallPump). Posed
 in `working_loop`, they inflated the crop and set the rect. The game has no "effect" flag on
-symbols, but every anim carries its authored extent (`KAnim.Anim.unScaledSize`), and the states
-without effects have the body's.
+symbols, but every anim's frames say how far its art reaches, and the states without effects
+reach only as far as the body.
 
-`ActivePose.Choose` takes every anim the name scorer accepts, drops anims with an unusable
+`ActivePose.Choose` takes every anim the name scorer accepts, drops anims with no measurable
 extent, prefers steady states to `_pre`/`_pst` transitions, and keeps the anims within 0.25
 cells of the one whose extent is closest to the footprint's. The most active of those wins,
 ties going to name order, never to the controller's dictionary order (which moves when Klei
@@ -53,28 +53,55 @@ two-sided distance keeps them out; an excess-only measure picked them in an offl
 simulation. Introducing this rule changed about 100 icons once, nearly all from `working_loop`
 to `on`.
 
+## How far an anim reaches: measured from its frames
+
+`BuildingImageSnapshotter.TryGetAnimBox` walks every frame of an anim and puts each visible
+element's symbol-frame box (`SymbolFrameInstance.bboxMin/bboxMax`) through the element's
+transform, then the controller's scale and flips: the box the GPU will draw into, over the
+whole anim. The chooser compares its half-extents about the anim origin; the canvas uses the
+box itself.
+
+The game also stores an authored extent, `KAnim.Anim.unScaledSize`, and the first version of
+this code used it. The first in-game run showed why not: it is a half-extent, symmetric about
+the origin, so it reaches as deep below a floor building as the building is tall; and kanims
+carry garbage there. wind_tunnel's working anims say 536870 cells, MicrobeMusher's working_loop
+37003, MiniFridge's `working` NaN, and every anim of the Wall Pumps mod NaN, so FairGasWallPump
+kept its swoosh. Offline, the frame box matched the authored extent of the base game's
+building anims to within about 0.1 cell wherever the latter was sane. It remains the fallback
+when no element resolves; anything over 20 cells or not finite is rejected
+(`RenderCanvas.IsUsableHalfExtent` / `IsUsableBox`).
+
 ## The canvas is sized from the anim
 
 The canvas used to have a fixed two-cell margin, and art past it was cut off with the crop
-edge on the canvas edge. `RenderCanvas.ForArt` now sizes each side from the posed anim's
-authored extent, scaled by the controller and placed at `PositionIncludingOffset`. Points that
-matter:
+edge on the canvas edge. `RenderCanvas.ForBox` now sizes each side from the posed anim's box,
+placed at `PositionIncludingOffset`. Points that matter:
 
-- The extent is a **half-extent about the anim origin**, so the box is symmetric: it reaches
-  as far below a floor building as above. Canvases are taller than the art needs; that costs
-  memory, not pixels, because every margin is whole pixels and the footprint stays on pixel
-  boundaries. The crop works on `Color32` to keep the biggest canvases (about 7 Mpx) cheap.
-- Margins never shrink below two cells, and never grow past 16.
-- Some anims carry garbage: wind_tunnel's working anims 536870 cells, MicrobeMusher's
-  working_loop 37003, MiniFridge's `working` NaN. `RenderCanvas.IsUsableHalfExtent` rejects
-  anything over 20 cells, and such an anim gets the default margin.
-- The extent does not cover child controllers (meters and the like). If the crop still touches
+- Margins never shrink below two cells, and never grow past 16. Every margin is whole pixels,
+  so the footprint stays on pixel boundaries and a bigger canvas changes no pixel of the art.
+  The crop works on `Color32`, a quarter of the memory of `Color`.
+- The box does not cover child controllers (meters and the like). If the crop still touches
   an edge, the snapshotter widens that side by 4 cells and draws again, up to three times.
   Art at the edge after that is logged and reported `clipped`, and Test-Export fails on it.
-- A bigger canvas sees more of the world around the spawn point. `RenderBatch` draws whole
-  32×32-cell batches, so a same-group building of the colony within view would be drawn into
-  the image. Export from a save with clear space around the spawn point (12 cells down-left of
-  the view centre).
+
+## The spawn point is part of the picture
+
+A spawned building draws some parts from its surroundings, and the sweep spawns every building
+at one cell, 12 down and 12 left of the camera's centre:
+
+- **Depth below.** The pitcher pump (`LiquidPumpingStation`) shows `pipe1..4` and the brackene
+  fountain (`BuildingPointStraw`) `straw1..N` for each open cell under them. The first run of
+  this code spawned them over a shaft and their icons gained a 4-cell hose.
+- **Neighbours.** Glass and drywall panels (`AnimTileable`) join the backwalls next to them.
+- **Batches.** `RenderBatch` draws whole 32×32-cell batches, so a colony building of the same
+  render group inside the canvas is drawn into the image.
+
+So export with the camera placed so that the spawn cell sits on a **solid floor** (depth 0)
+with **nothing built around it**. The sweep checks the 9 cells under the spawn cell and a box of
+25×21 cells around it before it starts, and says in Player.log and in its closing message when
+the area is not clear. It does not move the spawn point itself: some buildings change the world
+where they spawn (`MakeBaseSolid` sets cells solid), and moving that into the user's rock or
+base is worse than a warning.
 
 ## `building_image_report.json`
 
@@ -111,9 +138,14 @@ symbols there. Do not loosen `IsRenderable`. Two such fixes are in place:
   it. Copying it from the prefab left every even-width art-only render half a cell left of its
   footprint, rect included, until 2026-10-18.
 - **`meter_target`.** `MeterController` hides that placeholder symbol on the building whenever it
-  builds a meter, which art-only never does, so WallToilet showed a bar. Every render path calls
-  `BuildingImageSnapshotter.PrepareForSnapshot`, which hides it and re-applies the hidden set.
-  Placeholders a building names itself (`logicmeter_target` and so on) are not hidden. Spawning deprecated content corrupts state and
+  builds a meter in `OnSpawn`, which art-only never runs, so WallToilet showed a bar reading
+  "meter target". `BuildingImageSnapshotter.PrepareForSnapshot` hides it on art-only renders
+  only. A real spawn keeps what its own `OnSpawn` chose: Polymerizer shows `meter_target` again
+  after building its meter, because there the symbol is real art. On LiquidCooledFan (art-only)
+  the placeholder is the water jug a meter would draw, so its icon has no jug. Placeholders a
+  building names itself (`logicmeter_target` and so on) are not hidden.
+
+Spawning deprecated content corrupts state and
 crashes the sweep. The culprit was never isolated, so the spawn exclusion stays blunt.
 `SteamTurbine` is allowlisted for a real spawn. Vet any other addition by spawning it in
 isolation first: a crash here loses the whole sweep, not one building.
