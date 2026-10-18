@@ -291,7 +291,7 @@ namespace OniExtract2024.building
                         KAnim.Anim.FrameElement element = data.GetFrameElement(i);
                         if (element.multAlpha <= 0f || !kbac.GetSymbolVisiblity(element.symbol))
                             continue;
-                        KAnim.Build.Symbol symbol = data.GetSymbol(element.symbol);
+                        KAnim.Build.Symbol symbol = OwnSymbol(kbac, data, element.symbol);
                         if (symbol == null || symbol.frameLookup == null)
                             continue;
                         KAnim.Build.SymbolFrameInstance symbolFrame = symbol.GetFrame(element.frame);
@@ -330,6 +330,28 @@ namespace OniExtract2024.building
                 maxX = maxY = r;
             }
             return true;
+        }
+
+        // The symbol this controller draws for `hash`: its own build's, as the GPU does. A batch
+        // group holds many builds that share symbol names (`body`, `light`, ...), and the group's
+        // own lookup (KBatchGroupData.GetSymbol) returns the first build that has the name, so
+        // its boxes describe another building. The first in-game run measured that: the Wall
+        // Pumps buildings' boxes floated above their footprints. The group's lookup is the last
+        // resort, for a symbol none of the controller's files carries.
+        private static KAnim.Build.Symbol OwnSymbol(KBatchedAnimController kbac, KBatchGroupData data, KAnimHashedString hash)
+        {
+            KAnim.Build.Symbol symbol = kbac.curBuild != null ? kbac.curBuild.GetSymbol(hash) : null;
+            if (symbol != null) return symbol;
+            if (kbac.AnimFiles != null)
+            {
+                foreach (KAnimFile file in kbac.AnimFiles)
+                {
+                    KAnim.Build build = file != null && file.GetData() != null ? file.GetData().build : null;
+                    symbol = build != null ? build.GetSymbol(hash) : null;
+                    if (symbol != null) return symbol;
+                }
+            }
+            return data.GetSymbol(hash);
         }
 
         private static void Include(Matrix2x3 m, float x, float y, float sx, float sy,
