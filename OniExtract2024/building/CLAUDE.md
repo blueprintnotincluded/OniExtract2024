@@ -58,8 +58,9 @@ to `on`.
 `BuildingImageSnapshotter.TryGetAnimBox` walks every frame of an anim and puts each drawn
 element's symbol-frame box (`SymbolFrameInstance.bboxMin/bboxMax`) through the element's
 transform, then the controller's scale and flips: the box the GPU will draw into, over the
-whole anim. The chooser compares its half-extents about the anim origin; the canvas uses the
-box itself. Two traps on the way:
+whole anim. The chooser compares the root's half-extents about the anim origin; the canvas and
+the report use the box of every controller the render draws (`TryGetDrawnBox`: the root plus
+meters, foreground layers, arms), since all of them land in the image. Two traps on the way:
 
 - **Hidden on the root is not the same as not drawn.** A building with a `ForegroundLayer`
   gets a layer controller (`KAnimLayering`) that draws the symbols flagged FG or SH, and the
@@ -88,9 +89,9 @@ placed at `PositionIncludingOffset`. Points that matter:
 - Margins never shrink below two cells, and never grow past 16. Every margin is whole pixels,
   so the footprint stays on pixel boundaries and a bigger canvas changes no pixel of the art.
   The crop works on `Color32`, a quarter of the memory of `Color`.
-- The box does not cover child controllers (meters and the like). If the crop still touches
-  an edge, the snapshotter widens that side by 4 cells and draws again, up to three times.
-  Art at the edge after that is logged and reported `clipped`, and Test-Export fails on it.
+- If the crop still touches an edge (art the box cannot see), the snapshotter widens that side
+  by 4 cells and draws again, up to three times. Art at the edge after that is logged and
+  reported `clipped`, and Test-Export fails on it.
 
 ## The spawn point is part of the picture
 

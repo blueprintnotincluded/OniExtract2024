@@ -118,7 +118,7 @@ namespace OniExtract2024.building
 
             var rootKbac = go.GetComponent<KBatchedAnimController>();
             Vector3 footprint = BuildingKanimRenderer.FootprintBottomLeft(go.transform.GetPosition(), cellW);
-            bool hasBox = TryGetFootprintBox(rootKbac, rootKbac != null ? rootKbac.CurrentAnim : null, footprint, out UiImageRect animBox);
+            bool hasBox = TryGetDrawnBox(go, footprint, out UiImageRect animBox);
             RenderCanvas canvas = hasBox
                 ? RenderCanvas.ForBox(cellW, cellH, BuildingKanimRenderer.PixelsPerCell, animBox)
                 : RenderCanvas.Default(cellW, cellH, BuildingKanimRenderer.PixelsPerCell);
@@ -231,6 +231,32 @@ namespace OniExtract2024.building
             Color32[] px = raw.GetPixels32();
             UnityEngine.Object.Destroy(raw);
             return px;
+        }
+
+        // The box every controller the render draws covers in its current anim: the root and its
+        // children (meters, foreground layers, arms, the feeder's food), in uiImageRect's space.
+        // Measuring the root alone left the children's art outside the box, which sized the
+        // canvas short (FishFeeder grew on every run) and buried real surprises in Test-Export's
+        // containment check under meters and arms. False when nothing can be measured.
+        private static bool TryGetDrawnBox(GameObject go, Vector3 footprint, out UiImageRect box)
+        {
+            box = default(UiImageRect);
+            bool any = false;
+            foreach (var kbac in go.GetComponentsInChildren<KBatchedAnimController>())
+            {
+                if (!TryGetFootprintBox(kbac, kbac.CurrentAnim, footprint, out UiImageRect b))
+                    continue;
+                if (!any)
+                {
+                    box = b;
+                    any = true;
+                    continue;
+                }
+                float x0 = Mathf.Min(box.x, b.x), y0 = Mathf.Min(box.y, b.y);
+                float x1 = Mathf.Max(box.x + box.w, b.x + b.w), y1 = Mathf.Max(box.y + box.h, b.y + b.h);
+                box = new UiImageRect { x = x0, y = y0, w = x1 - x0, h = y1 - y0 };
+            }
+            return any && RenderCanvas.IsUsableBox(box);
         }
 
         // The box `anim` covers as this controller draws it, in uiImageRect's space: cells from
