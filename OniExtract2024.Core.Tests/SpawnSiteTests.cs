@@ -25,7 +25,9 @@ namespace OniExtract2024.Core.Tests
             }
 
             public bool Find(int fromX, int fromY, out int x, out int y) =>
-                SpawnSite.TryFindNearest(W, H, Solid, Air, Clear, fromX, fromY, out x, out y);
+                SpawnSite.TryFindNearest(W, H, Solid, Air, Clear, fromX, fromY, out x, out y, out Survey);
+
+            public SpawnSite.Survey Survey;
         }
 
         [Fact]
@@ -79,12 +81,16 @@ namespace OniExtract2024.Core.Tests
                 w.Clear[i] = i % 7 != 0;
 
             Assert.False(w.Find(40, 21, out _, out _));
+            // The survey says it was the surroundings, not the floor or the air.
+            Assert.True(w.Survey.Floor > 0);
+            Assert.True(w.Survey.FloorAndOpen > 0);
+            Assert.Equal(0, w.Survey.Sites);
         }
 
         [Fact]
         public void WorldTooSmall_HasNoSite()
         {
-            var w = new World(20, 20, 5);
+            var w = new World(14, 14, 5);
 
             Assert.False(w.Find(10, 6, out _, out _));
         }

@@ -69,13 +69,14 @@ namespace OniExtract2024.building
 
                 if (kpid != null && kbac != null)
                 {
-                    string pose = PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH);
+                    string pose = PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH, out var considered);
                     var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH,
                         artOnly: render == "artOnly");
                     if (entry != null && report != null)
                     {
                         entry.pose = pose;
                         entry.render = render;
+                        entry.candidates = considered;
                         report[kpid.PrefabTag.Name] = entry;
                     }
                 }
@@ -289,10 +290,14 @@ namespace OniExtract2024.building
                     for (int i = frame.firstElementIdx; i < end; i++)
                     {
                         KAnim.Anim.FrameElement element = data.GetFrameElement(i);
-                        if (element.multAlpha <= 0f || !kbac.GetSymbolVisiblity(element.symbol))
+                        if (element.multAlpha <= 0f)
                             continue;
                         KAnim.Build.Symbol symbol = OwnSymbol(kbac, data, element.symbol);
                         if (symbol == null || symbol.frameLookup == null)
+                            continue;
+                        // A layered symbol is hidden on this controller because its layer
+                        // controller draws it (KAnimLayering), so it is still in the picture.
+                        if (!kbac.GetSymbolVisiblity(element.symbol) && (symbol.flags & LayeredSymbolFlags) == 0)
                             continue;
                         KAnim.Build.SymbolFrameInstance symbolFrame = symbol.GetFrame(element.frame);
                         if (symbolFrame.symbolIdx < 0)
@@ -332,12 +337,16 @@ namespace OniExtract2024.building
             return true;
         }
 
-        // The symbol this controller draws for `hash`: its own build's, as the GPU does. A batch
-        // group holds many builds that share symbol names (`body`, `light`, ...), and the group's
-        // own lookup (KBatchGroupData.GetSymbol) returns the first build that has the name, so
-        // its boxes describe another building. The first in-game run measured that: the Wall
-        // Pumps buildings' boxes floated above their footprints. The group's lookup is the last
-        // resort, for a symbol none of the controller's files carries.
+        // Symbols a controller with a foreground (or shadow) layer hands to a child controller:
+        // KAnimLayering hides them on the parent with SetSymbolVisiblity and the child draws
+        // them. A building with a ForegroundLayer, such as the Wall Pumps mod's, can have its
+        // whole body there, so measuring only what the parent shows missed it.
+        private const int LayeredSymbolFlags = (int)(KAnim.SymbolFlags.FG | KAnim.SymbolFlags.SH);
+
+        // The symbol this controller draws for `hash`: its own build's. A batch group can hold
+        // several builds, and the group's own lookup (KBatchGroupData.GetSymbol) returns the
+        // first build that has the name. The group's lookup is the last resort, for a symbol
+        // none of the controller's files carries.
         private static KAnim.Build.Symbol OwnSymbol(KBatchedAnimController kbac, KBatchGroupData data, KAnimHashedString hash)
         {
             KAnim.Build.Symbol symbol = kbac.curBuild != null ? kbac.curBuild.GetSymbol(hash) : null;
@@ -369,16 +378,20 @@ namespace OniExtract2024.building
         // BuildingPoseOverrides first; falls back to ChooseActiveAnim.
         // ONLY the root controller is posed — driving child controllers stamps
         // a full extra copy of the building at each child's transform offset.
-        // cellW/cellH as for StartExport. Returns where the pose came from, for the report.
-        private string PoseActive(KBatchedAnimController rootKbac, string prefabId, int cellW, int cellH)
+        // cellW/cellH as for StartExport. Returns where the pose came from, and for an auto
+        // pose what was weighed, for the report.
+        private string PoseActive(KBatchedAnimController rootKbac, string prefabId, int cellW, int cellH,
+            out SortedDictionary<string, PoseCandidate> considered)
         {
+            considered = null;
             if (BuildingPoseOverrides.TryGet(prefabId, out var pose))
             {
                 PoseController(rootKbac, pose.Anim, pose.Frame);
                 return "override";
             }
-            string anim = ChooseActiveAnim(rootKbac, cellW, cellH);
+            string anim = ChooseActiveAnim(rootKbac, cellW, cellH, out considered);
             PoseController(rootKbac, anim, -1);
+            if (anim == null) considered = null;
             return anim != null ? "auto" : "default";
         }
 
@@ -420,12 +433,18 @@ namespace OniExtract2024.building
         }
 
         // Returns the active animation to pose the controller in (ActivePose.Choose: the most
-        // active state whose authored extent is close to the footprint's, so effects art does
+        // active state whose measured extent is close to the footprint's, so effects art does
         // not decide the pose), or null to leave the spawned default untouched. cellW/cellH
         // give the footprint; pass -1 to read it from the Building. Exposed internal so the
         // inspector can seed its anim picker with the same default the exporter would choose.
-        internal static string ChooseActiveAnim(KBatchedAnimController kbac, int cellW = -1, int cellH = -1)
+        internal static string ChooseActiveAnim(KBatchedAnimController kbac, int cellW = -1, int cellH = -1) =>
+            ChooseActiveAnim(kbac, cellW, cellH, out _);
+
+        // As above; `considered` gets every anim the scorer accepted, for the report.
+        private static string ChooseActiveAnim(KBatchedAnimController kbac, int cellW, int cellH,
+            out SortedDictionary<string, PoseCandidate> considered)
         {
+            considered = null;
             List<string> names = GetAnimNames(kbac);
             if (names == null || names.Count == 0)
                 return ProbeFallback(kbac);
@@ -449,6 +468,20 @@ namespace OniExtract2024.building
                     halfH = Mathf.Max(-minY, maxY);
                 }
                 candidates.Add(new AnimCandidate(name, halfW, halfH));
+            }
+
+            considered = new SortedDictionary<string, PoseCandidate>(StringComparer.Ordinal);
+            foreach (var c in candidates)
+            {
+                int score = ActivePose.Score(c.name);
+                if (score <= 0) continue;
+                bool measured = !float.IsNaN(c.halfW) && !float.IsNaN(c.halfH);
+                considered[c.name] = new PoseCandidate
+                {
+                    score = score,
+                    halfW = measured ? Round(c.halfW) : (float?)null,
+                    halfH = measured ? Round(c.halfH) : (float?)null,
+                };
             }
             return ActivePose.Choose(candidates, cellW, cellH) ?? ProbeFallback(kbac);
         }

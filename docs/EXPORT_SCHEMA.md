@@ -1099,6 +1099,7 @@ clipping and containment without decoding images.
 | `animBBoxCells` | The box the anim's frames cover over the whole anim, in `uiImageRect`'s space: cells, footprint-relative, bottom-left origin, `+y` up. Measured from the frames' geometry (each visible element's symbol box through its transform), falling back to the game's authored half-extent (`KAnim.Anim.unScaledSize`, symmetric about the anim origin) when no element resolves. It covers the root controller only, so art past it comes from child controllers or the surroundings. Omitted when neither gives a usable box. |
 | `clipped`, `clippedEdges` | Whether the art still reached the canvas edge after the canvas was widened, and which edges (`left`, `right`, `bottom`, `top`). A clipped image's rect describes the cut, not the building. |
 | `canvasGrownEdges` | Edges the canvas was widened at, because the first render's art reached them. Omitted when the first render fitted. |
+| `candidates` | For an `auto` pose only: every anim the name scorer accepted, as `name → {score, halfW, halfH}`, the half-extents (cells, about the anim origin) the chooser compared. `halfW`/`halfH` are omitted for an anim that could not be measured, which leaves it out of the choice. |
 
 Replaced on every full run of the tool; the pose inspector's single-building touch-up merges
 its one entry.

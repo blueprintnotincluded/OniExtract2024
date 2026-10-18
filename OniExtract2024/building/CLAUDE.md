@@ -55,11 +55,19 @@ to `on`.
 
 ## How far an anim reaches: measured from its frames
 
-`BuildingImageSnapshotter.TryGetAnimBox` walks every frame of an anim and puts each visible
+`BuildingImageSnapshotter.TryGetAnimBox` walks every frame of an anim and puts each drawn
 element's symbol-frame box (`SymbolFrameInstance.bboxMin/bboxMax`) through the element's
 transform, then the controller's scale and flips: the box the GPU will draw into, over the
 whole anim. The chooser compares its half-extents about the anim origin; the canvas uses the
-box itself.
+box itself. Two traps on the way:
+
+- **Hidden on the root is not the same as not drawn.** A building with a `ForegroundLayer`
+  gets a layer controller (`KAnimLayering`) that draws the symbols flagged FG or SH, and the
+  root hides them with `SetSymbolVisiblity`. The Wall Pumps mod puts its whole body there, so a
+  box of what the root shows had no body and the swoosh pose won. Layered symbols count.
+- **Resolve symbols through the controller's own build** (`curBuild`, then its other anim
+  files), not the batch group's lookup, which returns the first build carrying the name.
+  This one did not change the 2026-10-18 export, but it is the build the controller draws.
 
 The game also stores an authored extent, `KAnim.Anim.unScaledSize`, and the first version of
 this code used it. The first in-game run showed why not: it is a half-extent, symmetric about
@@ -97,12 +105,16 @@ at one cell, 12 down and 12 left of the camera's centre:
   render group inside the canvas is drawn into the image.
 
 So the sweep picks its own spot (`SpawnArea.Find`, the search itself in Core as `SpawnSite`):
-the cell nearest the old spot (12 down and 12 left of the camera's centre) that stands on 9
-cells of **solid floor**, has 9×8 cells of **gas or vacuum** above (nothing spawns into rock or
-liquid, where buildings that set cells solid would change the world), and has **nothing drawn
-by kanim** and **nothing unrevealed** in a 25×21-cell box around it. Natural cave floors
-qualify; the player prepares nothing. When the world has no such spot, the old one is used and
-Player.log and the closing message say so. The connection-sprite tool uses the same spot.
+the cell nearest the old spot (12 down and 12 left of the camera's centre) that stands on 3
+cells of **solid floor** (the cells the pump and the fountain look down from), has 7×6 cells of
+**gas or vacuum** above (the largest footprint; nothing spawns into rock or liquid, where
+buildings that set cells solid would change the world), and has **no building or geyser drawn
+by kanim** and **nothing unrevealed** in a 17×15-cell box around it. Plants, debris and
+critters do not count: they never share a render batch with a building. Natural cave floors
+qualify; the player prepares nothing. Player.log says where it spawned and how many cells
+passed each test; when the world has no such spot, the old one is used and the closing message
+says so. The connection-sprite tool uses the same spot. The first version also counted plants
+and debris and asked for 9×8 cells of air, and found nothing in a lived-in colony.
 
 Status icons (no power, unreachable, ...) are not this problem: the game draws them as UI, and
 the renderer only draws kanim batches.

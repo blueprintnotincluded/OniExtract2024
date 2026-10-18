@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using OniExtract2024.connection;
 
 namespace OniExtract2024.building
@@ -54,5 +55,25 @@ namespace OniExtract2024.building
         /// them; null when the first render fitted.
         /// </summary>
         public string[] canvasGrownEdges;
+
+        /// <summary>
+        /// For an <c>auto</c> pose: every anim the name scorer accepted, with what
+        /// ActivePose.Choose weighed, so a pick can be explained from the file. Null otherwise.
+        /// </summary>
+        public SortedDictionary<string, PoseCandidate> candidates;
+    }
+
+    /// <summary>One anim ActivePose.Choose considered.</summary>
+    public class PoseCandidate
+    {
+        /// <summary>ActivePose.Score of the name.</summary>
+        public int score;
+
+        /// <summary>
+        /// Half-extents about the anim origin in cells, as measured from the frames; null when
+        /// the anim could not be measured, which leaves it out of the choice.
+        /// </summary>
+        public float? halfW;
+        public float? halfH;
     }
 }
