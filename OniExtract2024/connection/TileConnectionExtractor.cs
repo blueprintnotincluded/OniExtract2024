@@ -66,9 +66,11 @@ namespace OniExtract2024.connection
             return bits;
         }
 
-        /// <returns>number of PNG files written for this building.</returns>
-        public static int Export(BuildingDef def)
+        /// <returns>number of PNG files written for this building. <paramref name="cell"/> is
+        /// where the cell sits on them, or null when nothing was written.</returns>
+        public static int Export(BuildingDef def, out ConnectionSpriteCell cell)
         {
+            cell = null;
             TextureAtlas atlas = def.BlockTileAtlas;
             if (atlas == null || atlas.items == null || atlas.items.Length == 0 || atlas.texture == null)
                 return 0;
@@ -143,7 +145,10 @@ namespace OniExtract2024.connection
                     (atlas.texture != null ? atlas.texture.name : "?") + ", items=" + count +
                     ", firstName=" + atlas.items[0].name + ").");
             else
+            {
+                cell = ConnectionSpriteCell.ForTile(frame, cellPx, Overhang);
                 Debug.Log("OniExtract: tile " + def.PrefabID + " -> " + written + " sprites (" + frame + "px).");
+            }
             return written;
         }
 

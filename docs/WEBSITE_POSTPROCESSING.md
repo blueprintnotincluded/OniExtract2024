@@ -16,6 +16,13 @@
 > buildings, and **"Rendering model"** still says 275 of 449 buildings have ports. The export has
 > emitted overlay names since U59, and the same document's own contract section gives the
 > current figures (487 buildings, 322 with ports). The fix belongs in the website repository.
+>
+> **Edited here, 2026-10-18, ahead of the source:** contract clause 5 is replaced by the
+> `connection_sprite_cells.json` sidecar, which the export now writes (see
+> [WEBSITE_SIZE_CONSISTENCY.md](WEBSITE_SIZE_CONSISTENCY.md)). Pipeline step 3, "Connection-sprite
+> scale (measured, not assumed)" and "Rendering model" still describe measuring `15.png`, which
+> is what the importer does until it reads the sidecar. When the website's own document is
+> updated, refresh this copy from it.
 
 # OniExtract2024 import — export contract & converter reference
 
@@ -115,12 +122,16 @@ ratio (see below). What breaks rendering is changing **framing**, not pixel coun
 3. **Connection sprites:** all 16 of `0–15` present, bitmask `left=1/right=2/up=4/down=8`.
 4. **Connectable signal:** the `connection_sprites/<prefabId>/` directory exists
    (`building.json` carries no `tileableLeftRight/tileableTopBottom`).
-5. **Connection-sprite geometry** (so the measured scale stays correct):
-   - All 16 states share **one canvas size** and **one cell registration** (same centre,
-     same pixels-per-cell). Scale them up together.
-   - In `15.png` the opaque pixels equal **exactly one cell, centred**. Overhang/caps on
-     *disconnected* sides in other states is fine and expected. `15.png` is our measuring
-     stick; if it gains overhang or goes off-centre our scale goes wrong.
+5. **Connection-sprite geometry** comes from `connection_sprite_cells.json` at the export
+   root, not from the art:
+   - One entry per `connection_sprites/<prefabId>/` directory:
+     `{ "canvas": {w, h}, "cell": {x, y, w, h} }` in pixels, top-left origin, `+y` down, like
+     the PNG. All 16 states share it: **one canvas size** and **one cell registration**.
+   - `cell` is the building's cell on the canvas, so the scale is `canvas.w / cell.w` cells
+     and the sprite is anchored on the cell's centre. Art outside `cell` is overhang, in any
+     state including `15.png` (the transit tube's corner fillets make its all-connected state
+     2.4 cells wide). `15.png` is no longer a measuring stick.
+   - The export guarantees that `15.png` covers the declared cell (Test-Export checks it).
 6. **Building fields we read** keep their names/shapes: `name`, `nameString`,
    `isFoundation`, `isKAnimTile`, `isUtility`, `widthInCells`, `heightInCells`,
    `sceneLayer`, `objectLayer`, `viewMode`, `permittedRotations`, `dragBuild`,

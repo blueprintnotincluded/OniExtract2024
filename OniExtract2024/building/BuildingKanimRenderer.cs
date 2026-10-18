@@ -1,8 +1,8 @@
 // Reusable kanim renderer shared between BuildingImageSnapshotter (export path)
 // and BuildingPoseInspectorScreen (preview path). Init() creates a camera + RenderTexture
-// sized to the building footprint. Render() draws the current frame without ReadPixels,
-// so the inspector can keep the RT alive across pose changes. ReadPixels() materialises
-// it to a Texture2D for the export caller. Cleanup() releases the camera and RT.
+// laid out as a RenderCanvas around the building footprint. Render() draws the current frame
+// without ReadPixels, so the inspector can keep the RT alive across pose changes. ReadPixels()
+// materialises it to a Texture2D for the export caller. Cleanup() releases the camera and RT.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -13,8 +13,8 @@ namespace OniExtract2024.building
 {
     public class BuildingKanimRenderer
     {
-        public const float PixelsPerCell = 200f;
-        public const float PaddingPx = 400f;
+        // The game's own kanim scale: KGlobalAnimParser reads kanim pixels at 0.005 units each.
+        public const int PixelsPerCell = 200;
         public const int DrawLayer = 30;
 
         private Camera cam;
@@ -24,14 +24,30 @@ namespace OniExtract2024.building
         public int TexW { get; private set; }
         public int TexH { get; private set; }
 
+        // The bottom-left corner of the footprint of a building at buildingPos, in world units.
+        // The art is centred on the footprint (BuildingComplete gives even-width buildings a
+        // half-cell visualizer offset), so the footprint spans width/2 either side of that
+        // centre and starts at the building's position vertically.
+        public static Vector3 FootprintBottomLeft(Vector3 buildingPos, int widthInCells)
+        {
+            var corner = buildingPos;
+            corner.x += (widthInCells % 2 == 0 ? 0.5f : 0f) - widthInCells / 2f;
+            return corner;
+        }
+
+        // The fixed two-cell margin: the inspector's preview, which is not measured.
         public void Init(int widthInCells, int heightInCells, Vector3 buildingPos)
         {
-            int texW = Mathf.CeilToInt(widthInCells * PixelsPerCell + 2 * PaddingPx);
-            int texH = Mathf.CeilToInt(heightInCells * PixelsPerCell + 2 * PaddingPx);
-            TexW = texW;
-            TexH = texH;
+            Init(RenderCanvas.Default(widthInCells, heightInCells, PixelsPerCell),
+                FootprintBottomLeft(buildingPos, widthInCells));
+        }
 
-            rt = new RenderTexture(texW, texH, 24);
+        public void Init(RenderCanvas canvas, Vector3 footprintBottomLeft)
+        {
+            TexW = canvas.Width;
+            TexH = canvas.Height;
+
+            rt = new RenderTexture(TexW, TexH, 24);
             rt.Create();
 
             var reference = CameraController.Instance.baseCamera;
@@ -42,14 +58,13 @@ namespace OniExtract2024.building
             cam.backgroundColor = Color.clear;
             cam.cullingMask = 1 << DrawLayer;
 
-            var pos = buildingPos;
+            // Centre the camera on the canvas, wherever that falls relative to the footprint
+            // once the margins differ from side to side.
+            var pos = footprintBottomLeft + new Vector3(canvas.CentreX, canvas.CentreY, 0f);
             pos.z = -100f;
-            pos.y += heightInCells / 2f;
-            if (widthInCells % 2 == 0)
-                pos.x += 0.5f;
             cam.transform.position = pos;
-            cam.orthographicSize = texH / (2f * PixelsPerCell);
-            cam.aspect = (float)texW / texH;
+            cam.orthographicSize = TexH / (2f * PixelsPerCell);
+            cam.aspect = (float)TexW / TexH;
         }
 
         // Draws the current KBAC state into the RT. Does not read pixels back.

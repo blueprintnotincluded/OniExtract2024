@@ -43,5 +43,39 @@ namespace OniExtract2024.building
                     outPx[oy * cw + ox] = px[(minY + oy) * srcW + (minX + ox)];
             return outPx;
         }
+
+        // The same two helpers over Color32, for the building render: a quarter of the memory
+        // of Color[] on canvases that now reach several megapixels. The threshold is the same
+        // rule in bytes: alpha / 255 > 0.03 exactly when alpha >= 8.
+        internal const byte AlphaThreshold32 = 7;
+
+        internal static bool FindOpaqueBBox(Color32[] px, int w, int h,
+            out int minX, out int minY, out int maxX, out int maxY)
+        {
+            minX = w; maxX = -1; minY = h; maxY = -1;
+            for (int y = 0; y < h; y++)
+            {
+                int row = y * w;
+                for (int x = 0; x < w; x++)
+                {
+                    if (px[row + x].a > AlphaThreshold32)
+                    {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+            return maxX >= minX && maxY >= minY;
+        }
+
+        internal static Color32[] CropPixels(Color32[] px, int srcW, int minX, int minY, int cw, int ch)
+        {
+            Color32[] outPx = new Color32[cw * ch];
+            for (int oy = 0; oy < ch; oy++)
+                System.Array.Copy(px, (minY + oy) * srcW + minX, outPx, oy * cw, cw);
+            return outPx;
+        }
     }
 }

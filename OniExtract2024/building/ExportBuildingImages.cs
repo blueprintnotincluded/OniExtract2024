@@ -72,6 +72,10 @@ namespace OniExtract2024.building
         private static readonly Dictionary<string, UiImageRect> Rects =
             new Dictionary<string, UiImageRect>();
 
+        // How each of those images was made; becomes building_image_report.json.
+        private static readonly Dictionary<string, BuildingImageReportEntry> Report =
+            new Dictionary<string, BuildingImageReportEntry>();
+
         public static void Start()
         {
             if (InGameExport.TryBegin(ExportName))
@@ -85,6 +89,7 @@ namespace OniExtract2024.building
             try
             {
                 Rects.Clear();
+                Report.Clear();
                 Debug.Log("OniExtract: building-image export started -> " + OutputDir);
 
                 // Rocket modules need a CraftModuleInterface ancestor to find on spawn.
@@ -96,11 +101,12 @@ namespace OniExtract2024.building
                 worldGO.AddOrGet<Clustercraft>();
                 worldGO.AddOrGet<CraftModuleInterface>();
 
-                // Spawn well off-screen to avoid disturbing the live colony.
-                int cell = Grid.PosToCell(Camera.main.transform.position);
-                for (int i = 0; i < 12; i++)
-                    cell = Grid.CellDownLeft(cell);
-                Vector3 spawnPos = Grid.CellToPos(cell);
+                // Spawn somewhere the surroundings cannot leak into the images; see SpawnArea.
+                Vector3 spawnPos = Grid.CellToPos(SpawnArea.Find(out string spawnNote, out bool spawnClear));
+                if (spawnClear)
+                    Debug.Log("OniExtract: building images " + spawnNote + ".");
+                else
+                    Debug.LogWarning("OniExtract: building images: " + spawnNote + ".");
 
                 // notRendered: spawned, but gone or empty by the time the snapshot ran, so no
                 // image was written (a mod that deletes its own building on spawn, say).
@@ -133,7 +139,8 @@ namespace OniExtract2024.building
                     // The footprint is passed explicitly because an art-only object has no
                     // Building to derive it from; for a real spawn it is the same value.
                     var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                    snapshotter.StartExport(OutputDir, Rects, def.WidthInCells, def.HeightInCells);
+                    snapshotter.StartExport(OutputDir, Rects, def.WidthInCells, def.HeightInCells,
+                        Report, spawned ? "spawned" : "artOnly");
                     // Wait for the snapshotter to destroy the temp building. Unity defers
                     // Destroy to end-of-frame, so IsNullOrDestroyed becomes true one frame
                     // after KDestroyGameObject — the while loop handles this robustly.
@@ -186,7 +193,7 @@ namespace OniExtract2024.building
                     temp.SetActive(true);
 
                     var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
-                    snapshotter.StartExport(OutputDir, Rects, cellW, cellH);
+                    snapshotter.StartExport(OutputDir, Rects, cellW, cellH, Report, "spawned");
                     while (!temp.IsNullOrDestroyed())
                         yield return null;
                     if (Rects.ContainsKey(prefabName))
@@ -206,10 +213,26 @@ namespace OniExtract2024.building
                 PatchBuildingJsonRects(Rects, replaceStore: true);
                 VerifyRectsMatchPngs(Rects);
 
+                var clipped = new List<string>();
+                int grown = 0;
+                foreach (var kv in Report)
+                {
+                    if (kv.Value.clipped) clipped.Add(kv.Key);
+                    if (kv.Value.canvasGrownEdges != null) grown++;
+                }
+                bool reportWritten = BuildingImageReport.ReplaceAll(Report);
+                Debug.Log("OniExtract: building image report -> " + BuildingImageReport.PersistPath + " ("
+                    + Report.Count + " entries, " + grown + " re-rendered on a wider canvas, " + clipped.Count + " clipped)");
+                if (clipped.Count > 0)
+                    Debug.LogWarning("OniExtract: clipped at the canvas edge: " + string.Join(", ", clipped));
+
                 summary = "Building images exported: " + exported + " buildings and "
                     + terrainExported + " terrain features rendered"
                     + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
-                    + ".\n" + OutputDir;
+                    + (clipped.Count > 0 ? ", " + clipped.Count + " clipped" : "")
+                    + ".\n" + OutputDir
+                    + (reportWritten ? "" : "\nbuilding_image_report.json could not be written. See Player.log.")
+                    + (spawnClear ? "" : "\nNo clear spot was found to render in, so some images may show their surroundings. See Player.log.");
             }
             finally
             {
@@ -334,9 +357,17 @@ namespace OniExtract2024.building
         {
             if (posedBuilding == null || posedBuilding.IsNullOrDestroyed()) return;
             var rects = new Dictionary<string, UiImageRect>();
-            BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
+            var entry = BuildingImageSnapshotter.RenderAndWrite(posedBuilding, OutputDir, rects);
             if (rects.Count > 0)
                 PatchBuildingJsonRects(rects, replaceStore: false);
+            if (entry != null)
+            {
+                // The inspector saves the pose as an override before calling this, and only
+                // inspects buildings it can spawn.
+                entry.pose = "override";
+                entry.render = "spawned";
+                BuildingImageReport.Merge(posedBuilding.GetComponent<KPrefabID>().PrefabTag.Name, entry);
+            }
         }
 
         // A stand-in for a building that cannot be spawned for real (rocket modules need a
@@ -372,10 +403,17 @@ namespace OniExtract2024.building
             kbac.animScale = source.animScale;
             go.SetActive(true);
 
+            // A spawned building's art is centred on its footprint: BuildingComplete.OnPrefabInit
+            // (or Rotatable.OnSpawn, the same value at neutral orientation) gives the controller
+            // def.GetVisualizerOffset(), half a cell right for an even width. Neither runs here,
+            // and the prefab's own controller does not carry the offset, so copying it left every
+            // even-width art-only render half a cell left of its footprint, rect included.
             // Offset's setter re-registers the controller with the batcher, so set it once
-            // the controller is live rather than on the inactive clone.
-            if (source.Offset != Vector3.zero)
-                kbac.Offset = source.Offset;
+            // the controller is live rather than on the inactive clone, and only when there
+            // is an offset to set (an odd width has none).
+            Vector3 offset = def.GetVisualizerOffset();
+            if (offset != Vector3.zero)
+                kbac.Offset = offset;
             return go;
         }
 

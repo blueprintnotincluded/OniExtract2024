@@ -1,8 +1,9 @@
 # OniExtract2024 — Export Schema Reference
 
 Field-level reference for the 13 JSON files written by the game-data export, plus the
-`ui_image_rects.json` sidecar written by the building-image tool. For the overall output layout
-and the connection-sprite tool, see [README.md](../README.md).
+sidecars at the export root: `ui_image_rects.json` and `building_image_report.json` from the
+building-image tool, `connection_sprite_cells.json` from the connection-sprite tool. For the
+overall output layout and the connection-sprite tool, see [README.md](../README.md).
 
 Documented against game version **U59-737790-SCA**, 4 active DLCs (includes `EXPANSION1_ID` —
 Spaced Out). Counts below reflect that version and shift as the game updates.
@@ -11,8 +12,8 @@ Export path: `%USERPROFILE%\Documents\Klei\OxygenNotIncluded\export\database\`
 The export is written in place, and each tool prunes its output to the prefabs loaded when it
 ran: the game-data export removes every `ui_image/` PNG and every `ui_image_rects.json` entry
 that no loaded prefab accounts for, the building-image tool replaces `ui_image_rects.json`
-with what it measured, and the connection-sprite tool clears `connection_sprites/` before it
-writes. A building from a mod that has since been disabled leaves nothing behind, so the
+and `building_image_report.json` with what it measured, and the connection-sprite tool clears
+`connection_sprites/` and `connection_sprite_cells.json` before it writes. A building from a mod that has since been disabled leaves nothing behind, so the
 output describes exactly the game that produced it.
 
 Every file shares these root-level metadata fields:
@@ -1033,6 +1034,75 @@ It has two readers:
   buildings and have no `building.json` entry, so this file is the only place their rects
   exist. The importer reads it for those, and keeps reading buildings' rects from
   `building.json`.
+
+---
+
+## connection_sprite_cells.json
+
+At the export root, beside `connection_sprites/`, written by the in-game connection-sprite
+tool. Where the building's cell sits on each connectable's 16 PNGs, so the website can scale
+and anchor them from what the mod drew instead of measuring the art:
+
+```jsonc
+{
+  "TravelTube": { "canvas": { "w": 240, "h": 240 }, "cell": { "x": 70.0, "y": 70.0, "w": 100.0, "h": 100.0 } },
+  "Wire":       { "canvas": { "w": 106, "h": 106 }, "cell": { "x": 3.0,  "y": 3.0,  "w": 100.0, "h": 100.0 } },
+  "Tile":       { "canvas": { "w": 192, "h": 192 }, "cell": { "x": 32.0, "y": 32.0, "w": 128.0, "h": 128.0 } }
+}
+```
+
+- One entry per directory in `connection_sprites/`, keyed by the same prefab id; all 16 PNGs of
+  a connectable share it.
+- Pixels, measured like the PNG itself: origin at the **top-left**, `+y` down. `canvas` is the
+  PNG size. `cell` is the building's footprint on it, which is one cell for every connectable
+  the game has, so `cell.w` is the pixels per cell (100 for utilities; the atlas resolution
+  for tiles, 128 for the base game's). `cell` values are real numbers: a tile atlas at a size
+  not divisible by 4 puts the cell on a fractional pixel.
+- Art outside `cell` is overhang into the neighbouring cells: a tile's disconnected borders,
+  a pipe's outline, the transit tube's corner fillets (its all-connected state is 2.4 cells
+  wide). Drawing a sprite at `canvas.w / cell.w` cells wide, with the cell's centre on the
+  grid cell's centre, places it as the game does.
+- Utilities: the cell is centred on a square canvas sized to the largest state's art. Tiles: a
+  1.5-cell canvas with the cell 0.25 cells in from every side.
+- Replaced on every run of the tool, after both passes, so it lists exactly the directories on
+  disk. Test-Export checks that, that each canvas is the PNGs' size, and that the
+  all-connected state (`15.png`) covers the declared cell.
+
+---
+
+## building_image_report.json
+
+At the export root, written by the in-game building-image tool from the same renders as
+`ui_image_rects.json`. **Diagnostic: the website does not read it.** It records how each image
+was made, so a change between two exports can be explained from the JSON diff ("its pose went
+from `working_loop` to `on`") rather than from the pixels, and so Test-Export can check
+clipping and containment without decoding images.
+
+```jsonc
+{
+  "SteamTurbine2": {
+    "anim": "on", "frame": 2, "frameCount": 4,
+    "pose": "auto", "render": "spawned",
+    "canvasPx": { "w": 1800, "h": 1400 },
+    "animBBoxCells": { "x": -0.2, "y": -1.35, "w": 5.31, "h": 4.44 },
+    "clipped": false
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `anim`, `frame`, `frameCount` | The root controller's anim, the 0-based frame rendered, and its frame count. `anim` is omitted when the controller had none. |
+| `pose` | `auto` (chosen by `ActivePose.Choose`), `override` (from `pose_overrides.json` or `BuildingPoseOverrides`), or `default` (no anim scored, so the one it spawned with). |
+| `render` | `spawned` (a real instance) or `artOnly` (its kanim on an effect entity; buildings that cannot be spawned safely). |
+| `canvasPx` | The canvas the opaque crop was taken from, in pixels at 200 px/cell. |
+| `animBBoxCells` | The box the drawn controllers' anims cover, over every frame, in `uiImageRect`'s space: cells, footprint-relative, bottom-left origin, `+y` up. Measured from the frames' geometry (each drawn element's symbol box through its transform) for the root controller and its children (meters, foreground layers, arms), falling back to the game's authored half-extent (`KAnim.Anim.unScaledSize`, symmetric about the anim origin) for a controller where no element resolves. Art past it comes from something the box cannot see, such as the surroundings. Omitted when nothing gives a usable box. |
+| `clipped`, `clippedEdges` | Whether the art still reached the canvas edge after the canvas was widened, and which edges (`left`, `right`, `bottom`, `top`). A clipped image's rect describes the cut, not the building. |
+| `canvasGrownEdges` | Edges the canvas was widened at, because the first render's art reached them. Omitted when the first render fitted. |
+| `candidates` | For an `auto` pose only: every anim the name scorer accepted, as `name → {score, halfW, halfH}`, the half-extents (cells, about the anim origin) the chooser compared. `halfW`/`halfH` are omitted for an anim that could not be measured, which leaves it out of the choice. |
+
+Replaced on every full run of the tool; the pose inspector's single-building touch-up merges
+its one entry.
 
 ---
 

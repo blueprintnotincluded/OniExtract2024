@@ -23,7 +23,7 @@ Contributors may work from a fork, in which case that is `origin` and the canoni
 
 **Almost nothing here can be verified without running the game.** The mod links against ONI's
 `Assembly-CSharp.dll` and `UnityEngine.dll`, which are not redistributable, so CI builds only
-the Unity-free `OniExtract2024.Core` project. A green CI run means *six unit tests passed* — it
+the Unity-free `OniExtract2024.Core` project. A green CI run means *the Core unit tests passed* — it
 does not mean the mod compiles, loads, or exports correctly.
 
 Never report an export-affecting change as working on the strength of a build or a test run.
@@ -50,10 +50,12 @@ with the game installed has to confirm it.
     `uiImageRect`.
   - `connection/` — the 16-state connection-sprite export for wires/pipes/rails/tiles.
 - **`OniExtract2024.Core/`** — netstandard2.0, **no Unity or ONI reference**. The only code CI
-  can verify. Currently `ExportPaths` and `UiImageRect`. Pure logic belongs here.
-- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 6 tests.
+  can verify: export paths and pruning, `UiImageRect`, the building-render canvas
+  (`RenderCanvas`), the pose rule (`ActivePose`), the render spot (`SpawnSite`),
+  connection-sprite geometry and the two sidecars' shapes. Pure logic belongs here.
+- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 54 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
-  with ONI installed. 48 tests.
+  with ONI installed. 50 tests.
 - **`tools/`** — Helpers that run outside the game. `Test-Export.ps1` validates an
   export and diffs it against a snapshot (see "Validating an export" below);
   `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file.
@@ -72,16 +74,17 @@ a crash in the export is not a crash in the loading screen.
 | # | Path | Trigger | Writes |
 |---|---|---|---|
 | 1 | Game data | Manual: load any colony, **Esc** → *Export Game Data* | 13 JSON files in `export/database/`, one PNG per building/item in `export/ui_image/` |
-| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings and terrain features (geysers, vents, volcanoes) at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` |
-| 3 | Connection sprites | Manual: load any colony, **Esc** → *Export Connection Sprites* | `export/connection_sprites/{prefabId}/{0..15}.png` |
+| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings and terrain features (geysers, vents, volcanoes) at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` and `export/building_image_report.json` |
+| 3 | Connection sprites | Manual: load any colony, **Esc** → *Export Connection Sprites* | `export/connection_sprites/{prefabId}/{0..15}.png` and `export/connection_sprite_cells.json` |
 
 Path 1 authors `building.json` from scratch every time it runs. Run 1 before 2: path 2 patches
 `uiImageRect` into the `building.json` that path 1 wrote.
 
 The export folder is written in place, so each path prunes its output to the prefabs loaded
 when it ran: path 1 deletes `ui_image/` PNGs and `ui_image_rects.json` entries no loaded prefab
-accounts for, path 2 replaces `ui_image_rects.json` with what it measured, and path 3 clears
-`connection_sprites/` before writing. Otherwise a disabled mod's buildings would ship as current.
+accounts for, path 2 replaces `ui_image_rects.json` and `building_image_report.json` with what it
+measured, and path 3 clears `connection_sprites/` and `connection_sprite_cells.json` before
+writing. Otherwise a disabled mod's buildings would ship as current.
 
 ## Development Commands
 
@@ -102,8 +105,8 @@ projects that link against the game. If the game lives elsewhere, set them in a 
 ### Tests
 
 ```bash
-dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 6 tests
-dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 48 tests
+dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 54 tests
+dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 50 tests
 ```
 
 ### Validating an export
@@ -118,9 +121,15 @@ command checks the contract invariants below and the documented spot checks, the
 every JSON value and every PNG with the snapshot. A behaviour-neutral change should come back
 `RESULT: clean`. Renders are not byte-stable between runs, so images are compared by size,
 outline and colour rather than by hash. An export where only path 1 has run fails
-the checks for `ui_image_rects.json` and `connection_sprites`; pass `-AllowPartialExport` if that
-is what you meant to check. When a new field gets a spot check in the docs, add it to the script
-as well.
+the checks for `ui_image_rects.json`, `building_image_report.json`, `connection_sprites` and
+`connection_sprite_cells.json`; pass `-AllowPartialExport` if that is what you meant to check.
+When a new field gets a spot check in the docs, add it to the script as well.
+
+The script also prints a short list of **outliers** for a human to look at, failing nothing:
+icons far off their footprint's size, icons past the box their anims cover, clipped icons,
+connection sprites overhanging their cell. Accepted ones live in its `KnownOutliers` table with
+the reason, so a new one stands out. When an image changes, read `building_image_report.json`'s
+diff first: it says which anim, frame and canvas produced it.
 
 ### Probing the game assembly
 
@@ -174,6 +183,10 @@ Breaking one of these breaks the website silently — the site renders, just wro
 - **`ui_image_rects.json` at the export root is read by the website**, not just by this mod. It
   is the only route by which terrain features' rects reach the site. Keep its location and its
   shape (`prefabId → {x, y, w, h}`).
+- **`connection_sprite_cells.json` at the export root is the connection sprites' geometry**
+  (`prefabId → {canvas: {w, h}, cell: {x, y, w, h}}`, pixels, y-down): the website scales and
+  anchors the sprites from it instead of measuring `15.png`. Every connection-sprite directory
+  needs its entry, and `15.png` must cover the declared cell.
 - **Cell offsets are measured from the building's origin cell, not its bottom-left corner.**
   That covers `utilities[].offset`, `attachPoints`, `attachablePosition` and
   `areasOfEffect[].origin`. The origin is the bottom row at column `floor((width-1)/2)`, so it
@@ -201,6 +214,10 @@ Breaking one of these breaks the website silently — the site renders, just wro
     data yet. A handoff moves to `docs/archive/` once the website has acted on it.
   - [WEBSITE_ROCKET_INTERIORS.md](docs/WEBSITE_ROCKET_INTERIORS.md) — website handoff for
     rocket-interior layouts and backdrop art, carried across once as a zip rather than exported.
+  - [WEBSITE_SIZE_CONSISTENCY.md](docs/WEBSITE_SIZE_CONSISTENCY.md) — website handoff for
+    `connection_sprite_cells.json` (read it instead of measuring `15.png`), the pinned icons to
+    delete, and why each icon changed in the 2026-10-18 export. Still open until the importer
+    reads the sidecar.
   - [OFFLINE_ASSET_EXTRACTION.md](docs/OFFLINE_ASSET_EXTRACTION.md) — reading the game's Unity
     asset files offline with `tools/AssetDump`: setup, commands, where things live.
   - [AREA_OF_EFFECT.md](docs/AREA_OF_EFFECT.md) — how `areasOfEffect[]` is derived.

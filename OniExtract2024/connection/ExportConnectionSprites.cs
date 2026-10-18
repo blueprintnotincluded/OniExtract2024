@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using Newtonsoft.Json;
+using OniExtract2024.building;
 using UnityEngine;
 
 namespace OniExtract2024.connection
@@ -39,6 +41,12 @@ namespace OniExtract2024.connection
 
         public static string OutputDir(string prefabId) => Path.Combine(RootDir, prefabId);
 
+        // Where each connectable's cell sits on its PNGs (ConnectionSpriteCell). Beside the
+        // folder rather than in database/, because this tool writes it and the game-data export
+        // must not be able to drop it; the same reason ui_image_rects.json lives there.
+        public static string CellsPath =>
+            Path.Combine(Util.RootFolder(), "export", "connection_sprite_cells.json");
+
         public static void Start()
         {
             if (InGameExport.TryBegin(ExportName))
@@ -56,11 +64,14 @@ namespace OniExtract2024.connection
             // disabled) would otherwise ship to the website as current. A connectable this run
             // fails to write is then missing rather than stale, which the website notices.
             // If the folder cannot be cleared (open in another program, say), writing into it
-            // would produce exactly the stale mix this exists to prevent, so stop here.
+            // would produce exactly the stale mix this exists to prevent, so stop here. The
+            // cells sidecar describes the folder, so it goes with it and is rewritten at the end.
             try
             {
                 if (Directory.Exists(RootDir))
                     Directory.Delete(RootDir, true);
+                if (File.Exists(CellsPath))
+                    File.Delete(CellsPath);
             }
             catch (Exception e)
             {
@@ -72,6 +83,8 @@ namespace OniExtract2024.connection
 
             int tileBuildings = 0, tileSprites = 0;
             int utilityBuildings = 0;
+            // Sorted, so the file diffs cleanly from one run to the next.
+            var cells = new SortedDictionary<string, ConnectionSpriteCell>(StringComparer.Ordinal);
 
             try
             {
@@ -80,22 +93,24 @@ namespace OniExtract2024.connection
                 {
                     if (def == null || !def.isKAnimTile)
                         continue;
-                    int files = TileConnectionExtractor.Export(def);
+                    int files = TileConnectionExtractor.Export(def, out ConnectionSpriteCell tileCell);
                     if (files > 0)
                     {
                         tileBuildings++;
                         tileSprites += files;
+                        cells[def.PrefabID] = tileCell;
                     }
                     yield return null;
                 }
                 Debug.Log("OniExtract: tiles exported - " + tileBuildings + " buildings, " + tileSprites + " sprites.");
 
                 // --- 2) Utilities: spawn a temp instance, snapshot 16 kanim states -------
-                // Place well away from the camera/colony to avoid disturbing the view.
-                int cell = Grid.PosToCell(Camera.main.transform.position);
-                for (int i = 0; i < 12; i++)
-                    cell = Grid.CellDownLeft(cell);
-                Vector3 spawnPos = Grid.CellToPos(cell);
+                // Spawn where nothing around can be drawn into the sprites; see SpawnArea.
+                Vector3 spawnPos = Grid.CellToPos(SpawnArea.Find(out string spawnNote, out bool spawnClear));
+                if (spawnClear)
+                    Debug.Log("OniExtract: connection sprites " + spawnNote + ".");
+                else
+                    Debug.LogWarning("OniExtract: connection sprites: " + spawnNote + ".");
 
                 foreach (var def in Assets.BuildingDefs)
                 {
@@ -115,9 +130,15 @@ namespace OniExtract2024.connection
                     // usable connection manager is spawned, skipped with a warning, and
                     // leaves no sprites behind.
                     if (snapshotter.WroteSprites)
+                    {
                         utilityBuildings++;
+                        cells[def.PrefabID] = snapshotter.Cell;
+                    }
                 }
                 Debug.Log("OniExtract: utilities exported - " + utilityBuildings + " buildings.");
+
+                // Written after both passes, so it lists exactly the directories on disk.
+                bool cellsWritten = WriteCells(cells);
 
                 // There is no third pass for bridges. A wire or pipe bridge has one fixed
                 // sprite: it carries no KAnimGraphTileVisualizer and does not redraw to match
@@ -126,11 +147,27 @@ namespace OniExtract2024.connection
 
                 Debug.Log("OniExtract: connection-sprite export complete -> " + RootDir);
                 summary = "Connection sprites exported: " + tileBuildings + " tiles and "
-                    + utilityBuildings + " utilities.\n" + RootDir;
+                    + utilityBuildings + " utilities.\n" + RootDir
+                    + (cellsWritten ? "" : "\nconnection_sprite_cells.json could not be written. See Player.log.");
             }
             finally
             {
                 InGameExport.End(summary);
+            }
+        }
+
+        private static bool WriteCells(IDictionary<string, ConnectionSpriteCell> cells)
+        {
+            try
+            {
+                File.WriteAllText(CellsPath, JsonConvert.SerializeObject(cells, Formatting.Indented));
+                Debug.Log("OniExtract: connection sprite cells -> " + CellsPath + " (" + cells.Count + " connectables)");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("OniExtract: could not write " + CellsPath + ": " + e);
+                return false;
             }
         }
     }

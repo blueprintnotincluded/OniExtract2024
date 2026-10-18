@@ -15,6 +15,16 @@ that used to be done by hand after every in-game run.
          viewMode a game overlay name or null, uiImageRect never null, an icon for every
          building, 16 sprites per connectable, every rect matching its PNG's aspect, the
          utilityIndicators set complete, no icon or rect left over from an earlier run);
+       - connection_sprite_cells.json: one entry per connectable, its canvas the PNGs' size, and
+         the all-connected state (15.png) covering the declared cell. Overhang past the cell is
+         listed, not failed;
+       - building_image_report.json: the same prefabs as ui_image_rects.json, and no image
+         clipped at the canvas edge;
+       - an outlier scan, which fails nothing: images much smaller or larger than their
+         footprint (outside 0.85-1.6 of it on either axis), images reaching past the box their
+         anim's frames cover (child controllers, surroundings), clipped images, and connection
+         sprites overhanging their cell. Those a human has accepted are listed in KnownOutliers
+         with the reason, apart from new ones;
        - the layer and tag shapes of the replacement fields (docs/EXPORT_SCHEMA.md,
          "Replacement fields");
        - the spot checks listed in docs/WEBSITE_ROCKET_MODULES.md section 5,
@@ -50,8 +60,8 @@ Where the snapshot lives. Default: Documents\Klei\OxygenNotIncluded\export-basel
 Copy ExportDir to BaselineDir and stop. Refuses to replace an existing baseline without -Force.
 
 .PARAMETER AllowPartialExport
-A complete export has ui_image_rects.json and connection_sprites, and their absence is a
-failure. Pass this when checking an export where only Export Game Data has run, to have the
+A complete export has ui_image_rects.json, building_image_report.json, connection_sprites and
+connection_sprite_cells.json, and their absence is a failure. Pass this when checking an export where only Export Game Data has run, to have the
 missing pieces reported as skipped instead.
 
 .PARAMETER GameLibs
@@ -100,7 +110,7 @@ $GameLibs = Resolve-FullPath $GameLibs
 # What an export consists of. `images\` and building.pre-mod-merge.json, which older runs left
 # in the same folder, are not written by the current mod and are left out.
 $exportDirs = @('database', 'ui_image', 'ui_image_facade', 'connection_sprites')
-$exportFiles = @('ui_image_rects.json', 'pose_overrides.json')
+$exportFiles = @('ui_image_rects.json', 'pose_overrides.json', 'connection_sprite_cells.json', 'building_image_report.json')
 $imageDirs = @('ui_image', 'ui_image_facade', 'connection_sprites')
 
 if (-not (Test-Path (Join-Path $ExportDir 'database\building.json'))) {
@@ -366,6 +376,28 @@ public static class OniExportCheck
         }
     }
 
+    // The opaque bounding box of a PNG, in pixels with y down, using the mod's own crop
+    // threshold (alpha > 0.03, i.e. 8 or more out of 255). False when nothing is opaque.
+    public static bool OpaqueBox(string path, out int minX, out int minY, out int maxX, out int maxY)
+    {
+        minX = minY = int.MaxValue; maxX = maxY = -1;
+        using (var bmp = new Bitmap(path))
+        {
+            int[] px = Pixels(bmp);
+            int w = bmp.Width;
+            for (int i = 0; i < px.Length; i++)
+            {
+                if (((px[i] >> 24) & 255) < 8) continue;
+                int x = i % w, y = i / w;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+        return maxX >= 0;
+    }
+
     public static bool PngSize(string path, out int w, out int h)
     {
         w = 0; h = 0;
@@ -415,6 +447,9 @@ public static class OniExportCheck
     {
         public List<OniCheck> Out = new List<OniCheck>();
         public Dictionary<string, JObject> ByName = new Dictionary<string, JObject>(StringComparer.Ordinal);
+        public Dictionary<string, string> SpriteOverhang = new Dictionary<string, string>(StringComparer.Ordinal);
+        public JObject Report;
+        public JObject Rects;
 
         public void Add(string group, string name, bool ok, string detail)
         {
@@ -551,6 +586,249 @@ public static class OniExportCheck
         double off = Math.Abs(pngAspect - rw / rh) / pngAspect;
         if (off > 0.02) { detail = string.Format("png {0}x{1} vs rect {2}x{3}, {4:P0} off", w, h, rw, rh, off); return false; }
         return true;
+    }
+
+    // Anti-aliasing softens the cell edge by a pixel or so on either side.
+    const int CellTolerancePx = 2;
+    // Wires and pipes draw a few pixels of outline past the cell; only overhang beyond this
+    // share of the cell is worth a human's look.
+    const double OverhangFraction = 0.1;
+
+    // connection_sprite_cells.json declares where the cell sits on each connectable's PNGs; the
+    // website scales and anchors the sprites from it. Its canvas must be the PNGs' size, and the
+    // all-connected state (15.png) must cover the whole cell, because every edge of that state
+    // joins a neighbour. Art past the cell is overhang: allowed, and reported, because that is
+    // what used to break the website's measuring (the transit tube's corner fillets).
+    static void CheckSpriteCells(Run r, string exportDir, string[] dirs, bool allowPartial)
+    {
+        string path = Path.Combine(exportDir, "connection_sprite_cells.json");
+        if (!File.Exists(path))
+        {
+            r.Missing("connection_sprite_cells.json is present", "absent: written by the connection-sprite tool since 2026-10", allowPartial);
+            return;
+        }
+        var cells = (JObject)Load(path);
+        var unmatched = new List<string>();
+        var badSize = new List<string>();
+        var uncovered = new List<string>();
+        var overhang = new List<string>();
+        var names = new HashSet<string>(dirs.Select(d => Path.GetFileName(d)), StringComparer.Ordinal);
+        foreach (var p in cells.Properties())
+            if (!names.Contains(p.Name)) unmatched.Add(p.Name + " (no directory)");
+        foreach (string d in dirs)
+        {
+            string id = Path.GetFileName(d);
+            var c = cells[id] as JObject;
+            if (c == null) { unmatched.Add(id + " (no entry)"); continue; }
+            double cw, ch, x, y, w, h;
+            if (!Number(c["canvas"], "w", out cw) || !Number(c["canvas"], "h", out ch)
+                || !Number(c["cell"], "x", out x) || !Number(c["cell"], "y", out y)
+                || !Number(c["cell"], "w", out w) || !Number(c["cell"], "h", out h) || w <= 0 || h <= 0)
+            {
+                badSize.Add(id + " (malformed entry)");
+                continue;
+            }
+            for (int i = 0; i < 16; i++)
+            {
+                int pw, ph;
+                if (PngSize(Path.Combine(d, i + ".png"), out pw, out ph) && (pw != (int)cw || ph != (int)ch))
+                {
+                    badSize.Add(id + " (" + i + ".png " + pw + "x" + ph + ", declared " + cw + "x" + ch + ")");
+                    break;
+                }
+            }
+            string all = Path.Combine(d, "15.png");
+            int minX, minY, maxX, maxY;
+            if (!File.Exists(all)) continue;
+            if (!OpaqueBox(all, out minX, out minY, out maxX, out maxY)) { uncovered.Add(id + " (15.png is empty)"); continue; }
+            string box = (maxX - minX + 1) + "x" + (maxY - minY + 1) + " at (" + minX + "," + minY + ")";
+            string cell = w + "x" + h + " at (" + x + "," + y + ")";
+            if (minX > x + CellTolerancePx || minY > y + CellTolerancePx
+                || maxX + 1 < x + w - CellTolerancePx || maxY + 1 < y + h - CellTolerancePx)
+                uncovered.Add(id + " (15.png opaque " + box + ", cell " + cell + ")");
+            else if (minX < x - w * OverhangFraction || minY < y - h * OverhangFraction
+                || maxX + 1 > x + w * (1 + OverhangFraction) || maxY + 1 > y + h * (1 + OverhangFraction))
+            {
+                overhang.Add(id + " (" + box + " around the " + cell + " cell)");
+                r.SpriteOverhang[id] = "connection sprite 15.png is " + box + " around a " + cell + " cell";
+            }
+        }
+        r.Add("invariant", "connection_sprite_cells.json has an entry for exactly the connection_sprites directories", unmatched.Count == 0, Sample(unmatched));
+        r.Add("invariant", "every connectable's PNGs are the canvas size connection_sprite_cells.json declares", badSize.Count == 0, Sample(badSize));
+        r.Add("invariant", "every connectable's 15.png covers its declared cell", uncovered.Count == 0, Sample(uncovered));
+        r.Out.Add(new OniCheck { Group = "info", Name = "connectables whose 15.png overhangs the cell", Status = "PASS", Detail = Sample(overhang) });
+    }
+
+    // building_image_report.json says how the building-image sweep made each image. The sweep
+    // writes it and ui_image_rects.json from the same renders, so they cover the same prefabs.
+    // An image whose art reached the canvas edge was cut off, and its rect describes the cut
+    // rather than the building.
+    static void CheckImageReport(Run r, string exportDir, JObject rects, bool allowPartial)
+    {
+        string path = Path.Combine(exportDir, "building_image_report.json");
+        if (!File.Exists(path))
+        {
+            r.Missing("building_image_report.json is present", "absent: written by the building-image tool since 2026-10", allowPartial);
+            return;
+        }
+        var report = (JObject)Load(path);
+        r.Report = report;
+        var unmatched = new List<string>();
+        foreach (var p in rects.Properties())
+            if (report[p.Name] == null) unmatched.Add(p.Name + " (no report entry)");
+        foreach (var p in report.Properties())
+            if (rects[p.Name] == null) unmatched.Add(p.Name + " (no rect)");
+        var clipped = new List<string>();
+        var grown = new List<string>();
+        var noExtent = new List<string>();
+        int artOnly = 0;
+        foreach (var p in report.Properties())
+        {
+            var e = p.Value as JObject;
+            if (e == null) continue;
+            if (IsTrue(e["clipped"])) clipped.Add(p.Name + " (" + Short(e["clippedEdges"]) + " of " + Short(e["canvasPx"]) + ")");
+            if (e["canvasGrownEdges"] != null) grown.Add(p.Name + " " + Short(e["canvasGrownEdges"]));
+            if (e["animBBoxCells"] == null) noExtent.Add(p.Name + " (" + (Str(e["anim"]) ?? "no anim") + ")");
+            if (Str(e["render"]) == "artOnly") artOnly++;
+        }
+        r.Add("invariant", "building_image_report.json and ui_image_rects.json cover the same prefabs", unmatched.Count == 0, Sample(unmatched));
+        r.Add("invariant", "no building image is clipped at the canvas edge", clipped.Count == 0, Sample(clipped));
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images rendered art-only", Status = "PASS", Detail = artOnly.ToString() });
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images re-rendered on a wider canvas", Status = "PASS", Detail = Sample(grown) });
+        r.Out.Add(new OniCheck { Group = "info", Name = "building images whose anim has no measurable extent", Status = "PASS", Detail = Sample(noExtent) });
+    }
+
+    // ---- outliers ----
+
+    // Buildings that show up in the outlier scan for a reason a human has looked at and
+    // accepted, with that reason. They are still listed, apart from the new ones, so a change
+    // to one of them is not lost.
+    // Reviewed against the 2026-10-18 export (four in-game runs), image by image.
+    const string SmallArt = "the art is smaller than its footprint";
+    const string BigArt = "the art reaches past its footprint, as in game";
+    const string Bridge = "a bridge: thin art across its span";
+    const string JointPlate = "a joint plate: 1x1 in building.json, art spans the wall it crosses";
+    const string Deprecated = "deprecated, art-only, narrower than its footprint";
+    static readonly Dictionary<string, string> KnownOutliers = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        { "AirBorneCritterCondo", SmallArt },
+        { "BatteryMedium", "0.12 cells of its charge meter (hidden on the root, drawn by the meter child) fall outside the measured box; the image is right" },
+        { "BottleEmptierConduitLiquid", SmallArt },
+        { "CeilingLight", SmallArt },
+        { "CreatureAirTrap", BigArt },
+        { "CreatureGroundTrap", "working_loop pose; the trap is lower than its footprint" },
+        { "CreatureTrap", Deprecated },
+        { "CrownMoulding", "decor moulding: a strip wider than its cell" },
+        { "FirePole", BigArt },
+        { "FishFeeder", "hangs below its footprint, as in game" },
+        { "GasConduitOverflow", Deprecated },
+        { "GasConduitPreferentialFlow", Deprecated },
+        { "LiquidConduitOverflow", Deprecated },
+        { "LiquidConduitPreferentialFlow", Deprecated },
+        { "GravitasBathroomStall", "Gravitas prop, art-only" },
+        { "GravitasPedestal", SmallArt },
+        { "HotTub", SmallArt },
+        { "HydrogenGenerator", SmallArt },
+        { "ItemPedestal", SmallArt },
+        { "Juicer", SmallArt },
+        { "LiquidConduitBridge", Bridge },
+        { "LogicWireBridge", Bridge },
+        { "SolidConduitBridge", Bridge },
+        { "WireRubberBridge", Bridge },
+        { "WireBridgeHighWattage", JointPlate },
+        { "WireRefinedBridgeHighWattage", JointPlate },
+        { "TravelTubeWallBridge", JointPlate },
+        { "LiquidCooledFan", "deprecated, art-only: its water jug is the meter placeholder, hidden as in game" },
+        { "LogicLightSensor", BigArt },
+        { "LogicPowerRelay", SmallArt },
+        { "LogicSwitch", SmallArt },
+        { "MissileLauncher", SmallArt },
+        { "MonumentMiddle", "the monument's middle is wider than its footprint; clipped before 2026-10-18" },
+        { "NoseconeHarvest", "rocket module, art-only" },
+        { "ObjectDispenser", BigArt },
+        { "Outhouse", SmallArt },
+        { "OxyliteRefinery", SmallArt },
+        { "Oxysconce", SmallArt },
+        { "RadiationLight", "its only active anim draws the light cone" },
+        { "RationBox", SmallArt },
+        { "ReefGenerator", SmallArt },
+        { "Shelf", SmallArt },
+        { "SolidLogicValve", BigArt },
+        { "SolidTransferArm", "the sweeper's reach is a child controller" },
+        { "SpaceHeater", SmallArt },
+        { "SpecialCargoBayCluster", "partial art: art-only shows the window strip only; needs a pose override" },
+        { "StaterpillarGenerator", "partial art: the building is the egg; the critter is not part of it" },
+        { "StaterpillarGasConnector", "partial art: the building is the egg; the critter is not part of it" },
+        { "StaterpillarLiquidConnector", "partial art: the building is the egg; the critter is not part of it" },
+        { "TravelTube", "corner fillets past the cell; connection_sprite_cells.json declares the cell" },
+        { "UnderwaterVentDrill", "idle pose: the drill hangs above the bottom of its footprint" },
+        { "WallToilet", "wall-mounted: the bowl stands out of the wall" },
+        { "WaterCooler", SmallArt },
+    };
+
+    // An image this much smaller or larger than its footprint, on either axis, is worth a look:
+    // partial art (a bare egg for StaterpillarGenerator), effects (a light cone on a 1x1 lamp).
+    const double FillMin = 0.85, FillMax = 1.6;
+    // Slack when comparing an image's rect with the box its anim's frames cover: the box comes
+    // from symbol boxes in kanim pixels at 0.005 cells each, and anti-aliasing adds a fringe.
+    const double ExtentToleranceCells = 0.05;
+
+    // A short list of images and sprites whose geometry is unusual, for a human to eyeball
+    // instead of 500 images. Nothing here fails the run.
+    static void Outliers(Run r)
+    {
+        var found = new SortedDictionary<string, List<string>>(StringComparer.Ordinal);
+        Action<string, string> add = (name, why) =>
+        {
+            List<string> reasons;
+            if (!found.TryGetValue(name, out reasons)) found[name] = reasons = new List<string>();
+            reasons.Add(why);
+        };
+
+        foreach (var kv in r.ByName)
+        {
+            // A wire or pipe's icon is its inventory sprite; the website draws the building
+            // from its connection sprites, checked below.
+            if (IsTrue(kv.Value["isUtility"])) continue;
+            var rect = kv.Value["uiImageRect"] as JObject;
+            double w, h, cw, ch;
+            if (rect == null || !Number(rect, "w", out w) || !Number(rect, "h", out h)) continue;
+            if (!Number(kv.Value, "widthInCells", out cw) || !Number(kv.Value, "heightInCells", out ch) || cw <= 0 || ch <= 0) continue;
+            double fx = w / cw, fy = h / ch;
+            if (fx < FillMin || fx > FillMax || fy < FillMin || fy > FillMax)
+                add(kv.Key, string.Format("image is {0:F2} x {1:F2} cells on a {2}x{3} footprint", w, h, cw, ch));
+        }
+
+        if (r.Report != null)
+        {
+            foreach (var p in r.Report.Properties())
+            {
+                var e = p.Value as JObject;
+                if (e == null) continue;
+                if (IsTrue(e["clipped"])) add(p.Name, "clipped at the canvas edge " + Short(e["clippedEdges"]));
+                var box = e["animBBoxCells"] as JObject;
+                var rect = r.Rects == null ? null : r.Rects[p.Name] as JObject;
+                double bx, by, bw, bh, x, y, w, h;
+                if (box == null || rect == null
+                    || !Number(box, "x", out bx) || !Number(box, "y", out by) || !Number(box, "w", out bw) || !Number(box, "h", out bh)
+                    || !Number(rect, "x", out x) || !Number(rect, "y", out y) || !Number(rect, "w", out w) || !Number(rect, "h", out h))
+                    continue;
+                double t = ExtentToleranceCells;
+                if (x < bx - t || y < by - t || x + w > bx + bw + t || y + h > by + bh + t)
+                    add(p.Name, string.Format("image ({0:F2},{1:F2} {2:F2}x{3:F2}) reaches past the frame box of {4} ({5:F2},{6:F2} {7:F2}x{8:F2})",
+                        x, y, w, h, Str(e["anim"]) ?? "its anim", bx, by, bw, bh));
+            }
+        }
+
+        foreach (var kv in r.SpriteOverhang) add(kv.Key, kv.Value);
+
+        foreach (var kv in found)
+        {
+            string known;
+            bool isKnown = KnownOutliers.TryGetValue(kv.Key, out known);
+            r.Out.Add(new OniCheck { Group = "outlier", Name = kv.Key, Status = isKnown ? "KNOWN" : "NEW",
+                Detail = string.Join("; ", kv.Value) + (isKnown ? " -- known: " + known : "") });
+        }
     }
 
     public static List<OniCheck> Check(string exportDir, bool allowPartial)
@@ -725,6 +1003,8 @@ public static class OniExportCheck
             if (known != null)
                 r.Add("invariant", "every ui_image_rects.json entry is a building or a uiSpriteInfos prefab", orphanRects.Count == 0, Sample(orphanRects));
             r.Out.Add(new OniCheck { Group = "info", Name = "ui_image_rects.json entries", Status = "PASS", Detail = sidecar.Count.ToString() });
+            r.Rects = sidecar;
+            CheckImageReport(r, exportDir, sidecar, allowPartial);
         }
         else
         {
@@ -751,11 +1031,14 @@ public static class OniExportCheck
             r.Add("invariant", "every connection_sprites directory has 0.png .. 15.png", incomplete.Count == 0, Sample(incomplete));
             r.Add("invariant", "every connection_sprites directory is a tile or utility building", notConnectable.Count == 0, Sample(notConnectable));
             r.Out.Add(new OniCheck { Group = "info", Name = "connection_sprites directories", Status = "PASS", Detail = dirs.Length.ToString() });
+            CheckSpriteCells(r, exportDir, dirs, allowPartial);
         }
         else
         {
             r.Missing("connection_sprites is present", "absent: the connection-sprite tool has not run on this export", allowPartial);
         }
+
+        Outliers(r);
 
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings", Status = "PASS", Detail = r.ByName.Count.ToString() });
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings with ports", Status = "PASS", Detail = withPorts.ToString() });
@@ -958,7 +1241,8 @@ function Write-Lines([string[]]$lines, [string]$indent = '   ') {
 Write-Section "Invariants and spot checks: $ExportDir"
 $checks = [OniExportCheck]::Check($ExportDir, [bool]$AllowPartialExport)
 $info = @($checks | Where-Object { $_.Group -eq 'info' })
-$real = @($checks | Where-Object { $_.Group -ne 'info' })
+$outliers = @($checks | Where-Object { $_.Group -eq 'outlier' })
+$real = @($checks | Where-Object { $_.Group -ne 'info' -and $_.Group -ne 'outlier' })
 Write-Lines @($info | ForEach-Object { '{0}: {1}' -f $_.Name, $_.Detail })
 foreach ($group in ($real | ForEach-Object { $_.Group } | Select-Object -Unique)) {
     $inGroup = @($real | Where-Object { $_.Group -eq $group })
@@ -972,6 +1256,13 @@ foreach ($group in ($real | ForEach-Object { $_.Group } | Select-Object -Unique)
     foreach ($c in ($inGroup | Where-Object { $_.Status -eq 'PASS' })) { $report.Add('      pass  ' + $c.Name) }
     $problems += $failed.Count
 }
+
+# Not failures: a short list to look at by eye. New ones first.
+$newOutliers = @($outliers | Where-Object { $_.Status -eq 'NEW' })
+$knownOutliers = @($outliers | Where-Object { $_.Status -eq 'KNOWN' })
+Write-Section ('Outliers to look at: {0} new, {1} known' -f $newOutliers.Count, $knownOutliers.Count)
+Write-Lines @($newOutliers | ForEach-Object { 'new    {0} -- {1}' -f $_.Name, $_.Detail })
+Write-Lines @($knownOutliers | ForEach-Object { 'known  {0} -- {1}' -f $_.Name, $_.Detail })
 
 # --- 2. comparison against the baseline -----------------------------------------------
 if (-not (Test-Path $BaselineDir)) {

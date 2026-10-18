@@ -18,7 +18,7 @@ CLAUDE.md under "Development Commands".
 
 ## What CI checks, and what it does not
 
-CI builds and tests **only** `OniExtract2024.Core`, the small Unity-free library: 6 tests. It
+CI builds and tests **only** `OniExtract2024.Core`, the small Unity-free library: 54 tests. It
 cannot build the mod or the main test project, because a hosted runner has no copy of the game.
 
 So a green check on a pull request means very little. Before you open one, on a machine with the
