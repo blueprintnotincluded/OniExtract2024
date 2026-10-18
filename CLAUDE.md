@@ -51,9 +51,9 @@ with the game installed has to confirm it.
   - `connection/` — the 16-state connection-sprite export for wires/pipes/rails/tiles.
 - **`OniExtract2024.Core/`** — netstandard2.0, **no Unity or ONI reference**. The only code CI
   can verify: export paths and pruning, `UiImageRect`, the building-render canvas
-  (`RenderCanvas`), the pose rule (`ActivePose`), connection-sprite geometry and the two
-  sidecars' shapes. Pure logic belongs here.
-- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 48 tests.
+  (`RenderCanvas`), the pose rule (`ActivePose`), the render spot (`SpawnSite`),
+  connection-sprite geometry and the two sidecars' shapes. Pure logic belongs here.
+- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 54 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
   with ONI installed. 50 tests.
 - **`tools/`** — Helpers that run outside the game. `Test-Export.ps1` validates an
@@ -105,7 +105,7 @@ projects that link against the game. If the game lives elsewhere, set them in a 
 ### Tests
 
 ```bash
-dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 48 tests
+dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 54 tests
 dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 50 tests
 ```
 

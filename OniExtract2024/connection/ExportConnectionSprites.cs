@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using OniExtract2024.building;
 using UnityEngine;
 
 namespace OniExtract2024.connection
@@ -104,11 +105,12 @@ namespace OniExtract2024.connection
                 Debug.Log("OniExtract: tiles exported - " + tileBuildings + " buildings, " + tileSprites + " sprites.");
 
                 // --- 2) Utilities: spawn a temp instance, snapshot 16 kanim states -------
-                // Place well away from the camera/colony to avoid disturbing the view.
-                int cell = Grid.PosToCell(Camera.main.transform.position);
-                for (int i = 0; i < 12; i++)
-                    cell = Grid.CellDownLeft(cell);
-                Vector3 spawnPos = Grid.CellToPos(cell);
+                // Spawn where nothing around can be drawn into the sprites; see SpawnArea.
+                Vector3 spawnPos = Grid.CellToPos(SpawnArea.Find(out string spawnNote, out bool spawnClear));
+                if (spawnClear)
+                    Debug.Log("OniExtract: connection sprites " + spawnNote + ".");
+                else
+                    Debug.LogWarning("OniExtract: connection sprites: " + spawnNote + ".");
 
                 foreach (var def in Assets.BuildingDefs)
                 {

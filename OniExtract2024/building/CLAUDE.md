@@ -96,12 +96,16 @@ at one cell, 12 down and 12 left of the camera's centre:
 - **Batches.** `RenderBatch` draws whole 32×32-cell batches, so a colony building of the same
   render group inside the canvas is drawn into the image.
 
-So export with the camera placed so that the spawn cell sits on a **solid floor** (depth 0)
-with **nothing built around it**. The sweep checks the 9 cells under the spawn cell and a box of
-25×21 cells around it before it starts, and says in Player.log and in its closing message when
-the area is not clear. It does not move the spawn point itself: some buildings change the world
-where they spawn (`MakeBaseSolid` sets cells solid), and moving that into the user's rock or
-base is worse than a warning.
+So the sweep picks its own spot (`SpawnArea.Find`, the search itself in Core as `SpawnSite`):
+the cell nearest the old spot (12 down and 12 left of the camera's centre) that stands on 9
+cells of **solid floor**, has 9×8 cells of **gas or vacuum** above (nothing spawns into rock or
+liquid, where buildings that set cells solid would change the world), and has **nothing drawn
+by kanim** and **nothing unrevealed** in a 25×21-cell box around it. Natural cave floors
+qualify; the player prepares nothing. When the world has no such spot, the old one is used and
+Player.log and the closing message say so. The connection-sprite tool uses the same spot.
+
+Status icons (no power, unreachable, ...) are not this problem: the game draws them as UI, and
+the renderer only draws kanim batches.
 
 ## `building_image_report.json`
 
