@@ -47,6 +47,13 @@ namespace OniExtract2024.building
         /// <summary>No margin grows past this, so one bad anim cannot allocate a huge texture.</summary>
         public const float MaxPaddingCells = 16f;
 
+        /// <summary>
+        /// Growing stops before a canvas passes this many pixels (128 MB of Color32, as much
+        /// again for the render texture). Authored extents in the shipped game need at most
+        /// about 7 million.
+        /// </summary>
+        public const long MaxPixels = 32000000;
+
         public int cellW;
         public int cellH;
         public int PixelsPerCell;
@@ -57,6 +64,7 @@ namespace OniExtract2024.building
 
         public int Width => cellW * PixelsPerCell + padLeft + padRight;
         public int Height => cellH * PixelsPerCell + padBottom + padTop;
+        public long Pixels => (long)Width * Height;
 
         /// <summary>The canvas centre, in cells from the footprint's bottom-left corner.</summary>
         public float CentreX => (Width / 2f - padLeft) / PixelsPerCell;

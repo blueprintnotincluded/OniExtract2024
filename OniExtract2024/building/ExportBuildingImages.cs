@@ -407,8 +407,11 @@ namespace OniExtract2024.building
             // and the prefab's own controller does not carry the offset, so copying it left every
             // even-width art-only render half a cell left of its footprint, rect included.
             // Offset's setter re-registers the controller with the batcher, so set it once
-            // the controller is live rather than on the inactive clone.
-            kbac.Offset = def.GetVisualizerOffset();
+            // the controller is live rather than on the inactive clone, and only when there
+            // is an offset to set (an odd width has none).
+            Vector3 offset = def.GetVisualizerOffset();
+            if (offset != Vector3.zero)
+                kbac.Offset = offset;
             return go;
         }
 

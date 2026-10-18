@@ -132,8 +132,11 @@ namespace OniExtract2024.building
                 touched = canvas.TouchedBy(minX, minY, maxX - minX + 1, maxY - minY + 1);
                 if (touched == CanvasEdge.None || attempt >= MaxGrowAttempts || canvas.AtMaximum(touched))
                     break;
+                RenderCanvas wider = canvas.Grow(touched, GrowCells);
+                if (wider.Pixels > RenderCanvas.MaxPixels)
+                    break;
                 grown |= touched;
-                canvas = canvas.Grow(touched, GrowCells);
+                canvas = wider;
             }
 
             int cw = maxX - minX + 1, ch = maxY - minY + 1;
@@ -161,7 +164,7 @@ namespace OniExtract2024.building
                 frameCount = rootKbac != null ? rootKbac.GetCurrentNumFrames() : 0,
                 canvasPx = new PixelSize { w = canvas.Width, h = canvas.Height },
                 animBBoxCells = hasExtent
-                    ? new UiImageRect { x = originX - halfW, y = originY - halfH, w = 2f * halfW, h = 2f * halfH }
+                    ? new UiImageRect { x = Round(originX - halfW), y = Round(originY - halfH), w = Round(2f * halfW), h = Round(2f * halfH) }
                     : (UiImageRect?)null,
                 clipped = touched != CanvasEdge.None,
                 clippedEdges = touched != CanvasEdge.None ? RenderCanvas.EdgeNames(touched) : null,
@@ -190,6 +193,9 @@ namespace OniExtract2024.building
                 kbac.UpdateAllHiddenSymbols();
             }
         }
+
+        // 4 decimals, as for the rects: finer than a pixel, and a clean diff between runs.
+        private static float Round(float v) => Mathf.Round(v * 10000f) / 10000f;
 
         // Draws every controller on the object into a canvas laid out as `canvas` and returns
         // the pixels, bottom row first.
