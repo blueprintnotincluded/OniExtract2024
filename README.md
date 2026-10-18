@@ -104,18 +104,22 @@ export
 ├─ connection_sprites             written by the pause-screen tool, not the game-data export
 │      └─ {prefabId}
 │             ├─ 0.png ... 15.png  16 connection states per connectable
+├─ connection_sprite_cells.json   where the cell sits on each connectable's sprites
 ├─ ui_image_rects.json            measured icon rects, written by the building-image tool
+├─ building_image_report.json     how each icon was rendered (diagnostic), same tool
 └─ pose_overrides.json            pose choices saved from the pose inspector (only if used)
 ```
 
-`ui_image_rects.json` is part of what the website reads (it is the only place terrain features'
-rects live). `pose_overrides.json` is an input to this mod, not something the website consumes.
+`ui_image_rects.json` and `connection_sprite_cells.json` are part of what the website reads
+(the first is the only place terrain features' rects live). `building_image_report.json` is for
+checking an export; `pose_overrides.json` is an input to this mod. The website consumes neither.
 
 The folder is written in place, and each tool prunes its output to the prefabs loaded when it
 ran: the game-data export deletes `ui_image/` PNGs and `ui_image_rects.json` entries that no
-loaded prefab accounts for, the building-image tool replaces `ui_image_rects.json` with what it
-measured, and the connection-sprite tool clears `connection_sprites/` before writing. Disable a
-mod and its buildings are gone from the next export, not carried along as current.
+loaded prefab accounts for, the building-image tool replaces `ui_image_rects.json` and
+`building_image_report.json` with what it measured, and the connection-sprite tool clears
+`connection_sprites/` and `connection_sprite_cells.json` before writing. Disable a mod and its
+buildings are gone from the next export, not carried along as current.
 
 Field-level schema for every JSON file: see [docs/EXPORT_SCHEMA.md](docs/EXPORT_SCHEMA.md).
 Website-side guidance for the rocket-module stacking data and blueprint-setting ranges in

@@ -14,9 +14,11 @@ as its own in-game tool (Esc → *Export Building Images*), separate from *Expor
 
 | File | Role |
 |---|---|
-| `ExportBuildingImages.cs` | The sweep coroutine; spawns each building, drives the snapshotter, patches rects into `building.json`. `ExportSingle` does one building for the inspector's touch-up. |
-| `BuildingImageSnapshotter.cs` | Per-building: poses the kanim, snapshots at 200 px/cell, trims to the opaque bbox, writes `ui_image/{prefabId}.png`. |
+| `ExportBuildingImages.cs` | The sweep coroutine; spawns each building, drives the snapshotter, patches rects into `building.json`, writes the report. `ExportSingle` does one building for the inspector's touch-up. |
+| `BuildingImageSnapshotter.cs` | Per-building: poses the kanim, sizes the canvas from the anim, snapshots at 200 px/cell, trims to the opaque bbox, writes `ui_image/{prefabId}.png`. |
 | `BuildingKanimRenderer.cs` | The shared camera + RenderTexture pipeline, used by both the sweep and the inspector. |
+| `BuildingImageReport.cs` | Writes `export/building_image_report.json`: how each image was made. See below. |
+| `OniExtract2024.Core/RenderCanvas.cs`, `ActivePose.cs` | The pure halves, unit-tested in CI: canvas layout, edge contact and rect mapping; the pose rule. |
 | `BuildingSpawnFilter.cs` | **Single source of truth** for "can this building be spawned and rendered outside its normal context?" (`IsRenderable`) and "does it have art to render at all?" (`HasArt`). Used by the sweep *and* the inspector's chooser. |
 | `BuildingPoseOverrides.cs` | `Overrides` dictionary of hand-picked anim+frame per building, plus percent↔frame helpers. |
 | `BuildingPoseInspectorScreen.cs` | In-game pose-picker UI for populating that dictionary. |
@@ -27,9 +29,62 @@ as its own in-game tool (Esc → *Export Building Images*), separate from *Expor
 
 It renders at atlas/icon scale (~100 px/cell) rather than live-kanim scale, and silently
 shrinks every output — no error, just small images. The snapshotter deliberately poses each
-building in its most *active* state instead (`generating_loop`, `working_loop`, …) seeked to
-`PoseFramePercent = 0.5`, mid-loop, so the building is fully deployed rather than caught at the
-start of its timeline. `"ui"` is in `InactiveMarkers` for this reason; do not remove it.
+building in an *active* state instead, seeked to `PoseFramePercent = 0.5`, mid-loop, so the
+building is fully deployed rather than caught at the start of its timeline. `"ui"` is in
+`ActivePose.InactiveMarkers` for this reason; do not remove it.
+
+## Which active state: the one closest to the footprint
+
+Effects are drawn outside the body and only in some states: steam (SteamTurbine2), wind
+(VerticalWindTunnel), sparks, bubbles, light cones, a stray swoosh frame (FairGasWallPump). Posed
+in `working_loop`, they inflated the crop and set the rect. The game has no "effect" flag on
+symbols, but every anim carries its authored extent (`KAnim.Anim.unScaledSize`), and the states
+without effects have the body's.
+
+`ActivePose.Choose` takes every anim the name scorer accepts, drops anims with an unusable
+extent, prefers steady states to `_pre`/`_pst` transitions, and keeps the anims within 0.25
+cells of the one whose extent is closest to the footprint's. The most active of those wins,
+ties going to name order, never to the controller's dictionary order (which moves when Klei
+adds an anim). A building without effects has the same extent in every state and keeps its
+most active one. `pose_overrides.json` is read first, as before.
+
+Small overlay anims (`light_on`, `meter`) are far *smaller* than the footprint, so the
+two-sided distance keeps them out; an excess-only measure picked them in an offline
+simulation. Introducing this rule changed about 100 icons once, nearly all from `working_loop`
+to `on`.
+
+## The canvas is sized from the anim
+
+The canvas used to have a fixed two-cell margin, and art past it was cut off with the crop
+edge on the canvas edge. `RenderCanvas.ForArt` now sizes each side from the posed anim's
+authored extent, scaled by the controller and placed at `PositionIncludingOffset`. Points that
+matter:
+
+- The extent is a **half-extent about the anim origin**, so the box is symmetric: it reaches
+  as far below a floor building as above. Canvases are taller than the art needs; that costs
+  memory, not pixels, because every margin is whole pixels and the footprint stays on pixel
+  boundaries. The crop works on `Color32` to keep the biggest canvases (about 7 Mpx) cheap.
+- Margins never shrink below two cells, and never grow past 16.
+- Some anims carry garbage: wind_tunnel's working anims 536870 cells, MicrobeMusher's
+  working_loop 37003, MiniFridge's `working` NaN. `RenderCanvas.IsUsableHalfExtent` rejects
+  anything over 20 cells, and such an anim gets the default margin.
+- The extent does not cover child controllers (meters and the like). If the crop still touches
+  an edge, the snapshotter widens that side by 4 cells and draws again, up to three times.
+  Art at the edge after that is logged and reported `clipped`, and Test-Export fails on it.
+- A bigger canvas sees more of the world around the spawn point. `RenderBatch` draws whole
+  32×32-cell batches, so a same-group building of the colony within view would be drawn into
+  the image. Export from a save with clear space around the spawn point (12 cells down-left of
+  the view centre).
+
+## `building_image_report.json`
+
+Written by the sweep beside `ui_image_rects.json`, one entry per rendered prefab: the anim and
+frame rendered, where the pose came from (`auto`, `override`, `default`), `spawned` or
+`artOnly`, the canvas size, the authored extent in `uiImageRect` space, clipping, and the edges
+the canvas grew at. Field reference: [docs/EXPORT_SCHEMA.md](../../docs/EXPORT_SCHEMA.md). The
+website does not read it. It exists so that the diff between two exports explains itself:
+"its pose went from `working_loop` to `on`" instead of a pixel diff that renders' jitter can
+fool. Read it first when an image changed.
 
 ## Buildings that cannot be spawned are rendered art-only
 
@@ -48,7 +103,17 @@ overrides included. A building with no kanim on `BuildingComplete` (plain tiles,
 
 The cost: art-only cannot show anything a building adds at spawn time, such as meters, child
 controllers or symbols toggled in `OnSpawn`. If one of these renders wrong, fix the pose or the
-symbols there. Do not loosen `IsRenderable`. Spawning deprecated content corrupts state and
+symbols there. Do not loosen `IsRenderable`. Two such fixes are in place:
+
+- **The visualizer offset.** A spawned building's controller gets `def.GetVisualizerOffset()`
+  (half a cell right for an even width) in `BuildingComplete.OnPrefabInit`, or the same value
+  from `Rotatable.OnSpawn`. The prefab's controller does not carry it, so `CreateArtOnly` sets
+  it. Copying it from the prefab left every even-width art-only render half a cell left of its
+  footprint, rect included, until 2026-10-18.
+- **`meter_target`.** `MeterController` hides that placeholder symbol on the building whenever it
+  builds a meter, which art-only never does, so WallToilet showed a bar. Every render path calls
+  `BuildingImageSnapshotter.PrepareForSnapshot`, which hides it and re-applies the hidden set.
+  Placeholders a building names itself (`logicmeter_target` and so on) are not hidden. Spawning deprecated content corrupts state and
 crashes the sweep. The culprit was never isolated, so the spawn exclusion stays blunt.
 `SteamTurbine` is allowlisted for a real spawn. Vet any other addition by spawning it in
 isolation first: a crash here loses the whole sweep, not one building.
