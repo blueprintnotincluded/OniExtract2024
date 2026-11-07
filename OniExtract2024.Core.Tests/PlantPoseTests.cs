@@ -57,7 +57,7 @@ namespace OniExtract2024.Core.Tests
         [Fact]
         public void Coral_PlainIdleLoopBeatsTheEffectOne()
         {
-            // Thalassaire coral: idle_loop and oxygen_idle_loop tie on rank; the shorter name wins.
+            // Flue Coral (OxyCoral): idle_loop and oxygen_idle_loop tie on rank; the shorter name wins.
             var c = PlantPose.Choose(new[] { "oxygen_idle_loop", "idle_loop", "wilt", "grow", "grow_pst", "place", "ui" });
             Assert.Equal("idle_loop", c.Anim);
         }

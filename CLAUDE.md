@@ -51,11 +51,12 @@ with the game installed has to confirm it.
   - `connection/` — the 16-state connection-sprite export for wires/pipes/rails/tiles.
 - **`OniExtract2024.Core/`** — netstandard2.0, **no Unity or ONI reference**. The only code CI
   can verify: export paths and pruning, `UiImageRect`, the building-render canvas
-  (`RenderCanvas`), the pose rule (`ActivePose`), the render spot (`SpawnSite`),
-  connection-sprite geometry and the two sidecars' shapes. Pure logic belongs here.
-- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 54 tests.
+  (`RenderCanvas`), the pose rules (`ActivePose` for buildings, `PlantPose` for plants), the
+  footprint box (`CellBox`), the render spot (`SpawnSite`), connection-sprite geometry and the
+  two sidecars' shapes. Pure logic belongs here.
+- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 91 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
-  with ONI installed. 50 tests.
+  with ONI installed. 52 tests.
 - **`tools/`** — Helpers that run outside the game. `Test-Export.ps1` validates an
   export and diffs it against a snapshot (see "Validating an export" below);
   `Parse-KanimBuild.ps1` dumps the symbol table of a kanim `_build.bytes` file.
@@ -74,7 +75,7 @@ a crash in the export is not a crash in the loading screen.
 | # | Path | Trigger | Writes |
 |---|---|---|---|
 | 1 | Game data | Manual: load any colony, **Esc** → *Export Game Data* | 13 JSON files in `export/database/`, one PNG per building/item in `export/ui_image/` |
-| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings and terrain features (geysers, vents, volcanoes) at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` and `export/building_image_report.json` |
+| 2 | Building images | Manual: load any colony, **Esc** → *Export Building Images* | Re-renders buildings, terrain features (geysers, vents, volcanoes) and plants at 200 px/cell, **overwriting** path 1's low-res icons; writes `uiImageRect` and `export/building_image_report.json` |
 | 3 | Connection sprites | Manual: load any colony, **Esc** → *Export Connection Sprites* | `export/connection_sprites/{prefabId}/{0..15}.png` and `export/connection_sprite_cells.json` |
 
 Path 1 authors `building.json` from scratch every time it runs. Run 1 before 2: path 2 patches
@@ -105,8 +106,8 @@ projects that link against the game. If the game lives elsewhere, set them in a 
 ### Tests
 
 ```bash
-dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 54 tests
-dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 50 tests
+dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 91 tests
+dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 52 tests
 ```
 
 ### Validating an export
@@ -181,8 +182,9 @@ Breaking one of these breaks the website silently — the site renders, just wro
   `null` when there is no special overlay — not a `HashedString` hex, not a pluralized name.
 - **`uiImageRect` is omitted when absent, never emitted as null.**
 - **`ui_image_rects.json` at the export root is read by the website**, not just by this mod. It
-  is the only route by which terrain features' rects reach the site. Keep its location and its
-  shape (`prefabId → {x, y, w, h}`).
+  is the only route by which terrain features' and plants' rects reach the site. Keep its
+  location and its shape (`prefabId → {x, y, w, h}`). A plant's rect is relative to the
+  `width`/`height`/`footprintOffset` box on its `entities.json` entry; keep those in step.
 - **`connection_sprite_cells.json` at the export root is the connection sprites' geometry**
   (`prefabId → {canvas: {w, h}, cell: {x, y, w, h}}`, pixels, y-down): the website scales and
   anchors the sprites from it instead of measuring `15.png`. Every connection-sprite directory
@@ -214,6 +216,9 @@ Breaking one of these breaks the website silently — the site renders, just wro
     data yet. A handoff moves to `docs/archive/` once the website has acted on it.
   - [WEBSITE_ROCKET_INTERIORS.md](docs/WEBSITE_ROCKET_INTERIORS.md) — website handoff for
     rocket-interior layouts and backdrop art, carried across once as a zip rather than exported.
+  - [WEBSITE_PLANTS.md](docs/WEBSITE_PLANTS.md) — website handoff for the plant renders: the
+    `width`/`height`/`footprintOffset` fields on plant entities, which plants hang below their
+    cell, and which trees are drawn whole. Still open until the importer reads those fields.
   - [WEBSITE_SIZE_CONSISTENCY.md](docs/WEBSITE_SIZE_CONSISTENCY.md) — website handoff for
     `connection_sprite_cells.json` (read it instead of measuring `15.png`), the pinned icons to
     delete, and why each icon changed in the 2026-10-18 export. Still open until the importer
