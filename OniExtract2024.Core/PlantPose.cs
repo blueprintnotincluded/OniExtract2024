@@ -34,7 +34,7 @@ namespace OniExtract2024.building
 
         /// <summary>
         /// How well a name fits the grown look: 400 for <c>idle_full</c>, 300 for <c>grown</c>,
-        /// 200 for <c>idle</c>, 100 plus any trailing number for another idle state, 10 for
+        /// 200 for <c>idle</c>, 100 plus any trailing number (capped at 99) for another idle state, 10 for
         /// <c>grow</c> (posed at its last frame), 0 for a name that is never posed.
         /// </summary>
         public static int Rank(string name)
@@ -60,7 +60,9 @@ namespace OniExtract2024.building
             int end = n.Length;
             while (end > 0 && char.IsDigit(n[end - 1])) end--;
             if (end < n.Length) int.TryParse(n.Substring(end), out number);
-            return 100 + number;
+            // The number only orders idle states among themselves: it never lifts one above
+            // the plain `idle` tier, let alone `grown` or `idle_full`.
+            return 100 + Math.Min(number, 99);
         }
 
         /// <summary>

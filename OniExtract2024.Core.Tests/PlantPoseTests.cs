@@ -13,6 +13,7 @@ namespace OniExtract2024.Core.Tests
         [InlineData("idle_open", 100)]
         [InlineData("idle_loop", 100)]
         [InlineData("idle3", 103)]
+        [InlineData("idle_2000", 199)]
         [InlineData("grow", 10)]
         [InlineData("idle_empty", 0)]
         [InlineData("idle_half", 0)]
@@ -81,6 +82,14 @@ namespace OniExtract2024.Core.Tests
         {
             var c = PlantPose.Choose(new[] { "idle1", "idle2", "idle10", "grow" });
             Assert.Equal("idle10", c.Anim);
+        }
+
+        [Fact]
+        public void NumberedStages_NeverOutrankTheGrownTiers()
+        {
+            Assert.Equal("idle_full", PlantPose.Choose(new[] { "idle_2000", "idle_full" }).Anim);
+            Assert.Equal("grown", PlantPose.Choose(new[] { "idle_2000", "grown" }).Anim);
+            Assert.Equal("idle", PlantPose.Choose(new[] { "idle_2000", "idle" }).Anim);
         }
 
         [Fact]

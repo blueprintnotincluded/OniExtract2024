@@ -725,18 +725,22 @@ public static class OniExportCheck
             if (r.Report != null)
             {
                 var entry = r.Report[kv.Key] as JObject;
-                if (entry == null) continue;
-                if (Str(entry["render"]) != "spawned") notSpawned.Add(kv.Key + " (" + (Str(entry["render"]) ?? "<none>") + ")");
-                if (Str(entry["pose"]) == "default") defaultPose.Add(kv.Key + " (" + (Str(entry["anim"]) ?? "no anim") + ")");
+                if (entry == null) notSpawned.Add(kv.Key + " (no report entry)");
+                else
+                {
+                    if (Str(entry["render"]) != "spawned") notSpawned.Add(kv.Key + " (" + (Str(entry["render"]) ?? "<none>") + ")");
+                    if (Str(entry["pose"]) == "default") defaultPose.Add(kv.Key + " (" + (Str(entry["anim"]) ?? "no anim") + ")");
+                }
             }
         }
         r.Add("invariant", "every plant has an integer width/height and a footprintOffset", noFootprint.Count == 0, Sample(noFootprint));
         r.Add("invariant", "every plant has ui_image/<name>.png", noImage.Count == 0, Sample(noImage));
         if (r.Rects != null)
-        {
             r.Add("invariant", "every plant has a ui_image_rects.json entry", noRect.Count == 0, Sample(noRect));
+        if (r.Report != null)
             r.Add("invariant", "every rendered plant is a real spawn", notSpawned.Count == 0, Sample(notSpawned));
-        }
+        else
+            r.Out.Add(new OniCheck { Group = "invariant", Name = "every rendered plant is a real spawn", Status = "SKIP", Detail = "no building_image_report.json to read" });
         r.Out.Add(new OniCheck { Group = "info", Name = "plants", Status = "PASS", Detail = r.Plants.Count.ToString() });
         r.Out.Add(new OniCheck { Group = "info", Name = "plants hanging below their cell", Status = "PASS", Detail = Sample(hanging) });
         r.Out.Add(new OniCheck { Group = "info", Name = "plants whose footprint differs from the collider rounding", Status = "PASS", Detail = Sample(differs) });

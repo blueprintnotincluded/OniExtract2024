@@ -54,7 +54,7 @@ with the game installed has to confirm it.
   (`RenderCanvas`), the pose rules (`ActivePose` for buildings, `PlantPose` for plants), the
   footprint box (`CellBox`), the render spot (`SpawnSite`), connection-sprite geometry and the
   two sidecars' shapes. Pure logic belongs here.
-- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 91 tests.
+- **`OniExtract2024.Core.Tests/`** — xunit, runs anywhere. 93 tests.
 - **`OniExtract2024.Tests/`** — xunit, net48, references the game DLLs. Runs only on a machine
   with ONI installed. 52 tests.
 - **`tools/`** — Helpers that run outside the game. `Test-Export.ps1` validates an
@@ -106,7 +106,7 @@ projects that link against the game. If the game lives elsewhere, set them in a 
 ### Tests
 
 ```bash
-dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 91 tests
+dotnet test OniExtract2024.Core.Tests/OniExtract2024.Core.Tests.csproj   # anywhere; 93 tests
 dotnet test OniExtract2024.Tests/OniExtract2024.Tests.csproj             # needs ONI installed; 52 tests
 ```
 
