@@ -130,6 +130,38 @@ namespace OniExtract2024.Tests
             Assert.Equal(new[] { "Ladders" }, j["runtimeTags"].Values<string>().ToArray());
         }
 
+        // Mirrors BEntity's plant footprint fields exactly: present only on plants, so the
+        // importer can read them where they are and keep its collider rounding elsewhere.
+        private class PlantFootprintProbe
+        {
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public int? width = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public int? height = null;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public CellOffset? footprintOffset = null;
+        }
+
+        [Fact]
+        public void PlantFootprint_OmittedWhenUnset()
+        {
+            var j = JObject.Parse(JsonConvert.SerializeObject(new PlantFootprintProbe(), BaseExport.BuildSerializerSettings()));
+            Assert.Empty(j.Properties());
+        }
+
+        [Fact]
+        public void PlantFootprint_IntegersAndACellOffset()
+        {
+            // Pincha Pepperplant: 1x3 hanging from its cell, so the box starts two cells down.
+            var probe = new PlantFootprintProbe { width = 1, height = 3, footprintOffset = new CellOffset(0, -2) };
+            var j = JObject.Parse(JsonConvert.SerializeObject(probe, BaseExport.BuildSerializerSettings()));
+            Assert.Equal(JTokenType.Integer, j["width"].Type);
+            Assert.Equal(1, j["width"].Value<int>());
+            Assert.Equal(3, j["height"].Value<int>());
+            Assert.Equal(0, j["footprintOffset"]["x"].Value<int>());
+            Assert.Equal(-2, j["footprintOffset"]["y"].Value<int>());
+        }
+
         [Fact]
         public void ObjectLayerNames_AreIndexedByEnumValue()
         {

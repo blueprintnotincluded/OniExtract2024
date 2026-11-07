@@ -28,10 +28,17 @@ namespace OniExtract2024.building
         // The art is centred on the footprint (BuildingComplete gives even-width buildings a
         // half-cell visualizer offset), so the footprint spans width/2 either side of that
         // centre and starts at the building's position vertically.
-        public static Vector3 FootprintBottomLeft(Vector3 buildingPos, int widthInCells)
+        public static Vector3 FootprintBottomLeft(Vector3 buildingPos, int widthInCells) =>
+            FootprintBottomLeft(buildingPos, CellBox.Standard(widthInCells, 1));
+
+        // The same for any footprint box: the object's position is the bottom-centre of its
+        // own cell, and the box says where its bottom-left cell is from there. For a standard
+        // box this is the value above; a hanging plant's box starts h-1 cells lower.
+        public static Vector3 FootprintBottomLeft(Vector3 objectPos, CellBox box)
         {
-            var corner = buildingPos;
-            corner.x += (widthInCells % 2 == 0 ? 0.5f : 0f) - widthInCells / 2f;
+            var corner = objectPos;
+            corner.x += box.x - 0.5f;
+            corner.y += box.y;
             return corner;
         }
 

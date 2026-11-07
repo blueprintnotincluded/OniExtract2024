@@ -22,6 +22,17 @@ public class ExportEntity : BaseExport
         {
             bEntity.kBoxCollider2D = new BVector2(kBoxCollider2D.size);
         }
+        // A plant's footprint, the box the building-image tool measures its uiImageRect
+        // against: the collider is (width, height) too, but says nothing about where the box
+        // sits (a ceiling plant hangs below its cell) or about a tree's branches.
+        KPrefabID kPrefabID = gameObject.GetComponent<KPrefabID>();
+        if (kPrefabID != null && kPrefabID.HasTag(GameTags.Plant)
+            && OniExtract2024.building.PlantFootprint.TryMeasure(gameObject, out OniExtract2024.building.CellBox footprint))
+        {
+            bEntity.width = footprint.w;
+            bEntity.height = footprint.h;
+            bEntity.footprintOffset = new CellOffset(footprint.x, footprint.y);
+        }
         TemperatureVulnerable tv = gameObject.GetComponent<TemperatureVulnerable>();
         if (tv != null)
         {

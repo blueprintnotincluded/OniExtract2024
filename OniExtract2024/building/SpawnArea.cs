@@ -8,8 +8,9 @@ namespace OniExtract2024.building
     /// <see cref="SpawnSite"/> in the active world nearest the spot the exports always used,
     /// 12 cells down and left of the camera's centre. The player does not have to prepare
     /// anything; the exports only look for a bit of natural or built floor with revealed air
-    /// above it and no building within reach of the canvas. Plants, debris and critters do not
-    /// count: they never share a render batch with a building. When the world has no such spot,
+    /// above it and no building or plant within reach of the canvas. Debris and critters do
+    /// not count: they never share a render batch with a building or plant. When the world has
+    /// no such spot,
     /// the old one is used and the caller is told why.
     /// </summary>
     public static class SpawnArea
@@ -41,8 +42,10 @@ namespace OniExtract2024.building
                 }
             }
 
-            // A building or geyser drawn by kanim could share a render batch with a temporary
-            // one, or be joined by it (AnimTileable). One pass over the layers marks them all.
+            // A building, geyser or plant drawn by kanim could share a render batch with a
+            // temporary one, or be joined by it (AnimTileable). One pass over the layers marks
+            // them all. Plants count since the sweep renders plants too: a wild one of the same
+            // kind in the chunk would be drawn into the image.
             foreach (Dictionary<int, GameObject> layer in Grid.ObjectLayers)
             {
                 if (layer == null) continue;
@@ -50,7 +53,9 @@ namespace OniExtract2024.building
                 {
                     GameObject go = kv.Value;
                     if (go == null || go.GetComponent<KBatchedAnimController>() == null) continue;
-                    if (go.GetComponent<Building>() == null && go.GetComponent<Geyser>() == null) continue;
+                    KPrefabID kpid = go.GetComponent<KPrefabID>();
+                    bool plant = kpid != null && kpid.HasTag(GameTags.Plant);
+                    if (!plant && go.GetComponent<Building>() == null && go.GetComponent<Geyser>() == null) continue;
                     Grid.CellToXY(kv.Key, out int cx, out int cy);
                     cx -= offset.x;
                     cy -= offset.y;
