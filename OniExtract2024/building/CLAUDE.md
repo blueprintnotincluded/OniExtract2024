@@ -149,11 +149,19 @@ The website draws wild plants on the blueprint canvas as it draws geysers, so ev
   `idle` for the decor plants (Bluff Briar family), `idle_open` for the Saturn Critter Trap,
   `idle_loop` for the Flue Coral and `grown` for the Bonbon Tree's trunk.
 - **A plant must not uproot itself.** `UprootedMonitor` checks the cells it monitors on spawn
-  (the floor for most plants, the ceiling for a hanging one) and a plant with no solid cell
-  there marks itself uprooted; a crop then dies and destroys itself, and the sweep reports it
-  spawned-but-not-rendered. The spawn site has a floor but no ceiling, so the sweep gives the
-  clone no monitored cells before activating it, a configuration the game itself uses for
-  vine branches. Temperature, pressure and wilt only wilt a plant, and the pose step runs after.
+  (the floor for most plants, the ceiling for a hanging one, the backwall for the Prehistoric
+  Planet corals and urchins) and a plant with no suitable cell there marks itself uprooted; a
+  crop then dies, spawns a `PlantDeathFx` that lingers on screen while the game is paused, and
+  destroys itself, and the sweep reports it spawned-but-not-rendered. The spawn site has a
+  floor but no ceiling or backwall, so the sweep gives the clone no monitored cells, a
+  configuration the game itself uses for vine branches. That has to happen *after*
+  `SetActive`: a config's `OnPrefabInit` runs inside it and `ExtendPlantEntityToRequireBackwall`
+  sets the cells there, while the monitor only reads them in `OnSpawn`, a frame later.
+  Temperature, pressure and wilt only wilt a plant, and the pose step runs after.
+- **An inactive prefab's controller has no anim table.** `KAnimControllerBase.HasAnimation`
+  reads a dictionary filled when the controller awakes, so on a prefab it is false for every
+  anim. Ask the kanim files instead (`KAnimFile.GetData().GetAnim(name)`), as `PlantCanopy`
+  does for the branch anims.
 - **Trees with branches are drawn whole.** The Arbor Tree and Bonbon Tree spawn their branches
   as separate `PlantBranch`-tagged prefabs at offsets fixed in the trunk's
   `PlantBranchGrower.Def`, and a branch without a trunk state machine destroys itself. So the

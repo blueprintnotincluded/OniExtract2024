@@ -231,15 +231,18 @@ namespace OniExtract2024.building
                         plantSkipped++;
                         continue;
                     }
+                    temp.SetActive(true);
                     // A plant uproots itself, and a crop then dies and destroys itself, when
                     // the cells it monitors are not solid: the floor for most, the ceiling for
-                    // a hanging plant, which the spawn site has no ceiling for. Monitoring no
-                    // cells is a configuration the game itself uses (VineBranch), and the
-                    // monitor reads its cells once it spawns, so clear them on the clone first.
+                    // a hanging plant, which the spawn site has no ceiling for, the backwall
+                    // behind it for the Prehistoric Planet corals and urchins. Monitoring no
+                    // cells is a configuration the game itself uses (VineBranch). The monitor
+                    // reads its cells in OnSpawn, a frame after SetActive, but a config's
+                    // OnPrefabInit runs inside SetActive and may set the cells afresh
+                    // (ExtendPlantEntityToRequireBackwall does), so clear them after it.
                     var uprootedMonitor = temp.GetComponent<UprootedMonitor>();
                     if (uprootedMonitor != null)
-                        uprootedMonitor.monitorCells = new CellOffset[0];
-                    temp.SetActive(true);
+                        uprootedMonitor.SetNewMonitorCells(new CellOffset[0]);
                     if (PlantCanopy.Attach(temp) > 0)
                         canopies++;
 

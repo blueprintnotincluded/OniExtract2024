@@ -123,7 +123,7 @@ namespace OniExtract2024.building
                 }
                 object set = sets[offset];
                 string anim = spec.Anim(set);
-                if (string.IsNullOrEmpty(anim) || !source.HasAnimation(anim))
+                if (string.IsNullOrEmpty(anim) || !FileHasAnim(source, anim))
                 {
                     Debug.LogWarning("OniExtract: " + prefabId + " branch at (" + offset.x + ", " + offset.y + ") names anim " + (anim ?? "null") + ", which its kanim lacks; skipping it.");
                     continue;
@@ -151,6 +151,21 @@ namespace OniExtract2024.building
                 count++;
             }
             return count;
+        }
+
+        // Whether the controller's kanim files define `anim`. Read from the files themselves:
+        // KAnimControllerBase.HasAnimation consults a table the controller fills when it
+        // awakes, which `source` (an inactive prefab's controller) never does, so it answers
+        // false for every anim there.
+        private static bool FileHasAnim(KBatchedAnimController source, string anim)
+        {
+            if (source.AnimFiles == null) return false;
+            foreach (KAnimFile file in source.AnimFiles)
+            {
+                KAnimFileData data = file != null ? file.GetData() : null;
+                if (data != null && data.GetAnim(anim) != null) return true;
+            }
+            return false;
         }
     }
 
