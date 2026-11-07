@@ -1,9 +1,8 @@
 # Website handoff: wild plants rendered like geysers
 
 For blueprintnotincluded/blueprintnotincluded, which places `Plant`-tagged entities as
-terrain annotations (its PR #314). Written 2026-11-06 against game build U59-744825; the
-numbers below are from the mod's offline checks and are confirmed by the first in-game run
-of the `feat/plant-render` build, after which this note moves to `docs/archive/`.
+terrain annotations (its PR #314). Written 2026-11-06 against game build U59-744825 and confirmed by the in-game runs of
+2026-11-07; it moves to `docs/archive/` once the importer reads the fields below.
 
 ## What the export now ships
 
@@ -52,14 +51,13 @@ below, so the collider rounding keeps working everywhere else. Two things need t
   there is no canonical whole tree to draw.
 - The branch prefabs keep the build-menu icon and have no rect, as before.
 
-## Report from the in-game run
-
-Filled in after the run; see the pull request until then.
+## Report from the in-game runs (2026-11-07)
 
 | | |
 |---|---|
-| Plants rendered | pending |
-| Posed in something other than `idle_full` | pending (offline: `idle` for the Bluff Briar family, `idle_open` for the Saturn Critter Trap, `idle_loop` for the Flue Coral, `grown` for the Bonbon Tree trunk, `basic_idle_full` for the Spindly Grubfruit Plant, `super_idle_full` for the Grubfruit Plant) |
+| Plants rendered | 50 of 50 (the 54 `Plant`-tagged prefabs less the four branches); every rect passed the aspect check |
+| Posed in something other than `idle_full` | `idle` for the Bluff Briar family (12 one-cell decor plants), `idle_open` for the Saturn Critter Trap, `idle_loop` for the Flue Coral, `grown` for the Bonbon Tree trunk, `basic_idle_full` for the Spindly Grubfruit Plant, `super_idle_full` for the Grubfruit Plant, `idle_full_closed` for the Clam (its own crop anim) |
 | Footprints that differ from the collider rounding | `ForestTree`, `SpaceTree` (3×3 for 1×2) |
-| Whole-tree render | Arbor Tree and Bonbon Tree yes; Tower Kelp and Ovagro Node no |
-| Determinism | pending: two runs, plant PNGs and rects compared |
+| Whole-tree render | Arbor Tree (7 branches) and Bonbon Tree (5 bare branches: fill frame 0, flower meters hidden) yes; Tower Kelp and Ovagro Node no |
+| Determinism | the 48 plants rendered in both runs produced identical rects; renders are compared by size and outline, as for buildings |
+| Everything else | byte-identical to the previous export: buildings, facades, connection sprites, the other database files |

@@ -848,6 +848,17 @@ public static class OniExportCheck
         { "UnderwaterVentDrill", "idle pose: the drill hangs above the bottom of its footprint" },
         { "WallToilet", "wall-mounted: the bowl stands out of the wall" },
         { "WaterCooler", SmallArt },
+        // Plants, judged from the 2026-11-07 runs: wild art is drawn as the game draws it.
+        { "BlueGrass", BigArt },
+        { "CritterTrapPlant", "idle_open pose: the open trap spreads wide and flat, as in game" },
+        { "Dinofern", BigArt },
+        { "FilterPlant", SmallArt },
+        { "GardenDecorPlant", SmallArt },
+        { "GasGrass", BigArt },
+        { "SaltySticksPlant", SmallArt },
+        { "SeaLettuce", SmallArt },
+        { "SpaceTree", "trunk and five bare branches (fill frame 0, flower meters hidden) inside the 3x3 canopy box" },
+        { "VineMother", BigArt },
     };
 
     // An image this much smaller or larger than its footprint, on either axis, is worth a look:
