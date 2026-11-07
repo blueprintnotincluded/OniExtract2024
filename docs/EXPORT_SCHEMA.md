@@ -545,6 +545,8 @@ Most component fields are `null` when absent for that entity type.
   "nameString": "<link=\"MISSILELONGRANGE\">Intracosmic Blastshot</link>",
   "kPrefabID": { /* BKprefabID — see building.json */ },
   "kBoxCollider2D": { "x": 0.8, "y": 0.8 },   // null if no collider
+  "width": 1, "height": 2,                     // PRESENT ONLY on plants — see "Plant footprint"
+  "footprintOffset": { "x": 0, "y": 0 },       // PRESENT ONLY on plants
   "blightVulnerable": null,
   "isStandardCropPlant": false,
   "plantBranchGrowerDef": null,
@@ -587,6 +589,29 @@ Most component fields are `null` when absent for that entity type.
   "oxygenBreather": null
 }
 ```
+
+### Plant footprint
+
+Every `Plant`-tagged entity carries `width`, `height` (integers, cells) and `footprintOffset`
+(a cell offset): the box of the cells the game says the plant occupies
+(`OccupyArea.OccupiedCellsOffsets`), which is the box its `ui_image_rects.json` entry is
+measured against. The in-game building-image tool renders every plant the way it renders
+geysers (a spawned prefab at 200 px/cell, tight-cropped) and measures a rect for each, so a
+plant's `ui_image/<name>.png` is a render, not the build-menu icon, once that tool has run.
+
+- `footprintOffset` is the box's bottom-left cell relative to the plant's own cell, the one
+  its position is in. A plant standing on its cell has `(-floor((width-1)/2), 0)`, the same
+  convention as a building's origin cell. A ceiling plant (Pincha Pepperplant, Dasha Saltvine,
+  Lura Plant, Seakomb, Dew Dripper: those with the `Hanging` tag) has `(0, 1-height)`: its
+  cell is the top of the box and the plant hangs below it.
+- The Arbor Tree and Bonbon Tree are rendered whole, trunk plus the branches at the offsets
+  the game fixes for them, so their box takes the branches in: 3×3 from `(-1, 0)` where the
+  trunk alone is 1×2. The branch prefabs (`ForestTreeBranch`, `SpaceTreeBranch`, `SeaTreeBranch`,
+  `VineBranch`; `PlantBranch`-tagged) are not rendered and carry their own 1×1 box.
+- `width`/`height` equal `round(kBoxCollider2D)` for every plant except those two trees, so an
+  importer that rounds the collider only has to read these fields to pick up the trees and
+  `footprintOffset` to place ceiling plants. Omitted on anything that is not a plant, never
+  null.
 
 ---
 
@@ -1020,7 +1045,7 @@ A flat map from prefab id to the rectangle its `ui_image/<prefabId>.png` occupie
 - The PNG maps linearly onto the rect, so `w:h` equals the PNG's pixel aspect. The tool checks
   this at the end of every run and the website's importer fails on a mismatch.
 - The file holds exactly what the last building-image run measured: one entry per rendered
-  building plus terrain feature. That run replaces the file rather than merging into it, and
+  building, terrain feature and plant. That run replaces the file rather than merging into it, and
   the game-data export drops any entry whose prefab is not loaded, so nothing survives from an
   earlier mod set. Only the pose inspector's single-building touch-up merges.
 
@@ -1030,10 +1055,12 @@ It has two readers:
   export reads this file to put `uiImageRect` back on each building. Without it the rects
   would last only until the next data export. See
   [OniExtract2024/building/CLAUDE.md](../OniExtract2024/building/CLAUDE.md).
-- **The website.** Terrain features (geysers, vents, volcanoes, the oil reservoir) are not
-  buildings and have no `building.json` entry, so this file is the only place their rects
-  exist. The importer reads it for those, and keeps reading buildings' rects from
-  `building.json`.
+- **The website.** Terrain features (geysers, vents, volcanoes, the oil reservoir) and plants
+  are not buildings and have no `building.json` entry, so this file is the only place their
+  rects exist. The importer reads it for those, and keeps reading buildings' rects from
+  `building.json`. A plant's rect is relative to the box its `entities.json` entry declares
+  (`width`, `height`, `footprintOffset`; see "Plant footprint"), a geyser's to its
+  `geyser.json` `width` × `height` standing on its cell.
 
 ---
 
@@ -1093,13 +1120,13 @@ clipping and containment without decoding images.
 | Field | Meaning |
 |---|---|
 | `anim`, `frame`, `frameCount` | The root controller's anim, the 0-based frame rendered, and its frame count. `anim` is omitted when the controller had none. |
-| `pose` | `auto` (chosen by `ActivePose.Choose`), `override` (from `pose_overrides.json` or `BuildingPoseOverrides`), or `default` (no anim scored, so the one it spawned with). |
-| `render` | `spawned` (a real instance) or `artOnly` (its kanim on an effect entity; buildings that cannot be spawned safely). |
+| `pose` | `auto` (chosen by `ActivePose.Choose` for a building, by the plant's own grown anim or `PlantPose.Choose` for a plant), `override` (from `pose_overrides.json` or `BuildingPoseOverrides`), or `default` (no anim scored, so the one it spawned with). |
+| `render` | `spawned` (a real instance) or `artOnly` (its kanim on an effect entity; buildings that cannot be spawned safely). Every plant is `spawned`; a tree's branch stand-ins are drawn into the trunk's image and have no entry of their own. |
 | `canvasPx` | The canvas the opaque crop was taken from, in pixels at 200 px/cell. |
 | `animBBoxCells` | The box the drawn controllers' anims cover, over every frame, in `uiImageRect`'s space: cells, footprint-relative, bottom-left origin, `+y` up. Measured from the frames' geometry (each drawn element's symbol box through its transform) for the root controller and its children (meters, foreground layers, arms), falling back to the game's authored half-extent (`KAnim.Anim.unScaledSize`, symmetric about the anim origin) for a controller where no element resolves. Art past it comes from something the box cannot see, such as the surroundings. Omitted when nothing gives a usable box. |
 | `clipped`, `clippedEdges` | Whether the art still reached the canvas edge after the canvas was widened, and which edges (`left`, `right`, `bottom`, `top`). A clipped image's rect describes the cut, not the building. |
 | `canvasGrownEdges` | Edges the canvas was widened at, because the first render's art reached them. Omitted when the first render fitted. |
-| `candidates` | For an `auto` pose only: every anim the name scorer accepted, as `name → {score, halfW, halfH}`, the half-extents (cells, about the anim origin) the chooser compared. `halfW`/`halfH` are omitted for an anim that could not be measured, which leaves it out of the choice. |
+| `candidates` | For an `auto` pose only: every anim the name scorer accepted, as `name → {score, halfW, halfH}`, the half-extents (cells, about the anim origin) the chooser compared. `halfW`/`halfH` are omitted for an anim that could not be measured, which leaves it out of the choice. For a plant, `score` is `PlantPose.Rank` (400 `idle_full`, 300 `grown`, 200 `idle`, 100+ another idle state, 10 `grow`) or 500 for the anim its own `StandardCropPlant` anim set names as the grown state; plants have no extents. |
 
 Replaced on every full run of the tool; the pose inspector's single-building touch-up merges
 its one entry.

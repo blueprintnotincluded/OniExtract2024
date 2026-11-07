@@ -20,8 +20,12 @@ that used to be done by hand after every in-game run.
          listed, not failed;
        - building_image_report.json: the same prefabs as ui_image_rects.json, and no image
          clipped at the canvas edge;
-       - an outlier scan, which fails nothing: images much smaller or larger than their
-         footprint (outside 0.85-1.6 of it on either axis), images reaching past the box their
+       - plants: every Plant-tagged entity (branch prefabs aside) has a width/height and
+         footprintOffset in entities.json, a rendered PNG and a rect, and was a real spawn.
+         Ceiling plants, footprints that differ from the collider rounding, and plants left
+         in the anim they spawned with are listed;
+       - an outlier scan, which fails nothing: images (plants included) much smaller or larger
+         than their footprint (outside 0.85-1.6 of it on either axis), images reaching past the box their
          anim's frames cover (child controllers, surroundings), clipped images, and connection
          sprites overhanging their cell. Those a human has accepted are listed in KnownOutliers
          with the reason, apart from new ones;
@@ -447,6 +451,8 @@ public static class OniExportCheck
     {
         public List<OniCheck> Out = new List<OniCheck>();
         public Dictionary<string, JObject> ByName = new Dictionary<string, JObject>(StringComparer.Ordinal);
+        // Plant-tagged entities from entities.json, branch prefabs left out, by prefab id.
+        public Dictionary<string, JObject> Plants = new Dictionary<string, JObject>(StringComparer.Ordinal);
         public Dictionary<string, string> SpriteOverhang = new Dictionary<string, string>(StringComparer.Ordinal);
         public JObject Report;
         public JObject Rects;
@@ -659,6 +665,88 @@ public static class OniExportCheck
         r.Out.Add(new OniCheck { Group = "info", Name = "connectables whose 15.png overhangs the cell", Status = "PASS", Detail = Sample(overhang) });
     }
 
+    // Plants: the website draws every Plant-tagged entity on the canvas the way it draws
+    // geysers, from ui_image/<id>.png placed by its ui_image_rects.json entry over the
+    // footprint the entity's width/height/footprintOffset declare (docs/EXPORT_SCHEMA.md,
+    // "Plant footprint"). The game-data export writes the footprint; the building-image tool
+    // renders the image and measures the rect against the same box. Branch prefabs
+    // (PlantBranch-tagged) are not drawn: the trees that carry them are rendered whole.
+    static void CheckPlants(Run r, string exportDir, string uiDir)
+    {
+        string path = Path.Combine(exportDir, "database", "entities.json");
+        if (!File.Exists(path))
+        {
+            r.Add("invariant", "database/entities.json is present", false, "missing");
+            return;
+        }
+        var list = ((JObject)Load(path))["entities"] as JArray;
+        if (list == null)
+        {
+            r.Add("invariant", "entities.json has an entities list", false, "missing");
+            return;
+        }
+        foreach (var e in list.OfType<JObject>())
+        {
+            var k = e["kPrefabID"] as JObject;
+            string name = Str(e["name"]);
+            if (name == null || k == null || !HasTag(k, "Plant") || HasTag(k, "PlantBranch")) continue;
+            r.Plants[name] = e;
+        }
+
+        var noFootprint = new List<string>();
+        var noRect = new List<string>();
+        var noImage = new List<string>();
+        var notSpawned = new List<string>();
+        var hanging = new List<string>();
+        var differs = new List<string>();
+        var defaultPose = new List<string>();
+        foreach (var kv in r.Plants)
+        {
+            JObject e = kv.Value;
+            double w, h, ox, oy;
+            var offset = e["footprintOffset"] as JObject;
+            if (!Number(e, "width", out w) || !Number(e, "height", out h) || w < 1 || h < 1
+                || offset == null || !Number(offset, "x", out ox) || !Number(offset, "y", out oy))
+            {
+                noFootprint.Add(kv.Key);
+            }
+            else
+            {
+                if (oy < 0) hanging.Add(kv.Key + " (" + w + "x" + h + " from (" + ox + "," + oy + "))");
+                var collider = e["kBoxCollider2D"] as JObject;
+                double cw, ch;
+                if (collider != null && Number(collider, "x", out cw) && Number(collider, "y", out ch)
+                    && (Math.Round(cw) != w || Math.Round(ch) != h))
+                    differs.Add(kv.Key + " (" + w + "x" + h + ", collider " + Math.Round(cw) + "x" + Math.Round(ch) + ")");
+            }
+
+            if (r.Rects != null && r.Rects[kv.Key] == null) noRect.Add(kv.Key);
+            if (!File.Exists(Path.Combine(uiDir, kv.Key + ".png"))) noImage.Add(kv.Key);
+            if (r.Report != null)
+            {
+                var entry = r.Report[kv.Key] as JObject;
+                if (entry == null) notSpawned.Add(kv.Key + " (no report entry)");
+                else
+                {
+                    if (Str(entry["render"]) != "spawned") notSpawned.Add(kv.Key + " (" + (Str(entry["render"]) ?? "<none>") + ")");
+                    if (Str(entry["pose"]) == "default") defaultPose.Add(kv.Key + " (" + (Str(entry["anim"]) ?? "no anim") + ")");
+                }
+            }
+        }
+        r.Add("invariant", "every plant has an integer width/height and a footprintOffset", noFootprint.Count == 0, Sample(noFootprint));
+        r.Add("invariant", "every plant has ui_image/<name>.png", noImage.Count == 0, Sample(noImage));
+        if (r.Rects != null)
+            r.Add("invariant", "every plant has a ui_image_rects.json entry", noRect.Count == 0, Sample(noRect));
+        if (r.Report != null)
+            r.Add("invariant", "every rendered plant is a real spawn", notSpawned.Count == 0, Sample(notSpawned));
+        else
+            r.Out.Add(new OniCheck { Group = "invariant", Name = "every rendered plant is a real spawn", Status = "SKIP", Detail = "no building_image_report.json to read" });
+        r.Out.Add(new OniCheck { Group = "info", Name = "plants", Status = "PASS", Detail = r.Plants.Count.ToString() });
+        r.Out.Add(new OniCheck { Group = "info", Name = "plants hanging below their cell", Status = "PASS", Detail = Sample(hanging) });
+        r.Out.Add(new OniCheck { Group = "info", Name = "plants whose footprint differs from the collider rounding", Status = "PASS", Detail = Sample(differs) });
+        r.Out.Add(new OniCheck { Group = "info", Name = "plants posed in the anim they spawned with (no grown anim found)", Status = "PASS", Detail = Sample(defaultPose) });
+    }
+
     // building_image_report.json says how the building-image sweep made each image. The sweep
     // writes it and ui_image_rects.json from the same renders, so they cover the same prefabs.
     // An image whose art reached the canvas edge was cut off, and its rect describes the cut
@@ -764,6 +852,17 @@ public static class OniExportCheck
         { "UnderwaterVentDrill", "idle pose: the drill hangs above the bottom of its footprint" },
         { "WallToilet", "wall-mounted: the bowl stands out of the wall" },
         { "WaterCooler", SmallArt },
+        // Plants, judged from the 2026-11-07 runs: wild art is drawn as the game draws it.
+        { "BlueGrass", BigArt },
+        { "CritterTrapPlant", "idle_open pose: the open trap spreads wide and flat, as in game" },
+        { "Dinofern", BigArt },
+        { "FilterPlant", SmallArt },
+        { "GardenDecorPlant", SmallArt },
+        { "GasGrass", BigArt },
+        { "SaltySticksPlant", SmallArt },
+        { "SeaLettuce", SmallArt },
+        { "SpaceTree", "trunk and five bare branches (fill frame 0, flower meters hidden) inside the 3x3 canopy box" },
+        { "VineMother", BigArt },
     };
 
     // An image this much smaller or larger than its footprint, on either axis, is worth a look:
@@ -794,6 +893,18 @@ public static class OniExportCheck
             double w, h, cw, ch;
             if (rect == null || !Number(rect, "w", out w) || !Number(rect, "h", out h)) continue;
             if (!Number(kv.Value, "widthInCells", out cw) || !Number(kv.Value, "heightInCells", out ch) || cw <= 0 || ch <= 0) continue;
+            double fx = w / cw, fy = h / ch;
+            if (fx < FillMin || fx > FillMax || fy < FillMin || fy > FillMax)
+                add(kv.Key, string.Format("image is {0:F2} x {1:F2} cells on a {2}x{3} footprint", w, h, cw, ch));
+        }
+
+        // Plants likewise, against the footprint entities.json declares.
+        foreach (var kv in r.Plants)
+        {
+            var rect = r.Rects == null ? null : r.Rects[kv.Key] as JObject;
+            double w, h, cw, ch;
+            if (rect == null || !Number(rect, "w", out w) || !Number(rect, "h", out h)) continue;
+            if (!Number(kv.Value, "width", out cw) || !Number(kv.Value, "height", out ch) || cw <= 0 || ch <= 0) continue;
             double fx = w / cw, fy = h / ch;
             if (fx < FillMin || fx > FillMax || fy < FillMin || fy > FillMax)
                 add(kv.Key, string.Format("image is {0:F2} x {1:F2} cells on a {2}x{3} footprint", w, h, cw, ch));
@@ -1038,6 +1149,7 @@ public static class OniExportCheck
             r.Missing("connection_sprites is present", "absent: the connection-sprite tool has not run on this export", allowPartial);
         }
 
+        CheckPlants(r, exportDir, uiDir);
         Outliers(r);
 
         r.Out.Add(new OniCheck { Group = "info", Name = "buildings", Status = "PASS", Detail = r.ByName.Count.ToString() });

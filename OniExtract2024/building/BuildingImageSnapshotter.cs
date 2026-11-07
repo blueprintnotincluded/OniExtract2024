@@ -48,17 +48,22 @@ namespace OniExtract2024.building
         // cellW/cellH override the footprint derived from the Building component. Terrain
         // features (geysers, vents, volcanoes) are not BuildingDefs and carry no Building,
         // so the caller passes their KBoxCollider2D extents; pass -1 to derive as usual.
+        // `footprint` places that footprint relative to the object's cell when it is not the
+        // standard building box (a hanging plant, a tree with its canopy); null for standard.
         // `report` receives how the image was made, keyed like `rects`; `render` says whether
-        // this object is a real spawn or an art-only stand-in.
+        // this object is a real spawn or an art-only stand-in; `plant` poses it with the plant
+        // rule (PlantPose) instead of the building one (ActivePose).
         public void StartExport(string outputDir, IDictionary<string, UiImageRect> rects = null,
             int cellW = -1, int cellH = -1,
-            IDictionary<string, BuildingImageReportEntry> report = null, string render = "spawned")
+            IDictionary<string, BuildingImageReportEntry> report = null, string render = "spawned",
+            CellBox? footprint = null, bool plant = false)
         {
-            StartCoroutine(DoExport(outputDir, rects, cellW, cellH, report, render));
+            StartCoroutine(DoExport(outputDir, rects, cellW, cellH, report, render, footprint, plant));
         }
 
         private IEnumerator DoExport(string outputDir, IDictionary<string, UiImageRect> rects,
-            int cellW, int cellH, IDictionary<string, BuildingImageReportEntry> report, string render)
+            int cellW, int cellH, IDictionary<string, BuildingImageReportEntry> report, string render,
+            CellBox? footprint, bool plant)
         {
             yield return new WaitForSecondsRealtime(0.1f);
 
@@ -69,9 +74,16 @@ namespace OniExtract2024.building
 
                 if (kpid != null && kbac != null)
                 {
-                    string pose = PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH, out var considered);
+                    string pose = plant
+                        ? PosePlant(kbac, kpid.PrefabTag.Name, out var considered)
+                        : PoseActive(kbac, kpid.PrefabTag.Name, cellW, cellH, out considered);
+                    // Stand-ins a canopy added (PlantCanopy) are posed after the root, each in
+                    // its own anim; a child controller is otherwise never driven, since that
+                    // stamps a copy of the root's art at the child's offset.
+                    foreach (var standIn in GetComponentsInChildren<PosedStandIn>())
+                        PoseController(standIn.GetComponent<KBatchedAnimController>(), standIn.anim, standIn.frame);
                     var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH,
-                        artOnly: render == "artOnly");
+                        artOnly: render == "artOnly", footprintBox: footprint);
                     if (entry != null && report != null)
                     {
                         entry.pose = pose;
@@ -101,11 +113,14 @@ namespace OniExtract2024.building
         // `render` left for the caller, or null when nothing was written.
         //
         // overrideCellW/H supply the footprint for objects with no Building component (terrain
-        // features); pass -1 to derive it from the Building as usual. artOnly marks a stand-in
-        // that never ran OnSpawn (see PrepareForSnapshot).
+        // features); pass -1 to derive it from the Building as usual. footprintBox places it
+        // when it is not the standard building box about the object's cell (plants); it takes
+        // precedence over the cell sizes. artOnly marks a stand-in that never ran OnSpawn (see
+        // PrepareForSnapshot).
         public static BuildingImageReportEntry RenderAndWrite(GameObject go, string outputDir,
             IDictionary<string, UiImageRect> rects = null,
-            int overrideCellW = -1, int overrideCellH = -1, bool artOnly = false)
+            int overrideCellW = -1, int overrideCellH = -1, bool artOnly = false,
+            CellBox? footprintBox = null)
         {
             var kpid = go.GetComponent<KPrefabID>();
             if (kpid == null) return null;
@@ -115,9 +130,12 @@ namespace OniExtract2024.building
             var building = go.GetComponent<Building>();
             int cellW = overrideCellW > 0 ? overrideCellW : (building != null ? building.Def.WidthInCells : 1);
             int cellH = overrideCellH > 0 ? overrideCellH : (building != null ? building.Def.HeightInCells : 1);
+            CellBox box = footprintBox ?? CellBox.Standard(cellW, cellH);
+            cellW = box.w;
+            cellH = box.h;
 
             var rootKbac = go.GetComponent<KBatchedAnimController>();
-            Vector3 footprint = BuildingKanimRenderer.FootprintBottomLeft(go.transform.GetPosition(), cellW);
+            Vector3 footprint = BuildingKanimRenderer.FootprintBottomLeft(go.transform.GetPosition(), box);
             bool hasBox = TryGetDrawnBox(go, footprint, out UiImageRect animBox);
             RenderCanvas canvas = hasBox
                 ? RenderCanvas.ForBox(cellW, cellH, BuildingKanimRenderer.PixelsPerCell, animBox)
@@ -419,6 +437,55 @@ namespace OniExtract2024.building
             PoseController(rootKbac, anim, -1);
             if (anim == null) considered = null;
             return anim != null ? "auto" : "default";
+        }
+
+        // Poses a plant in its grown look: pose_overrides.json first, as for buildings; then
+        // the anim the plant's own StandardCropPlant anim set names as its fully grown state
+        // (idle_full for most crops, basic_idle_full for Wormwood), which is what the game
+        // plays once the plant has grown; otherwise PlantPose.Choose over the anim names.
+        // Returns where the pose came from, and what was weighed, for the report: the score
+        // there is PlantPose.Rank, or 500 for the anim set's own grown anim.
+        private string PosePlant(KBatchedAnimController rootKbac, string prefabId,
+            out SortedDictionary<string, PoseCandidate> considered)
+        {
+            considered = null;
+            if (BuildingPoseOverrides.TryGet(prefabId, out var pose))
+            {
+                PoseController(rootKbac, pose.Anim, pose.Frame);
+                return "override";
+            }
+
+            List<string> names = GetAnimNames(rootKbac) ?? new List<string>();
+            considered = new SortedDictionary<string, PoseCandidate>(StringComparer.Ordinal);
+            foreach (string name in names)
+            {
+                int rank = PlantPose.Rank(name);
+                if (rank > 0) considered[name] = new PoseCandidate { score = rank };
+            }
+
+            string anim = null;
+            bool lastFrame = false;
+            var crop = GetComponent<StandardCropPlant>();
+            string grown = crop != null && crop.anims != null ? crop.anims.idle_full : null;
+            if (!string.IsNullOrEmpty(grown) && rootKbac.HasAnimation(grown))
+            {
+                anim = grown;
+                considered[anim] = new PoseCandidate { score = 500 };
+            }
+            else
+            {
+                PlantPose.Choice choice = PlantPose.Choose(names);
+                anim = choice.Anim;
+                lastFrame = choice.LastFrame;
+            }
+            if (anim == null)
+            {
+                considered = null;
+                return "default";
+            }
+            // The last frame of a grow anim is the grown plant; PercentForFrame clamps.
+            PoseController(rootKbac, anim, lastFrame ? int.MaxValue : -1);
+            return "auto";
         }
 
         // Poses an off-screen controller at a specific anim + frame so the chosen frame

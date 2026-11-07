@@ -5,12 +5,14 @@ Read before changing the render path, the pose selection, or how `uiImageRect` r
 
 ## What this directory does
 
-Re-renders every buildable building, plus a fixed list of terrain features (geysers, vents,
-volcanoes, the oil reservoir; `TerrainFeaturePrefabNames`), as a hi-res icon from its **live
-kanim**, at 200 px/cell, and overwrites the low-res atlas sprites the game-data export wrote
-to `ui_image/`. Terrain features have no `Building`, so their footprint comes from
-`KBoxCollider2D` and their rect reaches the website only through `ui_image_rects.json`. It runs
-as its own in-game tool (Esc → *Export Building Images*), separate from *Export Game Data*.
+Re-renders every buildable building, a fixed list of terrain features (geysers, vents,
+volcanoes, the oil reservoir; `TerrainFeaturePrefabNames`) and every `Plant`-tagged prefab,
+as a hi-res icon from its **live kanim**, at 200 px/cell, and overwrites the low-res atlas
+sprites the game-data export wrote to `ui_image/`. Terrain features and plants have no
+`Building`, so their footprint comes from `KBoxCollider2D` (terrain) or `OccupyArea`
+(plants, `PlantFootprint`) and their rect reaches the website only through
+`ui_image_rects.json`. It runs as its own in-game tool (Esc → *Export Building Images*),
+separate from *Export Game Data*.
 
 | File | Role |
 |---|---|
@@ -18,7 +20,8 @@ as its own in-game tool (Esc → *Export Building Images*), separate from *Expor
 | `BuildingImageSnapshotter.cs` | Per-building: poses the kanim, sizes the canvas from the anim, snapshots at 200 px/cell, trims to the opaque bbox, writes `ui_image/{prefabId}.png`. |
 | `BuildingKanimRenderer.cs` | The shared camera + RenderTexture pipeline, used by both the sweep and the inspector. |
 | `BuildingImageReport.cs` | Writes `export/building_image_report.json`: how each image was made. See below. |
-| `OniExtract2024.Core/RenderCanvas.cs`, `ActivePose.cs` | The pure halves, unit-tested in CI: canvas layout, edge contact and rect mapping; the pose rule. |
+| `OniExtract2024.Core/RenderCanvas.cs`, `ActivePose.cs`, `PlantPose.cs`, `CellBox.cs` | The pure halves, unit-tested in CI: canvas layout, edge contact and rect mapping; the building pose rule; the plant pose rule; a footprint as a box of cells about the object's cell. |
+| `PlantFootprint.cs`, `PlantCanopy.cs` | A plant's occupied box, and the branch stand-ins that make a tree's image whole. See "Plants" below. |
 | `BuildingSpawnFilter.cs` | **Single source of truth** for "can this building be spawned and rendered outside its normal context?" (`IsRenderable`) and "does it have art to render at all?" (`HasArt`). Used by the sweep *and* the inspector's chooser. |
 | `BuildingPoseOverrides.cs` | `Overrides` dictionary of hand-picked anim+frame per building, plus percent↔frame helpers. |
 | `BuildingPoseInspectorScreen.cs` | In-game pose-picker UI for populating that dictionary. |
@@ -109,16 +112,70 @@ So the sweep picks its own spot (`SpawnArea.Find`, the search itself in Core as 
 the cell nearest the old spot (12 down and 12 left of the camera's centre) that stands on 3
 cells of **solid floor** (the cells the pump and the fountain look down from), has 7×6 cells of
 **gas or vacuum** above (the largest footprint; nothing spawns into rock or liquid, where
-buildings that set cells solid would change the world), and has **no building or geyser drawn
-by kanim** and **nothing unrevealed** in a 17×15-cell box around it. Plants, debris and
-critters do not count: they never share a render batch with a building. Natural cave floors
-qualify; the player prepares nothing. Player.log says where it spawned and how many cells
-passed each test; when the world has no such spot, the old one is used and the closing message
-says so. The connection-sprite tool uses the same spot. The first version also counted plants
-and debris and asked for 9×8 cells of air, and found nothing in a lived-in colony.
+buildings that set cells solid would change the world), and has **no building, geyser or
+plant drawn by kanim** and **nothing unrevealed** in a 17×15-cell box around it. Debris and
+critters do not count: they never share a render batch with a building or plant. Plants
+count since the sweep renders plants: a wild Bluff Briar in the chunk would be drawn into the
+Bluff Briar's image. Natural cave floors qualify; the player prepares nothing. Player.log says
+where it spawned and how many cells passed each test; when the world has no such spot, the
+old one is used and the closing message says so. The connection-sprite tool uses the same
+spot. The first version also counted debris and asked for 9×8 cells of air, and found nothing
+in a lived-in colony.
 
 Status icons (no power, unreachable, ...) are not this problem: the game draws them as UI, and
 the renderer only draws kanim batches.
+
+## Plants
+
+The website draws wild plants on the blueprint canvas as it draws geysers, so every
+`Plant`-tagged prefab goes through the terrain-feature path: `Util.KInstantiate` +
+`SetActive`, posed, rendered, measured, destroyed. Four things differ from a geyser.
+
+- **The footprint is the plant's own occupied box, not the collider.** `PlantFootprint` boxes
+  the `OccupyArea` offsets. A standing plant's box is the standard one (its cell in the bottom
+  row, `CellBox.Standard`); a ceiling plant's (`EntityTemplates.MakeHangingOffsets`) starts
+  `height-1` cells *below* its cell. The rect is measured against that box
+  (`BuildingKanimRenderer.FootprintBottomLeft(pos, CellBox)`), and the game-data export writes
+  the same box onto the plant's `entities.json` entry as `width`, `height` and
+  `footprintOffset`, so the website places the image where the game puts the plant.
+- **The pose is the grown plant** (`PlantPose`, not `ActivePose`): `pose_overrides.json` first;
+  then the anim the plant's own `StandardCropPlant.anims.idle_full` names, which is what the
+  game loops once the crop has grown (Wormwood's is `basic_idle_full`); otherwise
+  `idle_full` > `grown` > `idle` > the highest-numbered other idle state > the last frame of
+  `grow`. Nothing marked seed, empty, half, wilt, dead, harvest, sleep, hidden or a transition
+  is ever posed, nor `ui` (see above) or `place`. The report lists what was ranked, with the
+  rank as `score`, and `Test-Export` lists any plant left in the anim it spawned with.
+  Offline, against every plant kanim of U59-744825, this picks `idle_full` for every crop,
+  `idle` for the decor plants (Bluff Briar family), `idle_open` for the Saturn Critter Trap,
+  `idle_loop` for the Flue Coral and `grown` for the Bonbon Tree's trunk.
+- **A plant must not uproot itself.** `UprootedMonitor` checks the cells it monitors on spawn
+  (the floor for most plants, the ceiling for a hanging one, the backwall for the Prehistoric
+  Planet corals and urchins) and a plant with no suitable cell there marks itself uprooted; a
+  crop then dies, spawns a `PlantDeathFx` that lingers on screen while the game is paused, and
+  destroys itself, and the sweep reports it spawned-but-not-rendered. The spawn site has a
+  floor but no ceiling or backwall, so the sweep gives the clone no monitored cells, a
+  configuration the game itself uses for vine branches. That has to happen *after*
+  `SetActive`: a config's `OnPrefabInit` runs inside it and `ExtendPlantEntityToRequireBackwall`
+  sets the cells there, while the monitor only reads them in `OnSpawn`, a frame later.
+  Temperature, pressure and wilt only wilt a plant, and the pose step runs after.
+- **An inactive prefab's controller has no anim table.** `KAnimControllerBase.HasAnimation`
+  reads a dictionary filled when the controller awakes, so on a prefab it is false for every
+  anim. Ask the kanim files instead (`KAnimFile.GetData().GetAnim(name)`), as `PlantCanopy`
+  does for the branch anims.
+- **Trees with branches are drawn whole.** The Arbor Tree and Bonbon Tree spawn their branches
+  as separate `PlantBranch`-tagged prefabs at offsets fixed in the trunk's
+  `PlantBranchGrower.Def`, and a branch without a trunk state machine destroys itself. So the
+  branch prefabs are never rendered, and `PlantCanopy` adds one art stand-in per branch
+  offset to the spawned trunk (`CreateArtStandIn`, the same entity as art-only buildings,
+  parented so the snapshotter draws and destroys them with it), placed and offset as the
+  branch config places a live branch and posed by `PosedStandIn` in that branch's grown anim:
+  the Arbor Tree's `branch_a..g_idle_full`, the Bonbon Tree's `grow_fill_branch_b..f` at
+  frame 0 with its leaves-meter placeholders hidden. All offsets are drawn, where a live tree
+  carries at most `MAX_BRANCH_COUNT` of them at random (five of the Arbor Tree's seven), so
+  the icon is the full canopy and the footprint is the whole tree (3×3). The Ovagro Node and
+  Tower Kelp grow branches along whatever terrain is there, with no fixed offsets, and are
+  drawn as their trunk alone. Stand-ins are placed relative to the trunk's transform, not the
+  grid cell: the sweep spawns half a cell off the grid.
 
 ## `building_image_report.json`
 

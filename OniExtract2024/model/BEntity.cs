@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace OniExtract2024
 {
@@ -110,6 +111,18 @@ namespace OniExtract2024
         //public InfoDescription infoDescription;
         //public Notifier notifier;
         public BVector2 kBoxCollider2D;
+        // The footprint of a Plant-tagged entity, in whole cells: the box of its OccupyArea
+        // offsets (plus the branch offsets of a tree the building-image tool draws whole), the
+        // same box its uiImageRect in ui_image_rects.json is measured against. footprintOffset
+        // is the box's bottom-left cell relative to the plant's own cell: (-floor((w-1)/2), 0)
+        // for a plant standing on its cell, (0, 1-h) for a ceiling plant hanging from it. PRESENT
+        // ONLY on plants; omitted otherwise, never null. See docs/EXPORT_SCHEMA.md.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int? width;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int? height;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public CellOffset? footprintOffset;
         //public OccupyArea occupyArea;
         public OutDecorProvider decorProvider;
         public OutDecorToggler decorToggler;

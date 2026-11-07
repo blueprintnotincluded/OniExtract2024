@@ -14,7 +14,7 @@ namespace OniExtract2024.building
     /// building off-screen, renders it at 200 px/cell via BuildingImageSnapshotter,
     /// and writes ui_image/{prefabId}.png — overwriting the low-res atlas icons
     /// produced by the game-data export. Also handles terrain features (geysers, vents,
-    /// volcanoes) which export their icons but need rects measured in-game.
+    /// volcanoes) and plants, which export their icons but need rects measured in-game.
     ///
     /// Run order: Export Game Data first (all icons), then this in-game
     /// pass (overwrites building icons with hi-res kanim renders, adds terrain rects).
@@ -202,9 +202,66 @@ namespace OniExtract2024.building
                         notRendered.Add(prefabName);
                 }
 
+                // Plants: every Plant-tagged prefab, which the website draws on the canvas as
+                // it draws geysers, so they go through the same spawn-and-measure path. Branch
+                // prefabs (ForestTreeBranch and the like, PlantBranch-tagged) are left out: a
+                // branch cannot stand without a trunk, and the trees that have fixed branch
+                // offsets are drawn whole, trunk and canopy, instead (PlantCanopy). The
+                // footprint is the plant's own occupied box (PlantFootprint): a ceiling plant's
+                // hangs below its cell, a tree's takes in its branches.
+                int plantExported = 0, plantSkipped = 0, canopies = 0;
+                var plantIds = new List<string>();
+                foreach (KPrefabID kpid in Assets.Prefabs)
+                    if (kpid != null && kpid.HasTag(GameTags.Plant) && !kpid.HasTag(GameTags.PlantBranch))
+                        plantIds.Add(kpid.PrefabTag.Name);
+                plantIds.Sort(StringComparer.Ordinal);
+                foreach (string prefabName in plantIds)
+                {
+                    GameObject prefab = Assets.TryGetPrefab(prefabName);
+                    if (prefab == null || !PlantFootprint.TryMeasure(prefab, out CellBox footprint))
+                    {
+                        Debug.LogWarning("OniExtract: no footprint for plant " + prefabName);
+                        plantSkipped++;
+                        continue;
+                    }
+
+                    GameObject temp = Util.KInstantiate(prefab, spawnPos, Quaternion.identity);
+                    if (temp == null)
+                    {
+                        plantSkipped++;
+                        continue;
+                    }
+                    temp.SetActive(true);
+                    // A plant uproots itself, and a crop then dies and destroys itself, when
+                    // the cells it monitors are not solid: the floor for most, the ceiling for
+                    // a hanging plant, which the spawn site has no ceiling for, the backwall
+                    // behind it for the Prehistoric Planet corals and urchins. Monitoring no
+                    // cells is a configuration the game itself uses (VineBranch). The monitor
+                    // reads its cells in OnSpawn, a frame after SetActive, but a config's
+                    // OnPrefabInit runs inside SetActive and may set the cells afresh
+                    // (ExtendPlantEntityToRequireBackwall does), so clear them after it.
+                    var uprootedMonitor = temp.GetComponent<UprootedMonitor>();
+                    if (uprootedMonitor != null)
+                        uprootedMonitor.SetNewMonitorCells(new CellOffset[0]);
+                    if (PlantCanopy.Attach(temp) > 0)
+                        canopies++;
+
+                    var snapshotter = temp.AddOrGet<BuildingImageSnapshotter>();
+                    snapshotter.StartExport(OutputDir, Rects, footprint.w, footprint.h, Report, "spawned",
+                        footprint: footprint, plant: true);
+                    while (!temp.IsNullOrDestroyed())
+                        yield return null;
+                    if (Rects.ContainsKey(prefabName))
+                        plantExported++;
+                    else
+                        notRendered.Add(prefabName);
+                }
+
                 Debug.Log("OniExtract: building-image export complete -> " + exported + " exported ("
                     + artOnly + " of them art-only), " + skipped + " skipped.");
                 Debug.Log("OniExtract: terrain-feature export complete -> " + terrainExported + " exported, " + terrainSkipped + " skipped.");
+                Debug.Log("OniExtract: plant export complete -> " + plantExported + " exported (" + canopies
+                    + " of them with their branches), " + plantSkipped + " skipped.");
                 if (notRendered.Count > 0)
                     Debug.LogWarning("OniExtract: spawned but not rendered (no image written): " + string.Join(", ", notRendered));
 
@@ -226,8 +283,8 @@ namespace OniExtract2024.building
                 if (clipped.Count > 0)
                     Debug.LogWarning("OniExtract: clipped at the canvas edge: " + string.Join(", ", clipped));
 
-                summary = "Building images exported: " + exported + " buildings and "
-                    + terrainExported + " terrain features rendered"
+                summary = "Building images exported: " + exported + " buildings, "
+                    + terrainExported + " terrain features and " + plantExported + " plants rendered"
                     + (notRendered.Count > 0 ? ", " + notRendered.Count + " spawned but not rendered" : "")
                     + (clipped.Count > 0 ? ", " + clipped.Count + " clipped" : "")
                     + ".\n" + OutputDir
@@ -386,22 +443,10 @@ namespace OniExtract2024.building
         internal static GameObject CreateArtOnly(BuildingDef def, Vector3 pos)
         {
             var source = def.BuildingComplete.GetComponentInChildren<KBatchedAnimController>(true);
-            GameObject template = Assets.GetPrefab(EffectConfigs.EffectTemplateId);
-            if (source == null || template == null) return null;
-
-            GameObject go = GameUtil.KInstantiate(template, pos, def.SceneLayer);
-            go.name = def.PrefabID;
-            go.GetComponent<KPrefabID>().PrefabTag = def.Tag;
-
+            if (source == null) return null;
+            GameObject go = CreateArtStandIn(source, pos, def.SceneLayer, def.PrefabID, def.Tag, def.AnimFiles);
+            if (go == null) return null;
             var kbac = go.GetComponent<KBatchedAnimController>();
-            kbac.AnimFiles = def.AnimFiles;
-            // EffectTemplate draws with the Simple material; buildings use Default.
-            kbac.materialType = source.materialType;
-            kbac.initialAnim = source.initialAnim;
-            kbac.initialMode = KAnim.PlayMode.Paused;
-            kbac.fgLayer = source.fgLayer;
-            kbac.animScale = source.animScale;
-            go.SetActive(true);
 
             // A spawned building's art is centred on its footprint: BuildingComplete.OnPrefabInit
             // (or Rotatable.OnSpawn, the same value at neutral orientation) gives the controller
@@ -414,6 +459,32 @@ namespace OniExtract2024.building
             Vector3 offset = def.GetVisualizerOffset();
             if (offset != Vector3.zero)
                 kbac.Offset = offset;
+            return go;
+        }
+
+        // The EffectTemplate entity described above, carrying `source`'s kanim (or `animFiles`
+        // when given) and controller settings, named and tagged as `name`/`tag`, placed at `pos`
+        // on `layer`, live. The art-only building above and a tree's branch stand-ins
+        // (PlantCanopy) are both made here.
+        internal static GameObject CreateArtStandIn(KBatchedAnimController source, Vector3 pos,
+            Grid.SceneLayer layer, string name, Tag tag, KAnimFile[] animFiles = null)
+        {
+            GameObject template = Assets.GetPrefab(EffectConfigs.EffectTemplateId);
+            if (source == null || template == null) return null;
+
+            GameObject go = GameUtil.KInstantiate(template, pos, layer);
+            go.name = name;
+            go.GetComponent<KPrefabID>().PrefabTag = tag;
+
+            var kbac = go.GetComponent<KBatchedAnimController>();
+            kbac.AnimFiles = animFiles ?? source.AnimFiles;
+            // EffectTemplate draws with the Simple material; buildings use Default.
+            kbac.materialType = source.materialType;
+            kbac.initialAnim = source.initialAnim;
+            kbac.initialMode = KAnim.PlayMode.Paused;
+            kbac.fgLayer = source.fgLayer;
+            kbac.animScale = source.animScale;
+            go.SetActive(true);
             return go;
         }
 
