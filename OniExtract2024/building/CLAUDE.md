@@ -203,6 +203,11 @@ building's anim files, prefab tag and controller settings, and places it the way
 overrides included. A building with no kanim on `BuildingComplete` (plain tiles, drawn by
 `BlockTileRenderer`) is the only case left on the atlas icon.
 
+A real spawn that draws nothing falls back to art-only too, with a warning in Player.log
+(FishFeeder since U60). Buildings that write world cells when they spawn, such as Natural
+Construction's tiles, are never spawned at all (`BuildingSpawnFilter.WorldWritingComponents`):
+spawning one put a Neutronium tile into the player's colony.
+
 The cost: art-only cannot show anything a building adds at spawn time, such as meters, child
 controllers or symbols toggled in `OnSpawn`. If one of these renders wrong, fix the pose or the
 symbols there. Do not loosen `IsRenderable`. Two such fixes are in place:

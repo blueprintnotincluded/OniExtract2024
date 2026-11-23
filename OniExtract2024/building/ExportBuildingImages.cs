@@ -146,6 +146,23 @@ namespace OniExtract2024.building
                     // after KDestroyGameObject — the while loop handles this robustly.
                     while (!temp.IsNullOrDestroyed())
                         yield return null;
+
+                    // A real spawn that drew nothing (FishFeeder on U60) still has art: draw
+                    // that art-only rather than leave the atlas icon behind.
+                    if (spawned && !Rects.ContainsKey(def.PrefabID) && BuildingSpawnFilter.HasArt(def))
+                    {
+                        Debug.LogWarning("OniExtract: " + def.PrefabID + " drew nothing when spawned; rendering it art-only.");
+                        spawned = false;
+                        temp = CreateArtOnly(def, spawnPos);
+                        if (temp != null)
+                        {
+                            temp.AddOrGet<BuildingImageSnapshotter>().StartExport(OutputDir, Rects,
+                                def.WidthInCells, def.HeightInCells, Report, "artOnly");
+                            while (!temp.IsNullOrDestroyed())
+                                yield return null;
+                        }
+                    }
+
                     // The snapshotter records a rect exactly when it writes the PNG, so the
                     // rect is the evidence that this building was exported.
                     if (Rects.ContainsKey(def.PrefabID))
