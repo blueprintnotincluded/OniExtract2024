@@ -88,7 +88,31 @@ namespace OniExtract2024.building
             if (HasSMDef<RocketUsageRestriction.Def>(def.BuildingComplete))
                 return false;
 
+            // Buildings that turn into world cells when completed: spawning one writes a
+            // natural tile or backwall, of the sweep's Unobtanium (Neutronium), into the
+            // player's colony, then deletes itself, leaving nothing to render.
+            if (HasComponentNamed(def.BuildingComplete, WorldWritingComponents))
+                return false;
+
             return true;
+        }
+
+        // Mod components, matched by type name because this mod does not reference them.
+        // CompleteBuildingNaturalSpawner: Sgt_Imalas's Natural Construction
+        //   (NC_NaturalTile, NC_NaturalBackwall).
+        private static readonly HashSet<string> WorldWritingComponents = new HashSet<string>
+        {
+            "CompleteBuildingNaturalSpawner",
+        };
+
+        private static bool HasComponentNamed(GameObject go, HashSet<string> typeNames)
+        {
+            foreach (var c in go.GetComponentsInChildren<Component>(true))
+            {
+                if (c != null && typeNames.Contains(c.GetType().Name))
+                    return true;
+            }
+            return false;
         }
 
         // Returns true if the building's StateMachineController has a def of type T
