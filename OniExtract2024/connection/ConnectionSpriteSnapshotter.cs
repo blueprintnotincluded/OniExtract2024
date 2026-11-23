@@ -10,6 +10,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using OniExtract2024.building;
 using System.Linq;
 using HarmonyLib;
 using UnityEngine;
@@ -77,15 +78,26 @@ namespace OniExtract2024.connection
             for (int i = 0; i <= 15; i++)
             {
                 string animation = mgr.GetVisualizerString((UtilityConnections)i);
+                // The spawn spot is off-screen, so the controller is flagged not-visible
+                // and, since U60, skips its vertex write: every shot came out blank. Pose
+                // and flush it the way the building-image sweep does.
                 if (!string.IsNullOrEmpty(animation) && kbac.HasAnimation(animation))
-                {
-                    kbac.Play(animation);
-                }
+                    BuildingImageSnapshotter.PoseController(kbac, animation, 0);
+                else
+                    Flush(kbac);
                 yield return null;
                 shots[i] = SnapShot();
             }
 
             WroteSprites = CropAndWrite(prefabId, dir, shots, out int side);
+            if (!WroteSprites)
+            {
+                KAnimBatch batch = GetBatch(kbac);
+                Debug.LogWarning("OniExtract: connection sprites for " + prefabId + " were blank; not written"
+                    + " (visible=" + kbac.IsVisible()
+                    + ", batch=" + (batch == null ? "null" : "size " + batch.size + ", active " + batch.active)
+                    + ", in an active set=" + (batch != null && FindOwningSet(batch) != null) + ").");
+            }
             if (WroteSprites)
             {
                 var building = GetComponent<Building>();
@@ -263,29 +275,37 @@ namespace OniExtract2024.connection
             return Traverse.Create(KAnimBatchManager.Instance()).Field("activeBatchSets").GetValue<List<BatchSet>>();
         }
 
+        // Forces an off-screen controller to write its current frame; see PoseController.
+        private static void Flush(KBatchedAnimController kbac)
+        {
+            kbac.SetVisiblity(true);
+            Traverse.Create(kbac).Property("forceRebuild").SetValue(true);
+            kbac.SetDirty();
+            Traverse.Create(kbac).Method("UpdateFrame", 0f).GetValue();
+        }
+
+        private static BatchSet FindOwningSet(KAnimBatch batch)
+        {
+            var sets = GetActiveBatchSets();
+            if (sets == null)
+                return null;
+            foreach (var set in sets)
+            {
+                for (int i = 0; i < set.batchCount; i++)
+                {
+                    if (set.GetBatch(i) == batch)
+                        return set;
+                }
+            }
+            return null;
+        }
+
         private static void RenderBatch(KAnimBatch batch, Camera camera, int layerOverride)
         {
             if (batch == null || batch.size == 0 || !batch.active || batch.materialType == KAnimBatchGroup.MaterialType.UI)
                 return;
 
-            BatchSet owningSet = null;
-            var sets = GetActiveBatchSets();
-            if (sets != null)
-            {
-                foreach (var set in sets)
-                {
-                    for (int i = 0; i < set.batchCount; i++)
-                    {
-                        if (set.GetBatch(i) == batch)
-                        {
-                            owningSet = set;
-                            break;
-                        }
-                    }
-                    if (owningSet != null)
-                        break;
-                }
-            }
+            BatchSet owningSet = FindOwningSet(batch);
             if (owningSet == null)
                 return;
 
