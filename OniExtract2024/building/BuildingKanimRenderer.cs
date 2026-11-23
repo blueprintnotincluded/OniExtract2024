@@ -131,6 +131,25 @@ namespace OniExtract2024.building
         private static KAnimBatch GetBatch(KBatchedAnimController kbac) =>
             Traverse.Create(kbac).Field("batch").GetValue<KAnimBatch>();
 
+        // Why a controller may have drawn nothing: what RenderBatch would see. For the
+        // "drew nothing when spawned" warning.
+        internal static string Describe(KBatchedAnimController kbac)
+        {
+            if (kbac == null) return "no controller";
+            var batch = GetBatch(kbac);
+            bool inSet = false;
+            var sets = GetActiveBatchSets();
+            if (batch != null && sets != null)
+                foreach (var set in sets)
+                    for (int i = 0; i < set.batchCount && !inSet; i++)
+                        inSet = set.GetBatch(i) == batch;
+            return kbac.name + ": anim " + (kbac.CurrentAnim != null ? kbac.CurrentAnim.name : "none")
+                + ", visible " + kbac.IsVisible() + ", enabled " + kbac.enabled
+                + ", active " + kbac.gameObject.activeInHierarchy
+                + ", batch " + (batch == null ? "null" : "size " + batch.size + " active " + batch.active
+                    + " material " + batch.materialType + " in an active set " + inSet);
+        }
+
         private static List<BatchSet> GetActiveBatchSets() =>
             Traverse.Create(KAnimBatchManager.Instance()).Field("activeBatchSets").GetValue<List<BatchSet>>();
 
