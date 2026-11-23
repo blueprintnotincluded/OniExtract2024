@@ -295,12 +295,14 @@ buildings with a `Ladder` component. It is not a full list of runtime tags.
 Spot checks (run by `tools/Test-Export.ps1`; layers by name through `objectLayerNames`):
 
 - `Tile`: `replaceable`; `tileLayer` `FoundationTile`; `replacementLayer` `ReplacementTile`;
-  candidates `FoundationTile`, `LadderTile`, `Backwall`; `replacementTags` `FloorTiles`,
-  `Ladders`, `Backwall`; `tags` has `FloorTiles`; no `runtimeTags`.
+  candidates `FoundationTile`, `LadderTile`; `replacementTags` `FloorTiles`, `Ladders`;
+  `tags` has `FloorTiles`; no `runtimeTags`. (Before U60 both lists also had `Backwall`:
+  since U60 a backwall can sit behind a tile, so neither replaces the other.)
 - `Ladder`: `tileLayer` `LadderTile`; `replacementLayer` `ReplacementLadder`; no
   `replacementCandidateLayers`; `replacementTags` `Ladders`; `runtimeTags` `Ladders`.
-- `ExteriorWall`: `replacementLayer` `ReplacementBackwall`; candidates `FoundationTile`,
-  `Backwall`; `replacementTags` `FloorTiles`, `Backwall`; no `tileLayer`.
+- `ExteriorWall`: `replacementLayer` `ReplacementBackwall`; candidates `Backwall`;
+  `replacementTags` `Backwall`; no `tileLayer`. (Before U60 also `FoundationTile` /
+  `FloorTiles`, and `buildLocationRule` was `NotInTiles`; it is now `Anywhere`.)
 - `Wire`: `tileLayer` `WireTile`; `replacementLayer` `ReplacementWire`; no `replacementTags`.
 - `PressureDoor`: `tileLayer` `FoundationTile`; no `replacementLayer`; `tags` has no
   `FloorTiles`.

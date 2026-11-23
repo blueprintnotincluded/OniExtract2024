@@ -1252,14 +1252,16 @@ public static class OniExportCheck
         // ---- docs/EXPORT_SCHEMA.md "Replacement fields" ----
         const string P = "replacement";
         Func<JToken, string> layer = t => LayerName(layerNames, t);
-        r.On(P, "Tile", "replaces FloorTiles/Ladders/Backwall on FoundationTile, LadderTile, Backwall", b =>
+        // Since U60 a backwall can sit behind a tile, so tiles and backwalls no longer
+        // replace each other.
+        r.On(P, "Tile", "replaces FloorTiles/Ladders on FoundationTile, LadderTile", b =>
         {
             if (!IsTrue(b["replaceable"])) return "replaceable is " + Short(b["replaceable"]);
             if (!HasTag(b, "FloorTiles")) return "tags has no FloorTiles";
             return LayerIs(layerNames, b, "tileLayer", "FoundationTile")
                 ?? LayerIs(layerNames, b, "replacementLayer", "ReplacementTile")
-                ?? ListIs(b, "replacementCandidateLayers", layer, "FoundationTile", "LadderTile", "Backwall")
-                ?? ListIs(b, "replacementTags", Str, "FloorTiles", "Ladders", "Backwall")
+                ?? ListIs(b, "replacementCandidateLayers", layer, "FoundationTile", "LadderTile")
+                ?? ListIs(b, "replacementTags", Str, "FloorTiles", "Ladders")
                 ?? Absent(b, "runtimeTags");
         });
         r.On(P, "Ladder", "replaces Ladders on its tileLayer, carries runtime tag Ladders", b =>
@@ -1270,11 +1272,11 @@ public static class OniExportCheck
                 ?? ListIs(b, "replacementTags", Str, "Ladders")
                 ?? ListIs(b, "runtimeTags", Str, "Ladders");
         });
-        r.On(P, "ExteriorWall", "replaces FloorTiles/Backwall on FoundationTile, Backwall", b =>
+        r.On(P, "ExteriorWall", "replaces Backwall on Backwall", b =>
         {
             return LayerIs(layerNames, b, "replacementLayer", "ReplacementBackwall")
-                ?? ListIs(b, "replacementCandidateLayers", layer, "FoundationTile", "Backwall")
-                ?? ListIs(b, "replacementTags", Str, "FloorTiles", "Backwall")
+                ?? ListIs(b, "replacementCandidateLayers", layer, "Backwall")
+                ?? ListIs(b, "replacementTags", Str, "Backwall")
                 ?? Absent(b, "tileLayer");
         });
         r.On(P, "Wire", "tileLayer WireTile, replacementLayer ReplacementWire, no replacementTags", b =>
