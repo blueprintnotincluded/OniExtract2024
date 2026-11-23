@@ -84,6 +84,10 @@ namespace OniExtract2024.building
                         PoseController(standIn.GetComponent<KBatchedAnimController>(), standIn.anim, standIn.frame);
                     var entry = RenderAndWrite(gameObject, outputDir, rects, cellW, cellH,
                         artOnly: render == "artOnly", footprintBox: footprint);
+                    if (entry == null)
+                        Debug.LogWarning("OniExtract: " + kpid.PrefabTag.Name + " (" + render + ") drew nothing; "
+                            + string.Join("; ", GetComponentsInChildren<KBatchedAnimController>(true)
+                                .Select(BuildingKanimRenderer.Describe).ToArray()));
                     if (entry != null && report != null)
                     {
                         entry.pose = pose;

@@ -138,7 +138,7 @@ namespace OniExtract2024
         //public KAnimControllerBase kAnimControllerBase;
         public OutTemperatureVulnerable temperatureVulnerable;
         public OutMutantPlant mutantPlant;
-        public Crop.CropVal? cropVal;
+        public Crop.CropVal cropVal;
         public OutGrowing growing;
         //public Harvestable harvestable;
         //public HarvestDesignatable harvestDesignatable;
